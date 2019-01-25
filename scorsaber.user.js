@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaber Enhancer
 // @namespace    https://scoresaber.com
-// @version      0.3
+// @version      0.4
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        https://scoresaber.com/*
@@ -138,7 +138,7 @@ function add_dl_link_leaderboard() {
     let dummy_div = document.createElement("div");
     details_box.removeChild(link_element);
     details_box.insertBefore(dummy_div, hr_elem);
-    m.render(dummy_div, [ bt_button, oc_button, bs_button ]);
+    m.render(dummy_div, [ bt_button, bs_button, oc_button ]);
 }
 
 var UserCompare = {
