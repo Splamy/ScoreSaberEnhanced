@@ -29,28 +29,32 @@ async function get_id(link) {
 }
 
 function generate_beatsaver_button() {
-    let bs_button = document.createElement("div");
-    bs_button.style.cursor = "pointer";
-    bs_button.classList.add("pagination-link");
-    bs_button.innerText = "🔗";
-    return bs_button;
+    return m("div", {
+        class: "pagination-link",
+        style: {
+            cursor: "pointer",
+        }
+    }, "🔗");
 }
 
 function generate_oneclick_button() {
-    let oc_button = document.createElement("div");
-    oc_button.style.cursor = "pointer";
-    oc_button.classList.add("pagination-link");
-    oc_button.innerText = "💾";
-    return oc_button;
+    return m("div", {
+        class: "pagination-link",
+        style: {
+            cursor: "pointer",
+        }
+    }, "💾");
 }
 
 function generate_bsaber_button() {
-    let oc_button = document.createElement("a");
-    oc_button.style.cursor = "pointer";
-    oc_button.style.backgroundImage = "url(https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png)";
-    oc_button.style.backgroundSize = "contain";
-    oc_button.classList.add("pagination-link");
-    return oc_button;
+    return m("a", {
+        class: "pagination-link",
+        style: {
+            cursor: "pointer",
+            backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
+            backgroundSize: "contain",
+        }
+    });
 }
 
 function add_dl_link_user_site() {
@@ -75,6 +79,7 @@ function add_dl_link_user_site() {
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
         let table_col_th = document.createElement("th");
+        row.appendChild(table_col_th);
 
         // there's only one link, so 'a' will find it.
         /** @type {HTMLAnchorElement} */
@@ -97,9 +102,7 @@ function add_dl_link_user_site() {
         }
 
         // Add everything into the table
-        table_col_th.appendChild(bs_button);
-        table_col_th.appendChild(oc_button);
-        row.appendChild(table_col_th);
+        m.render(table_col_th, [bs_button, oc_button]);
     }
 }
 
@@ -115,29 +118,29 @@ function add_dl_link_leaderboard() {
     if (!link_element) {
         return;
     }
-    
+
     let id = bsaber_link_reg.exec(link_element.href)[1];
-    
+
     let bs_button = generate_beatsaver_button();
     bs_button.onclick = () => {
         window.open(beatsaver_link + id, '_blank');
     }
-    
+
     let oc_button = generate_oneclick_button();
     oc_button.onclick = () => {
         // @ts-ignore
         oneClick(this, id);
     }
-    
+
     let details_box = link_element.parentElement;
     let hr_elem = details_box.querySelector("hr");
 
     let bt_button = generate_bsaber_button();
     bt_button.href = link_element.href;
+    let dummy_div = document.createElement("div");
     details_box.removeChild(link_element);
-    details_box.insertBefore(bt_button, hr_elem);
-    details_box.insertBefore(bs_button, hr_elem);
-    details_box.insertBefore(oc_button, hr_elem);
+    details_box.insertBefore(dummy_div, hr_elem);
+    m.render(dummy_div, [ bt_button, oc_button, bs_button ]);
 }
 
 var UserCompare = {
