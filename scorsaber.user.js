@@ -28,32 +28,35 @@ async function get_id(link) {
     return id_result[1];
 }
 
-function generate_beatsaver_button() {
+function generate_beatsaver_button(click) {
     return m("div", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
-        }
+        },
+        onclick: click,
     }, "🔗");
 }
 
-function generate_oneclick_button() {
+function generate_oneclick_button(click) {
     return m("div", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
-        }
+        },
+        onclick: click,
     }, "💾");
 }
 
-function generate_bsaber_button() {
+function generate_bsaber_button(href) {
     return m("a", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
             backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
             backgroundSize: "contain",
-        }
+        },
+        href: href,
     });
 }
 
@@ -87,19 +90,17 @@ function add_dl_link_user_site() {
         let leaderboard_link = leaderboard_elem.href;
 
         // link to the website
-        let bs_button = generate_beatsaver_button();
-        bs_button.onclick = async () => {
+        let bs_button = generate_beatsaver_button(async () => {
             let id = await get_id(leaderboard_link);
             window.open(beatsaver_link + id, '_blank');
-        }
+        });
 
         // oneclick installer
-        let oc_button = generate_oneclick_button();
-        oc_button.onclick = async () => {
+        let oc_button = generate_oneclick_button(async () => {
             let id = await get_id(leaderboard_link);
             // @ts-ignore
             oneClick(this, id);
-        }
+        });
 
         // Add everything into the table
         m.render(table_col_th, [bs_button, oc_button]);
@@ -121,22 +122,19 @@ function add_dl_link_leaderboard() {
 
     let id = bsaber_link_reg.exec(link_element.href)[1];
 
-    let bs_button = generate_beatsaver_button();
-    bs_button.onclick = () => {
+    let bs_button = generate_beatsaver_button(() => {
         window.open(beatsaver_link + id, '_blank');
-    }
+    });
 
-    let oc_button = generate_oneclick_button();
-    oc_button.onclick = () => {
+    let oc_button = generate_oneclick_button(() => {
         // @ts-ignore
         oneClick(this, id);
-    }
+    });
 
     let details_box = link_element.parentElement;
     let hr_elem = details_box.querySelector("hr");
 
-    let bt_button = generate_bsaber_button();
-    bt_button.href = link_element.href;
+    let bt_button = generate_bsaber_button(link_element.href);
     let dummy_div = document.createElement("div");
     details_box.removeChild(link_element);
     details_box.insertBefore(dummy_div, hr_elem);
