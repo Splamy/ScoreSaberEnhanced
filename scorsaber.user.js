@@ -13,6 +13,7 @@
 // @require      https://beatsaver.com/js/oneclick.js
 // ==/UserScript==
 // @ts-check
+/// <reference path="./mithril.d.ts" />
 
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
