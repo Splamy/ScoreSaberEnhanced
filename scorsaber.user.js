@@ -8,6 +8,9 @@
 // @grant        none
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
+// @require      https://unpkg.com/mithril/mithril.js
+// @require      https://unpkg.com/sweetalert@2.1.2/dist/sweetalert.min.js
+// @require      https://beatsaver.com/js/oneclick.js
 // ==/UserScript==
 // @ts-check
 
@@ -167,26 +170,7 @@ function cache_user(id) {
     // https://scoresaber.com/u/76561198030404325&page=1&sort=2
 }
 
-function include_scripts() {
-    // Mitrhil to build our ui
-    let scriptMith = document.createElement('script');
-    scriptMith.src = "https://unpkg.com/mithril/mithril.js";
-    document.head.appendChild(scriptMith);
-
-    // OneClick script needs that
-    let scriptSwal = document.createElement('script');
-    scriptSwal.src = "https://unpkg.com/sweetalert@2.1.2/dist/sweetalert.min.js";
-    document.head.appendChild(scriptSwal);
-
-    // The OneClick script to directly download songs
-    let scriptOc = document.createElement('script');
-    //scriptOc.type = "text/babel";
-    scriptOc.src = "https://beatsaver.com/js/oneclick.js";
-    document.head.appendChild(scriptOc);
-}
-
 (function () {
-    include_scripts();
     add_dl_link_user_site();
     add_dl_link_leaderboard();
     //add_user_compare();
