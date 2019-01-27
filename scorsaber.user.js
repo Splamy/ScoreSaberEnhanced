@@ -1,19 +1,18 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.5
+// @version      0.6
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        https://scoresaber.com/*
 // @grant        none
+// @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
-// @require      https://unpkg.com/mithril/mithril.js
 // @require      https://unpkg.com/sweetalert@2.1.2/dist/sweetalert.min.js
 // @require      https://beatsaver.com/js/oneclick.js
 // ==/UserScript==
 // @ts-check
-/// <reference path="./mithril.d.ts" />
 
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
@@ -28,6 +27,7 @@ let status_elem;
 let users_elem;
 /** @type {string} */
 let last_selected;
+let debug = false;
 
 // we cant get the beatsaver song directly so we fetch
 // the song version (<id>-<id>) from the leaderboard site with an async
@@ -38,12 +38,10 @@ async function get_id(link) {
     return id_result[1];
 }
 
-function logc(message, ...optionalParams) {
-    console.log(message, ...optionalParams);
-}
+// *** Buttons ***
 
 function generate_beatsaver_button(click) {
-    return m("div", {
+    return create("div", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
@@ -53,7 +51,7 @@ function generate_beatsaver_button(click) {
 }
 
 function generate_oneclick_button(click) {
-    return m("div", {
+    return create("div", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
@@ -63,7 +61,7 @@ function generate_oneclick_button(click) {
 }
 
 function generate_bsaber_button(href) {
-    return m("a", {
+    return create("a", {
         class: "pagination-link",
         style: {
             cursor: "pointer",
@@ -73,6 +71,8 @@ function generate_bsaber_button(href) {
         href: href,
     });
 }
+
+// *** Injection and generation ***
 
 function add_dl_link_user_site() {
     // check we are on a user page
@@ -84,37 +84,40 @@ function add_dl_link_user_site() {
     let table = document.querySelector("table.ranking.songs");
 
     // add a new column for our links
+    /** @type {HTMLTableRowElement} */
     let table_tr = table.querySelector("thead tr");
-    let link_row = document.createElement("th");
-    link_row.innerText = "BS"
-    table_tr.appendChild(link_row);
+    into(table_tr, create("th", {}, "BS"));
+    into(table_tr, create("th", {}, "OC"));
 
     // add a link for each song
+    /** @type {NodeListOf<HTMLTableRowElement>} */
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
-        let table_col_th = document.createElement("th");
-        row.appendChild(table_col_th);
-
         // there's only one link, so 'a' will find it.
         /** @type {HTMLAnchorElement} */
         let leaderboard_elem = row.querySelector("th.song a");
         let leaderboard_link = leaderboard_elem.href;
 
         // link to the website
-        let bs_button = generate_beatsaver_button(async () => {
-            let id = await get_id(leaderboard_link);
-            window.open(beatsaver_link + id, '_blank');
-        });
+        into(row,
+            create("th", { style: { padding: "0.5em 0em" } },
+                generate_beatsaver_button(async () => {
+                    let id = await get_id(leaderboard_link);
+                    window.open(beatsaver_link + id, '_blank');
+                })
+            )
+        );
 
         // oneclick installer
-        let oc_button = generate_oneclick_button(async () => {
-            let id = await get_id(leaderboard_link);
-            // @ts-ignore
-            oneClick(this, id);
-        });
-
-        // Add everything into the table
-        m.render(table_col_th, [bs_button, oc_button]);
+        into(row,
+            create("th", { style: { padding: "0.5em 0em" } },
+                generate_oneclick_button(async () => {
+                    let id = await get_id(leaderboard_link);
+                    // @ts-ignore
+                    oneClick(this, id);
+                })
+            )
+        );
     }
 }
 
@@ -143,10 +146,8 @@ function add_dl_link_leaderboard() {
     let hr_elem = details_box.querySelector("hr");
 
     let bt_button = generate_bsaber_button(link_element.href);
-    let dummy_div = document.createElement("div");
     details_box.removeChild(link_element);
-    details_box.insertBefore(dummy_div, hr_elem);
-    m.render(dummy_div, [bt_button, bs_button, oc_button]);
+    details_box.insertBefore(create("div", {}, bt_button, bs_button, oc_button), hr_elem);
 }
 
 function add_user_compare() {
@@ -166,37 +167,39 @@ function add_user_compare() {
 
     let user_id = user_reg.exec(window.location.href)[1];
 
-    let add_user_elem = document.createElement("div");
-    add_user_elem.style.cursor = "pointer";
-    add_user_elem.onclick = async () => { await cache_user(user_id); };
-    add_user_elem.innerText = "📑";
-    header.appendChild(add_user_elem);
+    into(header,
+        create("div", {
+            style: { cursor: "pointer" },
+            onclick: async () => { await cache_user(user_id); },
+        }, "📑")
+    );
 
-    status_elem = document.createElement("div");
-    header.appendChild(status_elem);
+    status_elem = create("div", {});
+    into(header, status_elem);
 
     let select_elem = content.querySelector("div.select");
     let scores_elem = content.children[1];
 
-    users_elem = document.createElement("div");
-    users_elem.style.display = "inline";
-    users_elem.style.marginLeft = "1em";
+    users_elem = create("div", {
+        style: {
+            display: "inline",
+            marginLeft: "1em"
+        }
+    });
     scores_elem.insertBefore(users_elem, select_elem.nextSibling);
 
-    generate_user_compare_list();
+    generate_user_compare_dropdown();
     if (last_selected) {
         update_comparison_list(last_selected);
     }
-    //m.mount(content, UserCompare);
-
-    // background-image: linear-gradient(-60deg, lightblue 50%, lime 50%);
 }
 
-function generate_user_compare_list() {
-    m.render(users_elem,
-        m("div", { class: "select" },
-            m("select", {
+function generate_user_compare_dropdown() {
+    intor(users_elem,
+        create("div", { class: "select" },
+            create("select", {
                 onchange: function () {
+                    // @ts-ignore
                     last_selected = this.value;
                     localStorage.setItem("last_selected", last_selected);
                     update_comparison_list(last_selected);
@@ -204,9 +207,9 @@ function generate_user_compare_list() {
             }, ...Object.keys(userDat).map(id => {
                 let user = userDat[id];
                 if (id == last_selected) {
-                    return m("option", { value: id, selected: "selected" }, user.name);
+                    return create("option", { value: id, selected: "selected" }, user.name);
                 }
-                return m("option", { value: id }, user.name);
+                return create("option", { value: id }, user.name);
             }))
         )
     );
@@ -269,7 +272,7 @@ function load_user_cache() {
     }
     try {
         userDat = JSON.parse(json);
-    } catch {
+    } catch (ex) {
         userDat = {};
         localStorage.setItem("users", "{}");
     }
@@ -282,10 +285,10 @@ async function cache_user(id) {
     let page_max = undefined;
     let updated = false;
 
-    m.render(status_elem, "Adding user to database...");
+    intor(status_elem, "Adding user to database...");
 
     for (; page < (page_max || 512); page++) {
-        m.render(status_elem, `Updating page ${page}/${(page_max || "?")}`);
+        intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
         let page1 = await get_user_page(id, page);
 
         let table = page1.querySelector("table.ranking.songs");
@@ -335,9 +338,9 @@ async function cache_user(id) {
         localStorage.setItem("users", JSON.stringify(userDat));
     }
 
-    m.render(status_elem, "User updated");
+    intor(status_elem, "User updated");
 
-    generate_user_compare_list();
+    generate_user_compare_dropdown();
 }
 
 function get_row_data(row) {
@@ -389,7 +392,84 @@ async function get_user_page(id, page) {
     return parser.parseFromString(init_fetch, 'text/html');
 }
 
+// *** Utility ***
+
+/**
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string|string[], selected?: "selected" }} attrs
+ * @param {...(HTMLElement|string)} children
+ * @return {HTMLElementTagNameMap[K]}
+ */
+function create(tag, attrs, ...children) {
+    if (!tag) throw new SyntaxError("'tag' not defined");
+
+    var ele = document.createElement(tag), attrName, styleName;
+    if (attrs) {
+        for (attrName in attrs) {
+            if (attrName === "style") {
+                for (styleName in attrs.style) { ele.style[styleName] = attrs.style[styleName]; }
+            }
+            else if (attrName === "class") {
+                if (typeof attrs.class === "string") {
+                    ele.classList.add(attrs.class);
+                } else {
+                    ele.classList.add(...attrs.class);
+                }
+            }
+            else {
+                ele[attrName] = attrs[attrName];
+            }
+        }
+    }
+
+    into(ele, ...children);
+    return ele;
+}
+
+/**
+ * Into, but replaces the content
+ * @param {HTMLElement} parent
+ * @param {...(HTMLElement|string)} children
+ */
+function intor(parent, ...children) {
+    for(let child of parent.children) {
+        parent.removeChild(child);
+    }
+    return into(parent, ...children);
+}
+
+/**
+ * Appends the children to the parent
+ * @param {HTMLElement} parent
+ * @param {...(HTMLElement|string)} children
+ */
+function into(parent, ...children) {
+    for (let child of children) {
+        if (typeof child === "string") {
+            if (children.length > 1) {
+                parent.appendChild(create("div", {}, child));
+            } else {
+                parent.innerText = child;
+            }
+        } else {
+            parent.appendChild(child);
+        }
+    }
+}
+
+function setup_log() {
+    let is_debug = localStorage.getItem("debug");
+    debug = is_debug === "true";
+}
+
+function logc(message, ...optionalParams) {
+    console.log(message, ...optionalParams);
+}
+
+
 (function () {
+    setup_log();
     add_dl_link_user_site();
     add_dl_link_leaderboard();
     add_user_compare();
