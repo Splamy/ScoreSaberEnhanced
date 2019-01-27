@@ -38,11 +38,11 @@ async function get_id(link) {
     return id_result[1];
 }
 
-// *** Buttons ***
+// *** Buttons and styles ***
 
-function generate_beatsaver_button(click) {
+function generate_beatsaver_button(click, compact) {
     return create("div", {
-        class: "pagination-link",
+        class: ["pagination-link", compact ? "compact" : undefined],
         style: {
             cursor: "pointer",
         },
@@ -50,9 +50,9 @@ function generate_beatsaver_button(click) {
     }, "🔗");
 }
 
-function generate_oneclick_button(click) {
+function generate_oneclick_button(click, compact) {
     return create("div", {
-        class: "pagination-link",
+        class: ["pagination-link", compact ? "compact" : undefined],
         style: {
             cursor: "pointer",
         },
@@ -72,6 +72,18 @@ function generate_bsaber_button(href) {
     });
 }
 
+function setup_style() {
+    let style = create("style", { type: "text/css" });
+    style.innerHTML = `.compact {
+        padding-right: 0 !important;
+        padding-left: 0 !important;
+        margin-left: 0px !important;
+        margin-right: 0px !important;
+        text-align: center !important;
+    }`;
+    into(document.head, style);
+}
+
 // *** Injection and generation ***
 
 function add_dl_link_user_site() {
@@ -86,8 +98,8 @@ function add_dl_link_user_site() {
     // add a new column for our links
     /** @type {HTMLTableRowElement} */
     let table_tr = table.querySelector("thead tr");
-    into(table_tr, create("th", {}, "BS"));
-    into(table_tr, create("th", {}, "OC"));
+    into(table_tr, create("th", { class: "compact" }, "BS"));
+    into(table_tr, create("th", { class: "compact" }, "OC"));
 
     // add a link for each song
     /** @type {NodeListOf<HTMLTableRowElement>} */
@@ -100,22 +112,22 @@ function add_dl_link_user_site() {
 
         // link to the website
         into(row,
-            create("th", { style: { padding: "0.5em 0em" } },
+            create("th", { class: "compact" },
                 generate_beatsaver_button(async () => {
                     let id = await get_id(leaderboard_link);
                     window.open(beatsaver_link + id, '_blank');
-                })
+                }, true)
             )
         );
 
         // oneclick installer
         into(row,
-            create("th", { style: { padding: "0.5em 0em" } },
+            create("th", { class: "compact" },
                 generate_oneclick_button(async () => {
                     let id = await get_id(leaderboard_link);
                     // @ts-ignore
                     oneClick(this, id);
-                })
+                }, true)
             )
         );
     }
@@ -133,21 +145,21 @@ function add_dl_link_leaderboard() {
 
     let id = bsaber_link_reg.exec(link_element.href)[1];
 
-    let bs_button = generate_beatsaver_button(() => {
-        window.open(beatsaver_link + id, '_blank');
-    });
-
-    let oc_button = generate_oneclick_button(() => {
-        // @ts-ignore
-        oneClick(this, id);
-    });
-
     let details_box = link_element.parentElement;
     let hr_elem = details_box.querySelector("hr");
 
-    let bt_button = generate_bsaber_button(link_element.href);
     details_box.removeChild(link_element);
-    details_box.insertBefore(create("div", {}, bt_button, bs_button, oc_button), hr_elem);
+    details_box.insertBefore(
+        create("div", {},
+            generate_bsaber_button(link_element.href),
+            generate_beatsaver_button(() => {
+                window.open(beatsaver_link + id, '_blank');
+            }, false),
+            generate_oneclick_button(() => {
+                // @ts-ignore
+                oneClick(this, id);
+            }, false)
+        ), hr_elem);
 }
 
 function add_user_compare() {
@@ -433,7 +445,7 @@ function create(tag, attrs, ...children) {
  * @param {...(HTMLElement|string)} children
  */
 function intor(parent, ...children) {
-    for(let child of parent.children) {
+    for (let child of parent.children) {
         parent.removeChild(child);
     }
     return into(parent, ...children);
@@ -470,6 +482,7 @@ function logc(message, ...optionalParams) {
 
 (function () {
     setup_log();
+    setup_style();
     add_dl_link_user_site();
     add_dl_link_leaderboard();
     add_user_compare();
