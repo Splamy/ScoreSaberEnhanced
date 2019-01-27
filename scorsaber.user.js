@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.6
+// @version      0.7
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        https://scoresaber.com/*
@@ -244,6 +244,8 @@ function update_comparison_list(other_user) {
         let [song_id, song] = get_row_data(row);
         let other_song = other_data.songs[song_id];
         if (!other_song) {
+            logc("No match");
+            row.style.backgroundImage = `linear-gradient(0deg, rgb(240, 240, 240) 0%, rgb(240, 240, 240) 0%)`;
             continue;
         }
 
@@ -259,6 +261,7 @@ function update_comparison_list(other_user) {
             value1 = song.accuracy;
             value2 = other_song.accuracy;
         } else {
+            logc("No score");
             continue;
         }
 
@@ -268,10 +271,11 @@ function update_comparison_list(other_user) {
             value = 100 - value;
         }
 
+        // light gray?: rgb(240, 240, 240)
         if (better) {
-            row.style.backgroundImage = `linear-gradient(90deg, lawngreen ${value}%, lightgray ${value}%)`
+            row.style.backgroundImage = `linear-gradient(75deg, rgb(128, 255, 128) ${value}%, rgba(0,0,0,0) ${value}%)`
         } else {
-            row.style.backgroundImage = `linear-gradient(90deg, lightgray ${value}%, tomato ${value}%)`
+            row.style.backgroundImage = `linear-gradient(105deg, rgba(0,0,0,0) ${value}%, rgb(255, 128, 128) ${value}%)`
         }
     }
 }
@@ -299,7 +303,7 @@ async function cache_user(id) {
 
     intor(status_elem, "Adding user to database...");
 
-    for (; page < (page_max || 512); page++) {
+    for (; page <= (page_max || 512); page++) {
         intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
         let page1 = await get_user_page(id, page);
 
@@ -311,7 +315,9 @@ async function cache_user(id) {
         if (page_max === undefined) {
             /** @type {HTMLAnchorElement} */
             let last_page_elem = document.querySelector("nav ul.pagination-list li:last-child a");
-            page_max = Number(last_page_elem.innerText);
+            // weird bug on the scoresaber site:
+            // It lists for e.g. 20 pages, but 21 might be needed
+            page_max = Number(last_page_elem.innerText) + 1;
         }
 
         let user = userDat[id];
