@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.7
+// @version      0.8
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        https://scoresaber.com/*
@@ -29,14 +29,12 @@ let users_elem;
 let last_selected;
 let debug = false;
 
-// we cant get the beatsaver song directly so we fetch
-// the song version (<id>-<id>) from the leaderboard site with an async
-// fetch request.
-async function get_id(link) {
-    let leaderboard_text = await (await fetch(link)).text();
-    let id_result = bsaber_link_reg.exec(leaderboard_text);
-    return id_result[1];
-}
+// Cache
+/** @type {{ id: string, name: string }} */
+let _current_user;
+/** @type {{ id: string, name: string }} */
+let _home_user;
+// ~Cache
 
 // *** Buttons and styles ***
 
@@ -86,11 +84,10 @@ function setup_style() {
 
 // *** Injection and generation ***
 
+// *** Download Buttons ***
+
 function add_dl_link_user_site() {
-    // check we are on a user page
-    if (!window.location.href.toLowerCase().startsWith(scoresaber_link + "/u/")) {
-        return;
-    }
+    if (!is_user_page()) { return; }
 
     // find the table we want to modify
     let table = document.querySelector("table.ranking.songs");
@@ -162,27 +159,32 @@ function add_dl_link_leaderboard() {
         ), hr_elem);
 }
 
+async function get_id(link) {
+    // we cant get the beatsaver song directly so we fetch
+    // the song version (<id>-<id>) from the leaderboard site with an async
+    // fetch request.
+    let leaderboard_text = await (await fetch(link)).text();
+    let id_result = bsaber_link_reg.exec(leaderboard_text);
+    return id_result[1];
+}
+
+// *** User compare ***
+
 function add_user_compare() {
-    // check we are on a user page
-    if (!window.location.href.toLowerCase().startsWith(scoresaber_link + "/u/")) {
-        return;
-    }
+    if (!is_user_page()) { return; }
 
     load_user_cache();
 
     // find the element we want to modify
     let content = document.querySelector(".content");
-    /** @type {HTMLHeadingElement} */
-    let header = document.querySelector(".content div.columns h5");
+    let header = get_user_header();
     header.style.display = "flex";
     header.style.alignItems = "center";
-
-    let user_id = user_reg.exec(window.location.href)[1];
 
     into(header,
         create("div", {
             style: { cursor: "pointer" },
-            onclick: async () => { await cache_user(user_id); },
+            onclick: async () => { await cache_user(get_current_user().id); },
         }, "📑")
     );
 
@@ -329,9 +331,7 @@ async function cache_user(id) {
             userDat[id] = user;
         }
 
-        /** @type {HTMLAnchorElement} */
-        let username_elem = document.querySelector(".content .title a")
-        user.name = username_elem.innerText;
+        user.name = get_current_user().name;
 
         let table_row = table.querySelectorAll("tbody tr");
         for (let row of table_row) {
@@ -410,6 +410,98 @@ async function get_user_page(id, page) {
     return parser.parseFromString(init_fetch, 'text/html');
 }
 
+// *** Self button ***
+
+function add_self_button() {
+    let home_user = get_home_user();
+    if (!home_user) {
+        return;
+    }
+
+    /** @type {HTMLAnchorElement} */
+    // @ts-ignore
+    let home_elem = document.getElementById("home_user");
+    if (home_elem) {
+        home_elem.href = scoresaber_link + "/u/" + home_user.id;
+        home_elem.innerText = home_user.name;
+    } else {
+        /** @type {HTMLDivElement} */
+        let navbar_elem = document.querySelector("#navMenu div.navbar-start");
+
+        home_elem = create("a", {
+            id: "home_user",
+            class: "navbar-item",
+            href: scoresaber_link + "/u/" + home_user.id
+        }, home_user.name);
+        into(navbar_elem, home_elem);
+    }
+}
+
+function add_self_pin_button() {
+    if (!is_user_page()) { return; }
+
+    let header = get_user_header();
+    into(header, create("div", {
+        style: {
+            cursor: "pointer",
+        },
+        onclick: () => {
+            set_home_user(get_current_user());
+            add_self_button();
+        }
+    }, "📌"));
+}
+
+function setup_self() {
+    add_self_button();
+    add_self_pin_button();
+}
+
+// *** Html Getter ***
+
+/**
+ * @return {HTMLHeadingElement}
+ */
+function get_user_header() {
+    return document.querySelector(".content div.columns h5");
+}
+
+function is_user_page() {
+    return window.location.href.toLowerCase().startsWith(scoresaber_link + "/u/");
+}
+
+/** @return { { id: string, name: string }} */
+function get_current_user() {
+    if (_current_user) { return _current_user; }
+    if (!is_user_page()) { throw new Error("Not on a user page"); }
+
+    /** @type {HTMLAnchorElement} */
+    let username_elem = document.querySelector(".content .title a")
+    let user_name = username_elem.innerText;
+    let user_id = user_reg.exec(window.location.href)[1];
+
+    _current_user = { id: user_id, name: user_name };
+    return _current_user;
+}
+
+/** @return {{ id: string, name: string } | undefined} */
+function get_home_user() {
+    if (_home_user) { return _home_user; }
+
+    let json = localStorage.getItem("home_user");
+    if (!json) {
+        return undefined;
+    }
+    _home_user = JSON.parse(json);
+    return _home_user;
+}
+
+/** @param {{ id: string, name: string }} user */
+function set_home_user(user) {
+    _home_user = user;
+    localStorage.setItem("home_user", JSON.stringify(user));
+}
+
 // *** Utility ***
 
 /**
@@ -485,11 +577,11 @@ function logc(message, ...optionalParams) {
     console.log(message, ...optionalParams);
 }
 
-
 (function () {
     setup_log();
     setup_style();
     add_dl_link_user_site();
     add_dl_link_leaderboard();
     add_user_compare();
+    setup_self();
 })();
