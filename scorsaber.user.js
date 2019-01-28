@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.8
+// @version      0.9
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        https://scoresaber.com/*
@@ -415,7 +415,7 @@ async function get_user_page(id, page) {
 function add_self_button() {
     let home_user = get_home_user();
     if (!home_user) {
-        return;
+        home_user = { name: "<Pins>", id: "0" };
     }
 
     /** @type {HTMLAnchorElement} */
@@ -428,12 +428,21 @@ function add_self_button() {
         /** @type {HTMLDivElement} */
         let navbar_elem = document.querySelector("#navMenu div.navbar-start");
 
-        home_elem = create("a", {
-            id: "home_user",
-            class: "navbar-item",
-            href: scoresaber_link + "/u/" + home_user.id
-        }, home_user.name);
-        into(navbar_elem, home_elem);
+        into(navbar_elem,
+            create("div", { class: "navbar-item has-dropdown is-hoverable" },
+                create("a", {
+                    id: "home_user",
+                    class: "navbar-item",
+                    href: scoresaber_link + "/u/" + home_user.id
+                }, home_user.name),
+                create("div", { class: "navbar-dropdown" },
+                    ...Object.keys(userDat).map(id => {
+                        let user = userDat[id];
+                        return create("a", { class: "navbar-item", href: scoresaber_link + "/u/" + id }, user.name);
+                    })
+                )
+            )
+        );
     }
 }
 
@@ -522,7 +531,7 @@ function create(tag, attrs, ...children) {
             }
             else if (attrName === "class") {
                 if (typeof attrs.class === "string") {
-                    ele.classList.add(attrs.class);
+                    ele.classList.add(...attrs.class.split(/ /g));
                 } else {
                     ele.classList.add(...attrs.class);
                 }
