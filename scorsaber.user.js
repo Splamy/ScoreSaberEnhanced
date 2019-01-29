@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.12
+// @version      0.13
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -81,8 +81,12 @@ function setup_style() {
     }
     h5 > * {
         margin-right: 0.3em;
+    }
+    #wide_song_table:checked ~ .ranking.songs table{
+        max-width: unset !important;
     }`;
     into(document.head, style);
+    into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
 }
 
 // *** Injection and generation ***
@@ -491,11 +495,31 @@ function setup_self() {
     add_self_pin_button();
 }
 
+// ** Wide table ***
+
+function add_wide_table_checkbox() {
+    if (!is_user_page()) { return; }
+
+    let table = document.querySelector("div.ranking.songs");
+
+    table.insertAdjacentElement("beforebegin", create("input", {
+        id: "wide_song_table",
+        type: "checkbox",
+        class: "is-checkradio",
+        checked: get_wide_table(),
+        onchange: function () {
+            // @ts-ignore
+            set_wide_table(this.checked);
+        }
+    }));
+    table.insertAdjacentElement("beforebegin", create("label", { class: "checkbox", for: "wide_song_table" }, "Wide Table"));
+}
+
 // *** Html Getter ***
 
 /**
- * @return {HTMLHeadingElement}
- */
+* @return {HTMLHeadingElement}
+    */
 function get_user_header() {
     return document.querySelector(".content div.columns h5");
 }
@@ -504,7 +528,7 @@ function is_user_page() {
     return window.location.href.toLowerCase().startsWith(scoresaber_link + "/u/");
 }
 
-/** @return { { id: string, name: string }} */
+/** @return {{ id: string, name: string }} */
 function get_current_user() {
     if (_current_user) { return _current_user; }
     if (!is_user_page()) { throw new Error("Not on a user page"); }
@@ -536,15 +560,25 @@ function set_home_user(user) {
     localStorage.setItem("home_user", JSON.stringify(user));
 }
 
+/** @param {boolean} value */
+function set_wide_table(value) {
+    localStorage.setItem("wide_song_table", value ? "true" : "false");
+}
+
+/** @return {boolean} */
+function get_wide_table() {
+    return localStorage.getItem("wide_song_table") === "true";
+}
+
 // *** Utility ***
 
 /**
- * @template {keyof HTMLElementTagNameMap} K
- * @param {K} tag
- * @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string|string[], selected?: "selected" }} attrs
- * @param {...(HTMLElement|string)} children
- * @return {HTMLElementTagNameMap[K]}
- */
+* @template {keyof HTMLElementTagNameMap} K
+* @param {K} tag
+* @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string | string[], selected?: "selected", for?: string }} attrs
+* @param {...(HTMLElement | string)} children
+* @return {HTMLElementTagNameMap[K]}
+    */
 function create(tag, attrs, ...children) {
     if (!tag) throw new SyntaxError("'tag' not defined");
 
@@ -561,6 +595,10 @@ function create(tag, attrs, ...children) {
                     ele.classList.add(...attrs.class);
                 }
             }
+            else if (attrName === "for") {
+                // @ts-ignore
+                ele.htmlFor = attrs[attrName];
+            }
             else {
                 ele[attrName] = attrs[attrName];
             }
@@ -572,10 +610,10 @@ function create(tag, attrs, ...children) {
 }
 
 /**
- * Into, but replaces the content
+* Into, but replaces the content
  * @param {HTMLElement} parent
- * @param {...(HTMLElement|string)} children
- */
+ * @param {...(HTMLElement | string)} children
+        */
 function intor(parent, ...children) {
     for (let child of parent.children) {
         parent.removeChild(child);
@@ -585,9 +623,9 @@ function intor(parent, ...children) {
 
 /**
  * Appends the children to the parent
- * @param {HTMLElement} parent
- * @param {...(HTMLElement|string)} children
- */
+* @param {HTMLElement} parent
+* @param {...(HTMLElement | string)} children
+    */
 function into(parent, ...children) {
     for (let child of children) {
         if (typeof child === "string") {
@@ -619,4 +657,5 @@ function logc(message, ...optionalParams) {
     add_dl_link_leaderboard();
     add_user_compare();
     setup_self();
+    add_wide_table_checkbox();
 })();
