@@ -589,6 +589,7 @@ function logc(message, ...optionalParams) {
 (function () {
     setup_log();
     setup_style();
+    load_user_cache();
     add_dl_link_user_site();
     add_dl_link_leaderboard();
     add_user_compare();
