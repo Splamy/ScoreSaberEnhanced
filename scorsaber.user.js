@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.9
+// @version      0.10
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
-// @match        https://scoresaber.com/*
+// @match        http*://scoresaber.com/*
 // @grant        none
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
