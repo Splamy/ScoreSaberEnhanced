@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.11
+// @version      0.12
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -78,6 +78,9 @@ function setup_style() {
         margin-left: 0px !important;
         margin-right: 0px !important;
         text-align: center !important;
+    }
+    h5 > * {
+        margin-right: 0.3em;
     }`;
     into(document.head, style);
 }
@@ -173,8 +176,6 @@ async function get_id(link) {
 function add_user_compare() {
     if (!is_user_page()) { return; }
 
-    load_user_cache();
-
     // find the element we want to modify
     let content = document.querySelector(".content");
     let header = get_user_header();
@@ -191,16 +192,13 @@ function add_user_compare() {
     status_elem = create("div", {});
     into(header, status_elem);
 
-    let select_elem = content.querySelector("div.select");
-    let scores_elem = content.children[1];
-
     users_elem = create("div", {
         style: {
             display: "inline",
             marginLeft: "1em"
         }
     });
-    scores_elem.insertBefore(users_elem, select_elem.nextSibling);
+    content.querySelector("div.select").insertAdjacentElement("afterend", users_elem);
 
     generate_user_compare_dropdown();
     if (last_selected) {
@@ -239,7 +237,7 @@ function update_comparison_list(other_user) {
     let table = document.querySelector("table.ranking.songs");
 
     // Reload table data
-    document.querySelectorAll(".comparisonScore").forEach(el => el.remove());
+    table.querySelectorAll(".comparisonScore").forEach(el => el.remove());
 
     const ranking_table_header = table.querySelector("thead > tr");
     ranking_table_header.querySelector(".score").insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_data.name));
@@ -255,14 +253,17 @@ function update_comparison_list(other_user) {
         let other_song = other_data.songs[song_id];
 
         // add score column
-        /** @type{string | HTMLElement} */
+        /** @type {string | HTMLElement} */
         let other_score_content = "";
         if (other_song) {
-            other_score_content = "yee";
             other_score_content = create("div", {},
                 create("span", { class: "scoreTop ppValue" }, `${other_song.pp}pp`),
                 create("br", {}),
-                create("span", { class: "scoreBottom" }     , `${other_song.accuracy}%`), 
+                other_song.accuracy
+                    ? create("span", { class: "scoreBottom" }, `accuracy: ${other_song.accuracy}%`)
+                    : other_song.score
+                        ? create("span", { class: "scoreBottom" }, `score: ${other_song.score.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                        : "<No Data>",
                 // create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
             );
         }
@@ -328,7 +329,7 @@ async function cache_user(id) {
 
     intor(status_elem, "Adding user to database...");
 
-    for (; page <= (page_max || 512); page++) {
+    scan: for (; page <= (page_max || 512); page++) {
         intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
         let page1 = await get_user_page(id, page);
 
@@ -362,7 +363,7 @@ async function cache_user(id) {
             let [song_id, song] = get_row_data(row);
             if (user.songs[song_id] && user.songs[song_id].time === song.time) {
                 logc("User cache up to date");
-                break;
+                break scan;
             }
 
             logc("Updated: ", song);
@@ -428,6 +429,7 @@ async function get_user_page(id, page) {
         return document;
     }
 
+    logc(`Fetching user ${id} page ${page}`);
     let init_fetch = await (await fetch(link)).text();
     var parser = new DOMParser();
     return parser.parseFromString(init_fetch, 'text/html');
