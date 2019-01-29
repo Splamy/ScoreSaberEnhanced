@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.10
+// @version      0.11
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -237,6 +237,14 @@ function update_comparison_list(other_user) {
     }
 
     let table = document.querySelector("table.ranking.songs");
+
+    // Reload table data
+    document.querySelectorAll(".comparisonScore").forEach(el => el.remove());
+
+    const ranking_table_header = table.querySelector("thead > tr");
+    ranking_table_header.querySelector(".score").insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_data.name));
+
+    // Update table
     /** @type {NodeListOf<HTMLElement>} */
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
@@ -245,6 +253,21 @@ function update_comparison_list(other_user) {
 
         let [song_id, song] = get_row_data(row);
         let other_song = other_data.songs[song_id];
+
+        // add score column
+        /** @type{string | HTMLElement} */
+        let other_score_content = "";
+        if (other_song) {
+            other_score_content = "yee";
+            other_score_content = create("div", {},
+                create("span", { class: "scoreTop ppValue" }, `${other_song.pp}pp`),
+                create("br", {}),
+                create("span", { class: "scoreBottom" }     , `${other_song.accuracy}%`), 
+                // create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
+            );
+        }
+        row.querySelector(".score").insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_score_content));
+
         if (!other_song) {
             logc("No match");
             row.style.backgroundImage = `linear-gradient(0deg, rgb(240, 240, 240) 0%, rgb(240, 240, 240) 0%)`;
