@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.15
+// @version      0.16
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -44,7 +44,7 @@ let _home_user;
  */
 function generate_beatsaver_button(click, compact) {
     return create("div", {
-        class: "pagination-link beatsaver_bg" + (compact ? " compact" : ""),
+        class: "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : ""),
         style: {
             cursor: "pointer",
         },
@@ -59,7 +59,7 @@ function generate_beatsaver_button(click, compact) {
  */
 function generate_oneclick_button(click, compact) {
     return create("div", {
-        class: "pagination-link oneclick_bg fas fa-cloud-download-alt" + (compact ? " compact" : ""),
+        class: "button is-normal fas_big fas fa-cloud-download-alt" + (compact ? " compact" : ""),
         style: {
             cursor: "pointer",
         },
@@ -73,11 +73,14 @@ function generate_oneclick_button(click, compact) {
  */
 function generate_bsaber_button(href) {
     return create("a", {
-        class: "pagination-link",
+        class: "button is-normal",
         style: {
             cursor: "pointer",
             backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
-            backgroundSize: "contain",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "center",
+            minWidth: "2.5em",
         },
         href: href,
     });
@@ -100,14 +103,37 @@ function setup_style() {
     }
     .beatsaver_bg {
         background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/80%;
+        background-color: white;
     }
-    .oneclick_bg {
+    .fas_big {
         line-height: 150%;
-        padding-right: 0;
-        padding-left: 0;
+        padding-right: 0.5em;
+        padding-left: 0.5em;
+        min-width: 2.25em;
     }
-    .oneclick_bg.fa-cloud-download-alt::before {
+    .fas_big::before {
         font-size: 120%;
+    }
+    .tooltip { }
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        background-color: #555;
+        color: #fff;
+        border-radius: 6px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        margin-left: -3em;
+        opacity: 0;
+        transition: opacity 0.3s;
+        padding: 0.2em 1em;
+    }
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    #leaderboard_tool_strip > * {
+        margin-left: 0.5em;
     }
     `;
     into(document.head, style);
@@ -176,7 +202,9 @@ function setup_dl_link_leaderboard() {
 
     details_box.removeChild(link_element);
     details_box.insertBefore(
-        create("div", {},
+        create("div", {
+            id: "leaderboard_tool_strip"
+        },
             generate_bsaber_button(link_element.href),
             generate_beatsaver_button(() => {
                 window.open(beatsaver_link + id, '_blank');
@@ -212,11 +240,15 @@ function setup_user_compare() {
     header.style.display = "flex";
     header.style.alignItems = "center";
 
+    let user = get_current_user();
     into(header,
         create("div", {
+            class: "button is-normal tooltip fas_big fas " + (user_list[user.id] ? "fa-sync" : "fa-bookmark"),
             style: { cursor: "pointer" },
             onclick: async () => { await fetch_user(get_current_user().id); },
-        }, "📑")
+        },
+            create("div", { class: "tooltiptext" }, user_list[user.id] ? "Update score cache" : "Add user to your score cache")
+        )
     );
 
     status_elem = create("div");
@@ -231,26 +263,27 @@ function setup_user_compare() {
     content.querySelector("div.select").insertAdjacentElement("afterend", users_elem);
 
     update_user_compare_dropdown();
-    if (last_selected) {
-        update_comparison_list(last_selected);
+    let compare = get_compare_user();
+    if (compare) {
+        update_comparison_list(compare);
     }
 }
 
 function update_user_compare_dropdown() {
     if (!is_user_page()) { return; }
 
+    let compare = get_compare_user();
     intor(users_elem,
         create("div", { class: "select" },
             create("select", {
+                id: "user_compare",
                 onchange: function () {
                     // @ts-ignore
-                    last_selected = this.value;
-                    localStorage.setItem("last_selected", last_selected);
-                    update_comparison_list(last_selected);
+                    set_compare_user(this.value);
                 }
             }, ...Object.keys(user_list).map(id => {
                 let user = user_list[id];
-                if (id == last_selected) {
+                if (id === compare) {
                     return create("option", { value: id, selected: "selected" }, user.name);
                 }
                 return create("option", { value: id }, user.name);
@@ -259,7 +292,12 @@ function update_user_compare_dropdown() {
     );
 }
 
+/**
+ * @param {string} other_user 
+ */
 function update_comparison_list(other_user) {
+    if (!is_user_page()) { return; }
+
     let other_data = user_list[other_user];
     if (!other_data) {
         logc("Other user not found: ", other_user); // Try update?
@@ -350,7 +388,6 @@ function load_user_cache() {
         user_list = {};
         localStorage.setItem("users", "{}");
     }
-    last_selected = localStorage.getItem("last_selected");
     logc("Loaded usercache", user_list);
 }
 
@@ -566,14 +603,15 @@ function setup_self_pin_button() {
 
     let header = get_user_header();
     into(header, create("div", {
-        style: {
-            cursor: "pointer",
-        },
+        class: "button is-normal tooltip fas_big fas fa-thumbtack",
+        style: { cursor: "pointer", },
         onclick: () => {
             set_home_user(get_current_user());
             update_self_button();
         }
-    }, "📌"));
+    },
+        create("div", { class: "tooltiptext" }, "Pin this user to your navigation bar")
+    ));
 }
 
 // ** Wide table ***
@@ -637,6 +675,35 @@ function get_home_user() {
     }
     _home_user = JSON.parse(json);
     return _home_user;
+}
+
+/** @returns {string|undefined} */
+function get_compare_user() {
+    if (last_selected) {
+        return last_selected;
+    }
+
+    let stored_last = localStorage.getItem("last_selected");
+    if (stored_last) {
+        last_selected = stored_last;
+        return last_selected;
+    }
+
+    /** @type {HTMLSelectElement} */
+    // @ts-ignore
+    let compare = document.getElementById("user_compare");
+    if (compare && compare.value) {
+        last_selected = compare.value;
+        return last_selected;
+    }
+    return undefined;
+}
+
+/** @param {string} user */
+function set_compare_user(user) {
+    update_comparison_list(user);
+    last_selected = user;
+    localStorage.setItem("last_selected", user);
 }
 
 /** @param {{ id: string, name: string }} user */
@@ -726,12 +793,13 @@ function into(parent, ...children) {
 }
 
 function setup_log() {
-    let is_debug = localStorage.getItem("debug");
-    debug = is_debug === "true";
+    debug = localStorage.getItem("debug") === "true";
 }
 
 function logc(message, ...optionalParams) {
-    console.log(message, ...optionalParams);
+    if (debug) {
+        console.log(message, ...optionalParams);
+    }
 }
 
 (function () {
@@ -740,8 +808,8 @@ function logc(message, ...optionalParams) {
     load_user_cache();
     setup_dl_link_user_site();
     setup_dl_link_leaderboard();
-    setup_user_compare();
     setup_self_pin_button();
+    setup_user_compare();
     update_self_button();
     setup_wide_table_checkbox();
 })();
