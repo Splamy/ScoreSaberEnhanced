@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.13
+// @version      0.14
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -40,12 +40,12 @@ let _home_user;
 
 function generate_beatsaver_button(click, compact) {
     return create("div", {
-        class: ["pagination-link", compact ? "compact" : undefined],
+        class: ["pagination-link", "beatsaver_bg", compact ? "compact" : undefined],
         style: {
             cursor: "pointer",
         },
         onclick: click,
-    }, "🔗");
+    });
 }
 
 function generate_oneclick_button(click, compact) {
@@ -84,6 +84,9 @@ function setup_style() {
     }
     #wide_song_table:checked ~ .ranking.songs table{
         max-width: unset !important;
+    }
+    .beatsaver_bg {
+        background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/80%;
     }`;
     into(document.head, style);
     into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
