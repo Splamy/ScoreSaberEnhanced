@@ -34,7 +34,6 @@ let debug = false;
 let _current_user;
 /** @type {{ id: string, name: string }} */
 let _home_user;
-// ~Cache
 
 // *** Buttons and styles ***
 
@@ -471,7 +470,7 @@ function get_row_data(row) {
  * @param {string} id
  * @param {string|number} page
  * @returns {Promise<Document>}
-*/
+ */
 async function get_user_page(id, page) {
     let link = scoresaber_link + `/u/${id}&page=${page}&sort=2`;
     if (window.location.href.toLowerCase() === link) {
@@ -600,8 +599,8 @@ function setup_wide_table_checkbox() {
 // *** Html Getter ***
 
 /**
-* @returns {HTMLHeadingElement}
-    */
+ * @returns {HTMLHeadingElement}
+ */
 function get_user_header() {
     return document.querySelector(".content div.columns h5");
 }
@@ -659,12 +658,12 @@ function get_wide_table() {
 // *** Utility ***
 
 /**
-* @template {keyof HTMLElementTagNameMap} K
-* @param {K} tag
-* @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string | string[], selected?: "selected", for?: string }} [attrs]
-* @param {...(HTMLElement | string)} [children]
-* @returns {HTMLElementTagNameMap[K]}
-    */
+ * @template {keyof HTMLElementTagNameMap} K
+ * @param {K} tag
+ * @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string | string[], selected?: "selected", for?: string }} [attrs]
+ * @param {...(HTMLElement | string)} [children]
+ * @returns {HTMLElementTagNameMap[K]}
+ */
 function create(tag, attrs, ...children) {
     if (!tag) throw new SyntaxError("'tag' not defined");
 
@@ -696,10 +695,10 @@ function create(tag, attrs, ...children) {
 }
 
 /**
-* Into, but replaces the content
+ * Into, but replaces the content
  * @param {HTMLElement} parent
  * @param {...(HTMLElement | string)} children
-        */
+ */
 function intor(parent, ...children) {
     while (parent.lastChild) {
         parent.removeChild(parent.lastChild);
@@ -709,9 +708,9 @@ function intor(parent, ...children) {
 
 /**
  * Appends the children to the parent
-* @param {HTMLElement} parent
-* @param {...(HTMLElement | string)} children
-    */
+ * @param {HTMLElement} parent
+ * @param {...(HTMLElement | string)} children
+ */
 function into(parent, ...children) {
     for (let child of children) {
         if (typeof child === "string") {
