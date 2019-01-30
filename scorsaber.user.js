@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.14
+// @version      0.15
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -22,7 +22,7 @@ const leaderboard_reg = /leaderboard\/(\d+)/;
 const user_reg = /u\/(\d+)/;
 
 /** @type {{ [user_id: string]: { name: string, songs: {[song_id: string]: { time: string, pp:number, accuracy?: number, score?: number } } }}} */
-let userDat;
+let user_list;
 let status_elem;
 let users_elem;
 /** @type {string} */
@@ -38,9 +38,14 @@ let _home_user;
 
 // *** Buttons and styles ***
 
+/**
+ * @param {(this: GlobalEventHandlers, ev: MouseEvent) => any} click
+ * @param {boolean} compact
+ * @returns {HTMLElement}
+ */
 function generate_beatsaver_button(click, compact) {
     return create("div", {
-        class: ["pagination-link", "beatsaver_bg", compact ? "compact" : undefined],
+        class: "pagination-link beatsaver_bg" + (compact ? " compact" : ""),
         style: {
             cursor: "pointer",
         },
@@ -48,16 +53,25 @@ function generate_beatsaver_button(click, compact) {
     });
 }
 
+/**
+ * @param {(this: GlobalEventHandlers, ev: MouseEvent) => any} click
+ * @param {boolean} compact
+ * @returns {HTMLElement}
+ */
 function generate_oneclick_button(click, compact) {
     return create("div", {
-        class: ["pagination-link", compact ? "compact" : undefined],
+        class: "pagination-link oneclick_bg fas fa-cloud-download-alt" + (compact ? " compact" : ""),
         style: {
             cursor: "pointer",
         },
         onclick: click,
-    }, "💾");
+    });
 }
 
+/**
+ * @param {string} href
+ * @returns {HTMLElement}
+ */
 function generate_bsaber_button(href) {
     return create("a", {
         class: "pagination-link",
@@ -87,7 +101,16 @@ function setup_style() {
     }
     .beatsaver_bg {
         background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/80%;
-    }`;
+    }
+    .oneclick_bg {
+        line-height: 150%;
+        padding-right: 0;
+        padding-left: 0;
+    }
+    .oneclick_bg.fa-cloud-download-alt::before {
+        font-size: 120%;
+    }
+    `;
     into(document.head, style);
     into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
 }
@@ -96,7 +119,7 @@ function setup_style() {
 
 // *** Download Buttons ***
 
-function add_dl_link_user_site() {
+function setup_dl_link_user_site() {
     if (!is_user_page()) { return; }
 
     // find the table we want to modify
@@ -121,7 +144,7 @@ function add_dl_link_user_site() {
         into(row,
             create("th", { class: "compact" },
                 generate_beatsaver_button(async () => {
-                    let id = await get_id(leaderboard_link);
+                    let id = await fetch_id(leaderboard_link);
                     window.open(beatsaver_link + id, '_blank');
                 }, true)
             )
@@ -131,7 +154,7 @@ function add_dl_link_user_site() {
         into(row,
             create("th", { class: "compact" },
                 generate_oneclick_button(async () => {
-                    let id = await get_id(leaderboard_link);
+                    let id = await fetch_id(leaderboard_link);
                     // @ts-ignore
                     oneClick(this, id);
                 }, true)
@@ -140,11 +163,8 @@ function add_dl_link_user_site() {
     }
 }
 
-function add_dl_link_leaderboard() {
-    // check we are on a leaderboard page
-    if (!window.location.href.toLowerCase().startsWith(scoresaber_link + "/leaderboard/")) {
-        return;
-    }
+function setup_dl_link_leaderboard() {
+    if (!is_song_leaderboard_page()) { return; }
 
     // find the element we want to modify
     /** @type {HTMLAnchorElement} */
@@ -169,7 +189,11 @@ function add_dl_link_leaderboard() {
         ), hr_elem);
 }
 
-async function get_id(link) {
+/**
+ * @param {string} link
+ * @returns {Promise<string>}
+ */
+async function fetch_id(link) {
     // we cant get the beatsaver song directly so we fetch
     // the song version (<id>-<id>) from the leaderboard site with an async
     // fetch request.
@@ -180,7 +204,7 @@ async function get_id(link) {
 
 // *** User compare ***
 
-function add_user_compare() {
+function setup_user_compare() {
     if (!is_user_page()) { return; }
 
     // find the element we want to modify
@@ -192,11 +216,11 @@ function add_user_compare() {
     into(header,
         create("div", {
             style: { cursor: "pointer" },
-            onclick: async () => { await cache_user(get_current_user().id); },
+            onclick: async () => { await fetch_user(get_current_user().id); },
         }, "📑")
     );
 
-    status_elem = create("div", {});
+    status_elem = create("div");
     into(header, status_elem);
 
     users_elem = create("div", {
@@ -207,13 +231,15 @@ function add_user_compare() {
     });
     content.querySelector("div.select").insertAdjacentElement("afterend", users_elem);
 
-    generate_user_compare_dropdown();
+    update_user_compare_dropdown();
     if (last_selected) {
         update_comparison_list(last_selected);
     }
 }
 
-function generate_user_compare_dropdown() {
+function update_user_compare_dropdown() {
+    if (!is_user_page()) { return; }
+
     intor(users_elem,
         create("div", { class: "select" },
             create("select", {
@@ -223,8 +249,8 @@ function generate_user_compare_dropdown() {
                     localStorage.setItem("last_selected", last_selected);
                     update_comparison_list(last_selected);
                 }
-            }, ...Object.keys(userDat).map(id => {
-                let user = userDat[id];
+            }, ...Object.keys(user_list).map(id => {
+                let user = user_list[id];
                 if (id == last_selected) {
                     return create("option", { value: id, selected: "selected" }, user.name);
                 }
@@ -235,7 +261,7 @@ function generate_user_compare_dropdown() {
 }
 
 function update_comparison_list(other_user) {
-    let other_data = userDat[other_user];
+    let other_data = user_list[other_user];
     if (!other_data) {
         logc("Other user not found: ", other_user); // Try update?
         return;
@@ -265,7 +291,7 @@ function update_comparison_list(other_user) {
         if (other_song) {
             other_score_content = create("div", {},
                 create("span", { class: "scoreTop ppValue" }, `${other_song.pp}pp`),
-                create("br", {}),
+                create("br"),
                 other_song.accuracy
                     ? create("span", { class: "scoreBottom" }, `accuracy: ${other_song.accuracy}%`)
                     : other_song.score
@@ -316,20 +342,24 @@ function update_comparison_list(other_user) {
 function load_user_cache() {
     let json = localStorage.getItem("users");
     if (!json) {
-        userDat = {};
+        user_list = {};
         return;
     }
     try {
-        userDat = JSON.parse(json);
+        user_list = JSON.parse(json);
     } catch (ex) {
-        userDat = {};
+        user_list = {};
         localStorage.setItem("users", "{}");
     }
     last_selected = localStorage.getItem("last_selected");
-    logc("Loaded usercache", userDat);
+    logc("Loaded usercache", user_list);
 }
 
-async function cache_user(id) {
+function save_user_cache() {
+    localStorage.setItem("users", JSON.stringify(user_list));
+}
+
+async function fetch_user(id) {
     let page = 1;
     let page_max = undefined;
     let updated = false;
@@ -353,13 +383,13 @@ async function cache_user(id) {
             page_max = Number(last_page_elem.innerText) + 1;
         }
 
-        let user = userDat[id];
+        let user = user_list[id];
         if (!user) {
             user = {
                 name: "User" + id,
                 songs: {}
             };
-            userDat[id] = user;
+            user_list[id] = user;
         }
 
         user.name = get_current_user().name;
@@ -384,12 +414,20 @@ async function cache_user(id) {
     }
 
     if (updated) {
-        localStorage.setItem("users", JSON.stringify(userDat));
+        save_user_cache();
     }
 
     intor(status_elem, "User updated");
 
-    generate_user_compare_dropdown();
+    on_user_list_changed();
+}
+
+function delete_user(id) {
+    if (user_list[id]) {
+        delete user_list[id];
+        save_user_cache();
+        on_user_list_changed();
+    }
 }
 
 function get_row_data(row) {
@@ -429,6 +467,11 @@ function get_row_data(row) {
     return data;
 }
 
+/**
+ * @param {string} id
+ * @param {string|number} page
+ * @returns {Promise<Document>}
+*/
 async function get_user_page(id, page) {
     let link = scoresaber_link + `/u/${id}&page=${page}&sort=2`;
     if (window.location.href.toLowerCase() === link) {
@@ -444,7 +487,7 @@ async function get_user_page(id, page) {
 
 // *** Self button ***
 
-function add_self_button() {
+function update_self_button() {
     let home_user = get_home_user();
     if (!home_user) {
         home_user = { name: "<Pins>", id: "0" };
@@ -467,18 +510,59 @@ function add_self_button() {
                     class: "navbar-item",
                     href: scoresaber_link + "/u/" + home_user.id
                 }, home_user.name),
-                create("div", { class: "navbar-dropdown" },
-                    ...Object.keys(userDat).map(id => {
-                        let user = userDat[id];
-                        return create("a", { class: "navbar-item", href: scoresaber_link + "/u/" + id }, user.name);
-                    })
-                )
+                create("div", {
+                    id: "home_user_list",
+                    class: "navbar-dropdown"
+                })
             )
         );
+        update_self_user_list();
     }
 }
 
-function add_self_pin_button() {
+function update_self_user_list() {
+    let home_user_list_elem = document.getElementById("home_user_list");
+    intor(home_user_list_elem,
+        ...Object.keys(user_list).map(id => {
+            let user = user_list[id];
+            return create("a", {
+                class: "navbar-item",
+                style: {
+                    paddingRight: "1em",
+                    flexWrap: "nowrap",
+                    display: "flex",
+                },
+                href: scoresaber_link + "/u/" + id,
+            },
+                create("div", { style: { flex: "1" } }, user.name),
+                create("a", {
+                    class: "button is-small",
+                    style: { marginLeft: "3em" },
+                    onclick: () => {
+                        // @ts-ignore
+                        swal(`Delete User "${user.name}" from cache?`, {
+                            dangerMode: true,
+                            buttons: true,
+                        }).then((deleteUser) => {
+                            logc("DELETE!", deleteUser);
+                            if (deleteUser) {
+                                delete_user(id);
+                            }
+                        });
+                        return false;
+                    }
+                }, "❌"),
+            );
+        })
+    );
+}
+
+function on_user_list_changed() {
+    update_user_compare_dropdown();
+    update_self_user_list();
+}
+
+function setup_self_pin_button() {
     if (!is_user_page()) { return; }
 
     let header = get_user_header();
@@ -488,19 +572,14 @@ function add_self_pin_button() {
         },
         onclick: () => {
             set_home_user(get_current_user());
-            add_self_button();
+            update_self_button();
         }
     }, "📌"));
 }
 
-function setup_self() {
-    add_self_button();
-    add_self_pin_button();
-}
-
 // ** Wide table ***
 
-function add_wide_table_checkbox() {
+function setup_wide_table_checkbox() {
     if (!is_user_page()) { return; }
 
     let table = document.querySelector("div.ranking.songs");
@@ -521,7 +600,7 @@ function add_wide_table_checkbox() {
 // *** Html Getter ***
 
 /**
-* @return {HTMLHeadingElement}
+* @returns {HTMLHeadingElement}
     */
 function get_user_header() {
     return document.querySelector(".content div.columns h5");
@@ -531,7 +610,11 @@ function is_user_page() {
     return window.location.href.toLowerCase().startsWith(scoresaber_link + "/u/");
 }
 
-/** @return {{ id: string, name: string }} */
+function is_song_leaderboard_page() {
+    return window.location.href.toLowerCase().startsWith(scoresaber_link + "/leaderboard/");
+}
+
+/** @returns {{ id: string, name: string }} */
 function get_current_user() {
     if (_current_user) { return _current_user; }
     if (!is_user_page()) { throw new Error("Not on a user page"); }
@@ -545,7 +628,7 @@ function get_current_user() {
     return _current_user;
 }
 
-/** @return {{ id: string, name: string } | undefined} */
+/** @returns {{ id: string, name: string } | undefined} */
 function get_home_user() {
     if (_home_user) { return _home_user; }
 
@@ -568,7 +651,7 @@ function set_wide_table(value) {
     localStorage.setItem("wide_song_table", value ? "true" : "false");
 }
 
-/** @return {boolean} */
+/** @returns {boolean} */
 function get_wide_table() {
     return localStorage.getItem("wide_song_table") === "true";
 }
@@ -578,9 +661,9 @@ function get_wide_table() {
 /**
 * @template {keyof HTMLElementTagNameMap} K
 * @param {K} tag
-* @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string | string[], selected?: "selected", for?: string }} attrs
-* @param {...(HTMLElement | string)} children
-* @return {HTMLElementTagNameMap[K]}
+* @param {(Partial<HTMLElementTagNameMap[K]> | { style?: Partial<CSSStyleDeclaration>}) & { class?: string | string[], selected?: "selected", for?: string }} [attrs]
+* @param {...(HTMLElement | string)} [children]
+* @returns {HTMLElementTagNameMap[K]}
     */
 function create(tag, attrs, ...children) {
     if (!tag) throw new SyntaxError("'tag' not defined");
@@ -618,8 +701,8 @@ function create(tag, attrs, ...children) {
  * @param {...(HTMLElement | string)} children
         */
 function intor(parent, ...children) {
-    for (let child of parent.children) {
-        parent.removeChild(child);
+    while (parent.lastChild) {
+        parent.removeChild(parent.lastChild);
     }
     return into(parent, ...children);
 }
@@ -656,9 +739,10 @@ function logc(message, ...optionalParams) {
     setup_log();
     setup_style();
     load_user_cache();
-    add_dl_link_user_site();
-    add_dl_link_leaderboard();
-    add_user_compare();
-    setup_self();
-    add_wide_table_checkbox();
+    setup_dl_link_user_site();
+    setup_dl_link_leaderboard();
+    setup_user_compare();
+    setup_self_pin_button();
+    update_self_button();
+    setup_wide_table_checkbox();
 })();
