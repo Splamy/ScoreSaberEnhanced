@@ -14,6 +14,12 @@
 // ==/UserScript==
 // @ts-check
 
+/**
+ * @typedef {{ time: string, pp:number, accuracy?: number, score?: number }} Song
+ * @typedef {{ id: string, name: string }} User
+ */
+
+"use strict";
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
 const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+-\d+)/;
@@ -21,7 +27,7 @@ const score_reg = /(score|accuracy):\s+([\d\.,]+)%?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const user_reg = /u\/(\d+)/;
 
-/** @type {{ [user_id: string]: { name: string, songs: {[song_id: string]: { time: string, pp:number, accuracy?: number, score?: number } } }}} */
+/** @type {{ [user_id: string]: { name: string, songs: {[song_id: string]: Song } }}} */
 let user_list;
 let status_elem;
 let users_elem;
@@ -30,9 +36,9 @@ let last_selected;
 let debug = false;
 
 // Cache
-/** @type {{ id: string, name: string }} */
+/** @type {User} */
 let _current_user;
-/** @type {{ id: string, name: string }} */
+/** @type {User} */
 let _home_user;
 
 // *** Buttons and styles ***
@@ -245,7 +251,10 @@ function setup_user_compare() {
         create("div", {
             class: "button is-normal tooltip fas_big fas " + (user_list[user.id] ? "fa-sync" : "fa-bookmark"),
             style: { cursor: "pointer" },
-            onclick: async () => { await fetch_user(get_current_user().id); },
+            onclick: async () => {
+                await fetch_user(get_current_user().id);
+                update_user_compare_songtable_default();
+            },
         },
             create("div", { class: "tooltiptext" }, user_list[user.id] ? "Update score cache" : "Add user to your score cache")
         )
@@ -263,10 +272,7 @@ function setup_user_compare() {
     content.querySelector("div.select").insertAdjacentElement("afterend", users_elem);
 
     update_user_compare_dropdown();
-    let compare = get_compare_user();
-    if (compare) {
-        update_comparison_list(compare);
-    }
+    update_user_compare_songtable_default();
 }
 
 function update_user_compare_dropdown() {
@@ -292,10 +298,17 @@ function update_user_compare_dropdown() {
     );
 }
 
+function update_user_compare_songtable_default() {
+    let compare = get_compare_user();
+    if (compare) {
+        update_user_compare_songtable(compare);
+    }
+}
+
 /**
- * @param {string} other_user 
+ * @param {string} other_user
  */
-function update_comparison_list(other_user) {
+function update_user_compare_songtable(other_user) {
     if (!is_user_page()) { return; }
 
     let other_data = user_list[other_user];
@@ -327,12 +340,12 @@ function update_comparison_list(other_user) {
         let other_score_content = "";
         if (other_song) {
             other_score_content = create("div", {},
-                create("span", { class: "scoreTop ppValue" }, `${other_song.pp}pp`),
+                create("span", { class: "scoreTop ppValue" }, `${format_en(other_song.pp)}pp`),
                 create("br"),
                 other_song.accuracy
-                    ? create("span", { class: "scoreBottom" }, `accuracy: ${other_song.accuracy}%`)
+                    ? create("span", { class: "scoreBottom" }, `accuracy: ${format_en(other_song.accuracy)}%`)
                     : other_song.score
-                        ? create("span", { class: "scoreBottom" }, `score: ${other_song.score.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                        ? create("span", { class: "scoreBottom" }, `score: ${format_en(other_song.score)}`)
                         : "<No Data>",
                 // create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
             );
@@ -395,6 +408,9 @@ function save_user_cache() {
     localStorage.setItem("users", JSON.stringify(user_list));
 }
 
+/**
+ * @param {string} id
+ */
 async function fetch_user(id) {
     let page = 1;
     let page_max = undefined;
@@ -432,7 +448,6 @@ async function fetch_user(id) {
 
         let table_row = table.querySelectorAll("tbody tr");
         for (let row of table_row) {
-
             let [song_id, song] = get_row_data(row);
             if (user.songs[song_id] && user.songs[song_id].time === song.time) {
                 logc("User cache up to date");
@@ -458,6 +473,9 @@ async function fetch_user(id) {
     on_user_list_changed();
 }
 
+/**
+ * @param {string} id
+ */
 function delete_user(id) {
     if (user_list[id]) {
         delete user_list[id];
@@ -466,6 +484,10 @@ function delete_user(id) {
     }
 }
 
+/**
+ * @param {Element & { cache?: [string, Song] }} row
+ * @returns {[string, Song]}
+ */
 function get_row_data(row) {
     if (row.cache) {
         return row.cache;
@@ -498,6 +520,7 @@ function get_row_data(row) {
         score,
         accuracy
     };
+    /** @type {[string, Song]} */
     let data = [song_id, song];
     row.cache = data;
     return data;
@@ -634,7 +657,7 @@ function setup_wide_table_checkbox() {
     table.insertAdjacentElement("beforebegin", create("label", { class: "checkbox", for: "wide_song_table" }, "Wide Table"));
 }
 
-// *** Html Getter ***
+// *** Html/Localstore Getter/Setter ***
 
 /**
  * @returns {HTMLHeadingElement}
@@ -701,7 +724,7 @@ function get_compare_user() {
 
 /** @param {string} user */
 function set_compare_user(user) {
-    update_comparison_list(user);
+    update_user_compare_songtable(user);
     last_selected = user;
     localStorage.setItem("last_selected", user);
 }
@@ -800,6 +823,14 @@ function logc(message, ...optionalParams) {
     if (debug) {
         console.log(message, ...optionalParams);
     }
+}
+
+/**
+ * @param {number} num
+ * @returns {string}
+ */
+function format_en(num) {
+    return num.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 (function () {
