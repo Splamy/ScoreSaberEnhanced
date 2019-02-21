@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.16
+// @version      0.17
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -15,19 +15,20 @@
 // @ts-check
 
 /**
- * @typedef {{ time: string, pp:number, accuracy?: number, score?: number }} Song
+ * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
  * @typedef {{ id: string, name: string }} User
+ * @typedef {{ name: string, songs: {[song_id: string]: Song } }} DbUser
  */
 
 "use strict";
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
 const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+-\d+)/;
-const score_reg = /(score|accuracy):\s+([\d\.,]+)%?/;
+const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const user_reg = /u\/(\d+)/;
 
-/** @type {{ [user_id: string]: { name: string, songs: {[song_id: string]: Song } }}} */
+/** @type {{ [user_id: string]: DbUser}} */
 let user_list;
 let status_elem;
 let users_elem;
@@ -340,13 +341,23 @@ function update_user_compare_songtable(other_user) {
         let other_score_content = "";
         if (other_song) {
             other_score_content = create("div", {},
-                create("span", { class: "scoreTop ppValue" }, `${format_en(other_song.pp)}pp`),
+                create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)),
+                create("span", { class: "scoreTop ppLabel" }, "pp"),
                 create("br"),
-                other_song.accuracy
-                    ? create("span", { class: "scoreBottom" }, `accuracy: ${format_en(other_song.accuracy)}%`)
-                    : other_song.score
-                        ? create("span", { class: "scoreBottom" }, `score: ${format_en(other_song.score)}`)
-                        : "<No Data>",
+                (function () {
+                    let str;
+                    if (other_song.accuracy) {
+                        str = `accuracy: ${format_en(other_song.accuracy)}%`;
+                    } else if (other_song.score) {
+                        str = `score: ${format_en(other_song.score)}`;
+                    } else {
+                        return "<No Data>";
+                    }
+                    if (other_song.mods) {
+                        str += ` (${other_song.mods.join(",")})`;
+                    }
+                    return create("span", { class: "scoreBottom" }, str);
+                })()
                 // create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
             );
         }
@@ -418,51 +429,38 @@ async function fetch_user(id) {
 
     intor(status_elem, "Adding user to database...");
 
-    scan: for (; page <= (page_max || 512); page++) {
-        intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
-        let page1 = await get_user_page(id, page);
+    let user = user_list[id];
+    if (!user) {
+        user = {
+            name: "User" + id,
+            songs: {}
+        };
+        user_list[id] = user;
+    }
 
-        let table = page1.querySelector("table.ranking.songs");
-        if (!table) {
-            return;
-        }
+    for (; page <= (page_max || 4); page++) {
+        intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
+        let doc = await fetch_user_page(id, page);
 
         if (page_max === undefined) {
             /** @type {HTMLAnchorElement} */
-            let last_page_elem = document.querySelector("nav ul.pagination-list li:last-child a");
+            let last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
             // weird bug on the scoresaber site:
             // It lists for e.g. 20 pages, but 21 might be needed
             page_max = Number(last_page_elem.innerText) + 1;
+
+            user.name = get_document_user(doc).name;
         }
 
-        let user = user_list[id];
-        if (!user) {
-            user = {
-                name: "User" + id,
-                songs: {}
-            };
-            user_list[id] = user;
-        }
-
-        user.name = get_current_user().name;
-
-        let table_row = table.querySelectorAll("tbody tr");
-        for (let row of table_row) {
-            let [song_id, song] = get_row_data(row);
-            if (user.songs[song_id] && user.songs[song_id].time === song.time) {
-                logc("User cache up to date");
-                break scan;
-            }
-
-            logc("Updated: ", song);
-            user.songs[song_id] = song;
-            updated = true;
-        }
-
-        if (!updated) {
+        let [has_old_entry, has_updated] = process_user_page(doc, user);
+        updated = updated || has_updated;
+        if (has_old_entry) {
             break;
         }
     }
+
+    // process current page to allow force-updating the current site
+    process_user_page(document, user);
 
     if (updated) {
         save_user_cache();
@@ -471,6 +469,30 @@ async function fetch_user(id) {
     intor(status_elem, "User updated");
 
     on_user_list_changed();
+}
+
+/**
+ * @param {Document} doc
+ * @param {DbUser} user
+ */
+function process_user_page(doc, user) {
+    let has_old_entry = false;
+    let has_updated = false;
+
+    let table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
+    for (let row of table_row) {
+        let [song_id, song] = get_row_data(row);
+        if (user.songs[song_id] && user.songs[song_id].time === song.time) {
+            has_old_entry = true;
+        } else {
+            logc("Updated: ", song);
+            has_updated = true;
+        }
+
+        user.songs[song_id] = song;
+    }
+    
+    return [has_old_entry, has_updated];
 }
 
 /**
@@ -507,18 +529,24 @@ function get_row_data(row) {
     let time = time_elem.title;
     let score = undefined;
     let accuracy = undefined;
+    let mods = undefined;
     let score_res = score_reg.exec(score_elem.innerText);
+    logc(score_res);
     if (score_res[1] === "score") {
         score = Number(score_res[2].replace(/,/g, ''));
     } else if (score_res[1] === "accuracy") {
         accuracy = Number(score_res[2]);
+    }
+    if (score_res[4]) {
+        mods = score_res[4].split(/,/g);
     }
 
     let song = {
         pp,
         time,
         score,
-        accuracy
+        accuracy,
+        mods,
     };
     /** @type {[string, Song]} */
     let data = [song_id, song];
@@ -531,7 +559,7 @@ function get_row_data(row) {
  * @param {string|number} page
  * @returns {Promise<Document>}
  */
-async function get_user_page(id, page) {
+async function fetch_user_page(id, page) {
     let link = scoresaber_link + `/u/${id}&page=${page}&sort=2`;
     if (window.location.href.toLowerCase() === link) {
         logc("Efficient get :P");
@@ -674,21 +702,27 @@ function is_song_leaderboard_page() {
     return window.location.href.toLowerCase().startsWith(scoresaber_link + "/leaderboard/");
 }
 
-/** @returns {{ id: string, name: string }} */
+/** @returns {User} */
 function get_current_user() {
     if (_current_user) { return _current_user; }
     if (!is_user_page()) { throw new Error("Not on a user page"); }
 
-    /** @type {HTMLAnchorElement} */
-    let username_elem = document.querySelector(".content .title a")
-    let user_name = username_elem.innerText;
-    let user_id = user_reg.exec(window.location.href)[1];
-
-    _current_user = { id: user_id, name: user_name };
+    _current_user = get_document_user(document);
     return _current_user;
 }
 
-/** @returns {{ id: string, name: string } | undefined} */
+/** @param {Document} doc */
+function get_document_user(doc) {
+    /** @type {HTMLAnchorElement} */
+    let username_elem = doc.querySelector(".content .title a")
+    let user_name = username_elem.innerText.trim();
+    // TODO will be wrong when calling from a different page
+    let user_id = user_reg.exec(window.location.href)[1];
+
+    return { id: user_id, name: user_name };
+}
+
+/** @returns {User | undefined} */
 function get_home_user() {
     if (_home_user) { return _home_user; }
 
@@ -700,7 +734,7 @@ function get_home_user() {
     return _home_user;
 }
 
-/** @returns {string|undefined} */
+/** @returns {string | undefined} */
 function get_compare_user() {
     if (last_selected) {
         return last_selected;
@@ -729,7 +763,7 @@ function set_compare_user(user) {
     localStorage.setItem("last_selected", user);
 }
 
-/** @param {{ id: string, name: string }} user */
+/** @param {User} user */
 function set_home_user(user) {
     _home_user = user;
     localStorage.setItem("home_user", JSON.stringify(user));
