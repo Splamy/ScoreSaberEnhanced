@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.17
+// @version      0.18
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -26,6 +26,7 @@ const beatsaver_link = "https://beatsaver.com/browse/detail/"
 const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+-\d+)/;
 const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
+const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
 const user_reg = /u\/(\d+)/;
 
 /** @type {{ [user_id: string]: DbUser}} */
@@ -685,6 +686,20 @@ function setup_wide_table_checkbox() {
     table.insertAdjacentElement("beforebegin", create("label", { class: "checkbox", for: "wide_song_table" }, "Wide Table"));
 }
 
+// ** Link util **
+
+function setup_user_rank_link_swap() {
+    if (!is_user_page()) { return; }
+
+    /** @type {NodeListOf<HTMLAnchorElement>} */
+    let links = document.querySelectorAll(".content div.columns ul li:first-child a");
+
+    let elem_global = links[0];
+    let res_global = leaderboard_rank_reg.exec(elem_global.innerText);
+    let number_global = Number(res_global[1].replace(/,/g, ""));
+    elem_global.href = scoresaber_link + "/global/" + Math.floor((number_global + 49) / 50);
+}
+
 // *** Html/Localstore Getter/Setter ***
 
 /**
@@ -874,6 +889,7 @@ function format_en(num) {
     setup_dl_link_user_site();
     setup_dl_link_leaderboard();
     setup_self_pin_button();
+    setup_user_rank_link_swap();
     setup_user_compare();
     update_self_button();
     setup_wide_table_checkbox();

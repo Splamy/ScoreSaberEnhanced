@@ -1,8 +1,10 @@
 # ScoreSaberEnhanced
 Provides additional features to the ScoreSaber website
 
+To install get Tampermonkey/Greasemonkey then click [here](https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js)
+
 # Compare Scores
-- Compare your scores against your friends
+- Compare your scores with your friends
 - Extend the song table to the full box width
 - Direct links to BeatSaver and OneClick download
 
@@ -13,3 +15,6 @@ Provides additional features to the ScoreSaber website
 - Jump directly to other saved users
 
 ![Pin](https://i.imgur.com/2B0GLwi.png)
+
+# Other
+- Rank number link on a user page jumps to the page where the user is
