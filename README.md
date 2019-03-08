@@ -1,7 +1,8 @@
 # ScoreSaberEnhanced
 Provides additional features to the ScoreSaber website
 
-To install get Tampermonkey/Greasemonkey then click [here](https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js)
+# Install
+Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) or [Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/). Then install the script from [here](https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js).
 
 # Compare Scores
 - Compare your scores with your friends
