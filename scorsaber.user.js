@@ -23,7 +23,8 @@
 "use strict";
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
-const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+-\d+)/;
+const bsaber_link = "https://bsaber.com/songs/";
+const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/((\d+)-(\d+))/;
 const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
@@ -80,6 +81,14 @@ function generate_oneclick_button(click, compact) {
  * @returns {HTMLElement}
  */
 function generate_bsaber_button(href) {
+    // Fixing bsaber links:
+    // Scoresaber links to "https://bsaber.com/songs/12896-13835"
+    // But the bsaber link should be: "https://bsaber.com/songs/12896"
+    let match = bsaber_link_reg.exec(href);
+    if (match) {
+        href = bsaber_link + match[2];
+    }
+
     return create("a", {
         class: "button is-normal",
         style: {
@@ -492,7 +501,7 @@ function process_user_page(doc, user) {
 
         user.songs[song_id] = song;
     }
-    
+
     return [has_old_entry, has_updated];
 }
 

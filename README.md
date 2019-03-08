@@ -18,3 +18,4 @@ To install get Tampermonkey/Greasemonkey then click [here](https://github.com/Sp
 
 # Other
 - Rank number link on a user page jumps to the page where the user is
+- Fixes BeastSaber links on song pages
