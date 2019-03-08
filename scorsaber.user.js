@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.18
+// @version      0.19
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -47,18 +47,27 @@ let _home_user;
 // *** Buttons and styles ***
 
 /**
- * @param {(this: GlobalEventHandlers, ev: MouseEvent) => any} click
+ * @param {((this: GlobalEventHandlers, ev: MouseEvent) => any)|string} click
  * @param {boolean} compact
  * @returns {HTMLElement}
  */
 function generate_beatsaver_button(click, compact) {
-    return create("div", {
-        class: "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : ""),
-        style: {
-            cursor: "pointer",
-        },
-        onclick: click,
-    });
+    let clas = "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : "");
+
+    if (typeof click === "string") {
+        return create("a", {
+            class: clas,
+            href: click,
+        });
+    } else {
+        return create("div", {
+            class: "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : ""),
+            style: {
+                cursor: "pointer",
+            },
+            onclick: click,
+        });
+    }
 }
 
 /**
@@ -223,9 +232,7 @@ function setup_dl_link_leaderboard() {
             id: "leaderboard_tool_strip"
         },
             generate_bsaber_button(link_element.href),
-            generate_beatsaver_button(() => {
-                window.open(beatsaver_link + id, '_blank');
-            }, false),
+            generate_beatsaver_button(beatsaver_link + id, false),
             generate_oneclick_button(() => {
                 // @ts-ignore
                 oneClick(this, id);
