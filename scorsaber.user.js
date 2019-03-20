@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.19
+// @version      0.20
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy
 // @match        http*://scoresaber.com/*
@@ -708,7 +708,7 @@ function setup_user_rank_link_swap() {
     if (!is_user_page()) { return; }
 
     /** @type {NodeListOf<HTMLAnchorElement>} */
-    let links = document.querySelectorAll(".content div.columns ul li:first-child a");
+    let links = document.querySelectorAll(".content div.columns ul li a");
 
     let elem_global = links[0];
     let res_global = leaderboard_rank_reg.exec(elem_global.innerText);
