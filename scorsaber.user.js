@@ -1,23 +1,29 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.20
+// @version      0.21
 // @description  Adds links to beatsaver and add player comparison
-// @author       Splamy
+// @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
-// @grant        none
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scorsaber.user.js
 // @require      https://unpkg.com/sweetalert@2.1.2/dist/sweetalert.min.js
 // @require      https://beatsaver.com/js/oneclick.js
+// @run-at       document-body
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
+// @connect      unpkg.com
 // ==/UserScript==
 // @ts-check
+
+document.onload = () => { console.log("YO doc") };
 
 /**
  * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
  * @typedef {{ id: string, name: string }} User
  * @typedef {{ name: string, songs: {[song_id: string]: Song } }} DbUser
+ * @typedef {"small"|"medium"|"large"} BulmaSize
  */
 
 "use strict";
@@ -29,6 +35,29 @@ const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
 const user_reg = /u\/(\d+)/;
+
+const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
+    "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
+    "Sandstone", "Simplex", "Slate", "Solar", "Spacelab", "Superhero", "United",
+    "Yeti"];
+const theme_light = `:root {
+    --color-ahead: rgb(128, 255, 128);
+    --color-behind: rgb(255, 128, 128);
+}`;
+const theme_dark = `:root {
+    --color-ahead: rgb(0, 128, 0);
+    --color-behind: rgb(128, 0, 0);
+}
+.beatsaver_bg {
+    filter: invert(1);
+}
+/* Reset colors for generic themes */
+span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
+    color:unset;
+}
+span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapper {
+    text-shadow: 1px 1px 2px #000;
+}`;
 
 /** @type {{ [user_id: string]: DbUser}} */
 let user_list;
@@ -43,46 +72,55 @@ let debug = false;
 let _current_user;
 /** @type {User} */
 let _home_user;
+/** @type {HTMLStyleElement} */
+let style_themed_elem
 
 // *** Buttons and styles ***
 
 /**
  * @param {((this: GlobalEventHandlers, ev: MouseEvent) => any)|string} click
- * @param {boolean} compact
+ * @param {BulmaSize} size
  * @returns {HTMLElement}
  */
-function generate_beatsaver_button(click, compact) {
-    let clas = "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : "");
+function generate_beatsaver_button(click, size) {
+    const clas = `button icon is-${size}`;
 
+    let base_elem;
     if (typeof click === "string") {
-        return create("a", {
+        base_elem = create("a", {
             class: clas,
+            style: {
+                padding: "0",
+            },
             href: click,
         });
     } else {
-        return create("div", {
-            class: "button is-normal fas_big beatsaver_bg" + (compact ? " compact" : ""),
+        base_elem = create("div", {
+            class: clas,
             style: {
                 cursor: "pointer",
+                padding: "0",
             },
             onclick: click,
         });
     }
+    into(base_elem, create("div", { class: "beatsaver_bg" }));
+    return base_elem;
 }
 
 /**
  * @param {(this: GlobalEventHandlers, ev: MouseEvent) => any} click
- * @param {boolean} compact
+ * @param {BulmaSize} size
  * @returns {HTMLElement}
  */
-function generate_oneclick_button(click, compact) {
+function generate_oneclick_button(click, size) {
     return create("div", {
-        class: "button is-normal fas_big fas fa-cloud-download-alt" + (compact ? " compact" : ""),
+        class: `button icon is-${size}`,
         style: {
             cursor: "pointer",
         },
         onclick: click,
-    });
+    }, create("i", { class: "fas fa-cloud-download-alt" }));
 }
 
 /**
@@ -99,22 +137,30 @@ function generate_bsaber_button(href) {
     }
 
     return create("a", {
-        class: "button is-normal",
+        class: "button icon is-large tooltip",
         style: {
             cursor: "pointer",
-            backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
-            backgroundSize: "cover",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-            minWidth: "2.5em",
+            padding: "0",
         },
         href: href,
-    });
+    },
+        create("div", {
+            style: {
+                backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                width: "100%",
+                height: "100%",
+                borderRadius: "inherit",
+            }
+        }),
+        create("div", { class: "tooltiptext" }, "View/Add rating on BeastSaber")
+    );
 }
 
 function setup_style() {
-    let style = create("style", { type: "text/css" });
-    style.innerHTML = `.compact {
+    GM_addStyle(`.compact {
         padding-right: 0 !important;
         padding-left: 0 !important;
         margin-left: 0px !important;
@@ -124,18 +170,22 @@ function setup_style() {
     h5 > * {
         margin-right: 0.3em;
     }
-    #wide_song_table:checked ~ .ranking.songs table{
+    #wide_song_table_css:checked ~ table.ranking.songs {
         max-width: unset !important;
     }
     .beatsaver_bg {
-        background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/80%;
-        background-color: white;
+        background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
+        width: 100%;
+        height: 100%;
     }
     .fas_big {
         line-height: 150%;
         padding-right: 0.5em;
         padding-left: 0.5em;
         min-width: 2.25em;
+        /* Fix for some themes overriding font */
+        font-weight: 900;
+        font-family: "Font Awesome 5 Free";
     }
     .fas_big::before {
         font-size: 120%;
@@ -159,11 +209,10 @@ function setup_style() {
         opacity: 1;
     }
     #leaderboard_tool_strip > * {
-        margin-left: 0.5em;
-    }
-    `;
-    into(document.head, style);
+        margin-right: 0.5em;
+    }`);
     into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
+    //into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-tooltip/dist/css/bulma-tooltip.min.css" }));
 }
 
 // *** Injection and generation ***
@@ -197,7 +246,7 @@ function setup_dl_link_user_site() {
                 generate_beatsaver_button(async () => {
                     let id = await fetch_id(leaderboard_link);
                     window.open(beatsaver_link + id, '_blank');
-                }, true)
+                }, "medium")
             )
         );
 
@@ -206,9 +255,8 @@ function setup_dl_link_user_site() {
             create("th", { class: "compact" },
                 generate_oneclick_button(async () => {
                     let id = await fetch_id(leaderboard_link);
-                    // @ts-ignore
                     oneClick(this, id);
-                }, true)
+                }, "medium")
             )
         );
     }
@@ -216,7 +264,7 @@ function setup_dl_link_user_site() {
 
 function setup_dl_link_leaderboard() {
     if (!is_song_leaderboard_page()) { return; }
-
+    
     // find the element we want to modify
     /** @type {HTMLAnchorElement} */
     let link_element = document.querySelector("h4.is-4 + div > a");
@@ -232,11 +280,10 @@ function setup_dl_link_leaderboard() {
             id: "leaderboard_tool_strip"
         },
             generate_bsaber_button(link_element.href),
-            generate_beatsaver_button(beatsaver_link + id, false),
+            generate_beatsaver_button(beatsaver_link + id, "large"),
             generate_oneclick_button(() => {
-                // @ts-ignore
                 oneClick(this, id);
-            }, false)
+            }, "large")
         ), hr_elem);
 }
 
@@ -267,13 +314,14 @@ function setup_user_compare() {
     let user = get_current_user();
     into(header,
         create("div", {
-            class: "button is-normal tooltip fas_big fas " + (user_list[user.id] ? "fa-sync" : "fa-bookmark"),
+            class: "button icon is-medium tooltip",
             style: { cursor: "pointer" },
             onclick: async () => {
                 await fetch_user(get_current_user().id);
                 update_user_compare_songtable_default();
             },
         },
+            create("i", { class: ["fas", user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
             create("div", { class: "tooltiptext" }, user_list[user.id] ? "Update score cache" : "Add user to your score cache")
         )
     );
@@ -307,10 +355,7 @@ function update_user_compare_dropdown() {
                 }
             }, ...Object.keys(user_list).map(id => {
                 let user = user_list[id];
-                if (id === compare) {
-                    return create("option", { value: id, selected: "selected" }, user.name);
-                }
-                return create("option", { value: id }, user.name);
+                return create("option", { value: id, selected: id === compare ? "selected" : undefined }, user.name);
             }))
         )
     );
@@ -348,14 +393,14 @@ function update_user_compare_songtable(other_user) {
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
         // reset style
-        row.style.backgroundImage = "";
+        row.style.backgroundImage = "unset";
 
         let [song_id, song] = get_row_data(row);
         let other_song = other_data.songs[song_id];
 
         // add score column
         /** @type {string | HTMLElement} */
-        let other_score_content = "";
+        let other_score_content;
         if (other_song) {
             other_score_content = create("div", {},
                 create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)),
@@ -377,12 +422,13 @@ function update_user_compare_songtable(other_user) {
                 })()
                 // create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
             );
+        } else {
+            other_score_content = create("hr", {});
         }
         row.querySelector(".score").insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_score_content));
 
         if (!other_song) {
             logc("No match");
-            row.style.backgroundImage = `linear-gradient(0deg, rgb(240, 240, 240) 0%, rgb(240, 240, 240) 0%)`;
             continue;
         }
 
@@ -408,11 +454,10 @@ function update_user_compare_songtable(other_user) {
             value = 100 - value;
         }
 
-        // light gray?: rgb(240, 240, 240)
         if (better) {
-            row.style.backgroundImage = `linear-gradient(75deg, rgb(128, 255, 128) ${value}%, rgba(0,0,0,0) ${value}%)`
+            row.style.backgroundImage = `linear-gradient(75deg, var(--color-ahead) ${value}%, rgba(0,0,0,0) ${value}%)`
         } else {
-            row.style.backgroundImage = `linear-gradient(105deg, rgba(0,0,0,0) ${value}%, rgb(255, 128, 128) ${value}%)`
+            row.style.backgroundImage = `linear-gradient(105deg, rgba(0,0,0,0) ${value}%, var(--color-behind) ${value}%)`
         }
     }
 }
@@ -640,10 +685,9 @@ function update_self_user_list() {
             },
                 create("div", { style: { flex: "1" } }, user.name),
                 create("a", {
-                    class: "button is-small",
+                    class: "button icon is-medium is-danger is-outlined",
                     style: { marginLeft: "3em" },
                     onclick: () => {
-                        // @ts-ignore
                         swal(`Delete User "${user.name}" from cache?`, {
                             dangerMode: true,
                             buttons: true,
@@ -655,7 +699,9 @@ function update_self_user_list() {
                         });
                         return false;
                     }
-                }, "❌"),
+                },
+                    create("i", { class: "fas fa-trash-alt" })
+                ),
             );
         })
     );
@@ -671,13 +717,14 @@ function setup_self_pin_button() {
 
     let header = get_user_header();
     into(header, create("div", {
-        class: "button is-normal tooltip fas_big fas fa-thumbtack",
-        style: { cursor: "pointer", },
+        class: "button icon is-medium tooltip",
+        style: { cursor: "pointer" },
         onclick: () => {
             set_home_user(get_current_user());
             update_self_button();
         }
     },
+        create("i", { class: "fas fa-thumbtack" }),
         create("div", { class: "tooltiptext" }, "Pin this user to your navigation bar")
     ));
 }
@@ -687,19 +734,14 @@ function setup_self_pin_button() {
 function setup_wide_table_checkbox() {
     if (!is_user_page()) { return; }
 
-    let table = document.querySelector("div.ranking.songs");
+    let table = document.querySelector("table.ranking.songs");
 
     table.insertAdjacentElement("beforebegin", create("input", {
-        id: "wide_song_table",
+        id: "wide_song_table_css",
         type: "checkbox",
-        class: "is-checkradio",
+        style: { display: "none" },
         checked: get_wide_table(),
-        onchange: function () {
-            // @ts-ignore
-            set_wide_table(this.checked);
-        }
     }));
-    table.insertAdjacentElement("beforebegin", create("label", { class: "checkbox", for: "wide_song_table" }, "Wide Table"));
 }
 
 // ** Link util **
@@ -716,11 +758,146 @@ function setup_user_rank_link_swap() {
     elem_global.href = scoresaber_link + "/global/" + Math.floor((number_global + 49) / 50);
 }
 
+// ** Settings page **
+
+function setup_settings_page() {
+    let current_theme = localStorage.getItem("theme_name");
+    if (!current_theme) {
+        current_theme = "Default";
+    }
+
+    let set_div = create("div", {
+        id: "settings_overlay",
+        style: {
+            height: "100%",
+            width: "100%",
+            position: "fixed",
+            zIndex: "30",
+            left: "0",
+            top: "0",
+            backgroundColor: "rgba(0,0,0, 0.2)",
+            overflow: "hidden",
+
+            display: "none", // flex
+            justifyContent: "center",
+        },
+        onclick: function () {
+            // @ts-ignore
+            this.style.display = "none";
+        }
+    },
+        create("div", {
+            id: "settings_dialogue",
+            class: "box has-shadow",
+            style: {
+                width: "100%",
+                position: "fixed",
+                top: "4em",
+                maxWidth: "720px",
+            },
+            onclick: function (ev) { ev.stopPropagation(); }
+        },
+            create("div", { class: "field" },
+                create("label", { class: "label" }, "Theme"),
+                create("div", { class: "control" },
+                    create("div", { class: "select" },
+                        create("select", {
+                            onchange: function () {
+                                // @ts-ignore
+                                settings_set_theme(this.value);
+                            }
+                        },
+                            ...themes.map(name => create("option", { selected: name == current_theme ? "selected" : undefined }, name))
+                        )
+                    )
+                )
+            ),
+            create("div", { class: "field" },
+                create("label", { class: "label" }, "Song Table Options"),
+            ),
+            create("div", { class: "field" },
+                create("input", {
+                    id: "wide_song_table",
+                    type: "checkbox",
+                    class: "is-checkradio",
+                    checked: get_wide_table(),
+                    onchange: function () {
+                        // @ts-ignore
+                        set_wide_table(this.checked);
+                        // @ts-ignore
+                        document.getElementById("wide_song_table_css").checked = this.checked;
+                    }
+                }),
+                create("label", { for: "wide_song_table", class: "checkbox" }, "Always expand table to full width"),
+            )
+        )
+    );
+
+    set_div = document.body.appendChild(set_div);
+
+    /** @type {HTMLDivElement} */
+    let navbar_elem = document.querySelector("#navMenu div.navbar-start");
+    into(navbar_elem,
+        create("a", {
+            class: "navbar-item",
+            style: {
+                cursor: "pointer",
+            },
+            onclick: () => set_div.style.display = "flex",
+        },
+            create("i", { class: "fas fa-cog" })
+        )
+    )
+}
+
+/** @param {string} name */
+function settings_set_theme(name) {
+    GM_xmlhttpRequest({
+        method: "GET",
+        headers: {
+            "Origin": "unpkg.com",
+        },
+        url: `https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`,
+        onload: function (response) {
+            let css = response.responseText;
+            localStorage.setItem("theme_name", name);
+            localStorage.setItem("theme_css", css);
+            load_theme(name, css);
+        }
+    });
+}
+
+// *** Theming ***
+
+function load_last_theme() {
+    let theme_name = localStorage.getItem("theme_name");
+    let theme_css = localStorage.getItem("theme_css");
+    if (!theme_name || !theme_css)
+        return;
+    load_theme(theme_name, theme_css);
+}
+
+/** 
+ * @param {string} name
+ * @param {string} css */
+function load_theme(name, css) {
+    let css_fin;
+    if (name == "Cyborg" || name == "Darkly" || name == "Nuclear"
+        || name == "Slate" || name == "Solar" || name == "Superhero") {
+        css_fin = css + " " + theme_dark;
+    } else {
+        css_fin = css + " " + theme_light
+    }
+    if (!style_themed_elem) {
+        style_themed_elem = GM_addStyle(css_fin);
+    } else {
+        style_themed_elem.innerHTML = css_fin;
+    }
+}
+
 // *** Html/Localstore Getter/Setter ***
 
-/**
- * @returns {HTMLHeadingElement}
- */
+/** @returns {HTMLHeadingElement} */
 function get_user_header() {
     return document.querySelector(".content div.columns h5");
 }
@@ -898,10 +1075,11 @@ function format_en(num) {
     return num.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-(function () {
-    setup_log();
-    setup_style();
-    load_user_cache();
+setup_log();
+setup_style();
+load_last_theme();
+load_user_cache();
+window.addEventListener('DOMContentLoaded', function() {
     setup_dl_link_user_site();
     setup_dl_link_leaderboard();
     setup_self_pin_button();
@@ -909,4 +1087,5 @@ function format_en(num) {
     setup_user_compare();
     update_self_button();
     setup_wide_table_checkbox();
-})();
+    setup_settings_page();
+});

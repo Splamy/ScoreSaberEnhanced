@@ -17,6 +17,11 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 ![Pin](https://i.imgur.com/2B0GLwi.png)
 
+# Themes
+- Many themes, including various dark themes.
+
+![Themes](https://i.imgur.com/3Nso0TP.png)
+
 # Other
 - Rank number link on a user page jumps to the page where the user is
 - Fixes BeastSaber links on song pages
