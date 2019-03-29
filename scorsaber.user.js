@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      0.21
+// @version      1.0.1
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -16,8 +16,6 @@
 // @connect      unpkg.com
 // ==/UserScript==
 // @ts-check
-
-document.onload = () => { console.log("YO doc") };
 
 /**
  * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
@@ -264,7 +262,7 @@ function setup_dl_link_user_site() {
 
 function setup_dl_link_leaderboard() {
     if (!is_song_leaderboard_page()) { return; }
-    
+
     // find the element we want to modify
     /** @type {HTMLAnchorElement} */
     let link_element = document.querySelector("h4.is-4 + div > a");
@@ -872,8 +870,10 @@ function settings_set_theme(name) {
 function load_last_theme() {
     let theme_name = localStorage.getItem("theme_name");
     let theme_css = localStorage.getItem("theme_css");
-    if (!theme_name || !theme_css)
-        return;
+    if (!theme_name || !theme_css) {
+        theme_name = "Default";
+        theme_css = "";
+    }
     load_theme(theme_name, theme_css);
 }
 
@@ -1079,7 +1079,7 @@ setup_log();
 setup_style();
 load_last_theme();
 load_user_cache();
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', function () {
     setup_dl_link_user_site();
     setup_dl_link_leaderboard();
     setup_self_pin_button();
