@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.0.1
+// @version      1.0.2
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -208,6 +208,9 @@ function setup_style() {
     }
     #leaderboard_tool_strip > * {
         margin-right: 0.5em;
+    }
+    .offset_tab {
+        margin-left: auto;
     }`);
     into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
     //into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-tooltip/dist/css/bulma-tooltip.min.css" }));
@@ -283,6 +286,38 @@ function setup_dl_link_leaderboard() {
                 oneClick(this, id);
             }, "large")
         ), hr_elem);
+}
+
+function setup_song_filter_tabs() {
+    if (!is_song_leaderboard_page()) { return; }
+
+    let tab_list_content = document.querySelector(".tabs > ul");
+    tab_list_content.appendChild(generate_tab("All Scores", () => window.location.reload(), true, true));
+    tab_list_content.appendChild(generate_tab("Friends", () => {}, false, false));
+    tab_list_content.appendChild(generate_tab("Around Me", () => {}, false, false));
+}
+
+function toggled_class(bool, cssClass) {
+    return bool === true ? cssClass : "";
+}
+
+/**
+ * @param {string | HTMLElement} title
+ * @param {Function} action
+ * @param {boolean} isActive
+ * @param {boolean} hasOffset
+ */
+function generate_tab(title, action, isActive, hasOffset) {
+    let tabClass = `${toggled_class(isActive, "is-active")} ${toggled_class(hasOffset, "offset_tab")}`;
+    return create("li", {
+        class: tabClass,
+    },
+        create("a", {
+            class: "has-text-info",
+            onclick: action
+        },
+            title)
+    );
 }
 
 /**
@@ -1007,7 +1042,9 @@ function create(tag, attrs, ...children) {
             }
             else if (attrName === "class") {
                 if (typeof attrs.class === "string") {
-                    ele.classList.add(...attrs.class.split(/ /g));
+                    if (attrs.class.trim().length > 0) {
+                        ele.classList.add(...attrs.class.split(/\s+/g));
+                    }
                 } else {
                     ele.classList.add(...attrs.class);
                 }
@@ -1088,4 +1125,5 @@ window.addEventListener('DOMContentLoaded', function () {
     update_self_button();
     setup_wide_table_checkbox();
     setup_settings_page();
+    setup_song_filter_tabs();
 });
