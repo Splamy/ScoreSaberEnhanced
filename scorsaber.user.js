@@ -292,9 +292,51 @@ function setup_song_filter_tabs() {
     if (!is_song_leaderboard_page()) { return; }
 
     let tab_list_content = document.querySelector(".tabs > ul");
-    tab_list_content.appendChild(generate_tab("All Scores", () => window.location.reload(), true, true));
-    tab_list_content.appendChild(generate_tab("Friends", () => {}, false, false));
-    tab_list_content.appendChild(generate_tab("Around Me", () => {}, false, false));
+    
+    function load_friends() {
+        let score_table = document.querySelector(".ranking .global > tbody");
+        score_table.innerHTML = "";
+        for (let user_id in user_list) {
+            let user = user_list[user_id];
+            Object.keys(user.songs)
+                .filter(song_id => song_id === leaderboard_reg.exec(window.location.pathname)[1])
+                .forEach(song_id => {
+                    score_table.appendChild(generate_song_table_row(user_id, user, song_id));
+                });
+        }
+        tab_list_content.querySelector(".filter_tab").classList.remove("is-active");
+        tab_list_content.querySelector("#friends_tab").classList.add("is-active");
+    }
+
+    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", () => window.location.reload(), true, true));
+    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", () => load_friends(), false, false));
+    // tab_list_content.appendChild(generate_tab("Around Me", "around_me_tab", () => {}, false, false));
+}
+
+/**
+ * @param {DbUser} user
+ * @param {string} song_id
+ */
+function generate_song_table_row(user_id, user, song_id) {
+    let song = user.songs[song_id];
+    return create("tr", {},
+        create("td", { class: "picture" }),
+        create("td", { class: "rank" }, "-"),
+        create("td", { class: "player" }, generate_song_table_player(user_id, user)),
+        create("td", { class: "score" }, song.score ? song.score.toString() : "-"),
+        create("td", { class: "timeset" }, song.time),
+        create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
+        create("td", { class: "percentage" }, song.accuracy ? song.accuracy.toString() : "-"),
+        create("td", { class: "pp" }, song.pp.toString())
+    )
+}
+
+/**
+ * @param {DbUser} user
+ * @param {string} user_id
+ */
+function generate_song_table_player(user_id, user) {
+    return create("a", { href: `${scoresaber_link}/u/${user_id}` }, user.name);
 }
 
 function toggled_class(bool, cssClass) {
@@ -307,9 +349,10 @@ function toggled_class(bool, cssClass) {
  * @param {boolean} isActive
  * @param {boolean} hasOffset
  */
-function generate_tab(title, action, isActive, hasOffset) {
-    let tabClass = `${toggled_class(isActive, "is-active")} ${toggled_class(hasOffset, "offset_tab")}`;
+function generate_tab(title, cssId, action, isActive, hasOffset) {
+    let tabClass = `filter_tab ${toggled_class(isActive, "is-active")} ${toggled_class(hasOffset, "offset_tab")}`;
     return create("li", {
+        id: cssId,
         class: tabClass,
     },
         create("a", {
@@ -1042,9 +1085,8 @@ function create(tag, attrs, ...children) {
             }
             else if (attrName === "class") {
                 if (typeof attrs.class === "string") {
-                    if (attrs.class.trim().length > 0) {
-                        ele.classList.add(...attrs.class.split(/\s+/g));
-                    }
+                    let classes = attrs.class.split(/ /g).filter(c => c.trim().length > 0);
+                    ele.classList.add(...classes);
                 } else {
                     ele.classList.add(...attrs.class);
                 }
