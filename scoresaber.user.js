@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.0.4
+// @version      1.0.5
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -13,7 +13,9 @@
 // @run-at       document-body
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
+// @grant        GM_info
 // @connect      unpkg.com
+// @connect      githubusercontent.com
 // ==/UserScript==
 // @ts-check
 
@@ -33,6 +35,7 @@ const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
 const user_reg = /u\/(\d+)/;
+const script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 
 const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
     "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
@@ -292,7 +295,7 @@ function setup_song_filter_tabs() {
     if (!is_song_leaderboard_page()) { return; }
 
     let tab_list_content = document.querySelector(".tabs > ul");
-    
+
     function load_friends() {
         let score_table = document.querySelector(".ranking .global > tbody");
         score_table.innerHTML = "";
@@ -374,6 +377,43 @@ async function fetch_id(link) {
     let leaderboard_text = await (await fetch(link)).text();
     let id_result = bsaber_link_reg.exec(leaderboard_text);
     return id_result[1];
+}
+
+function check_for_updates(edit_elem) {
+    let current_version = GM_info.script.version;
+    let update_check = localStorage.getItem("update_check");
+
+    if(update_check && Number(update_check) >= new Date().getTime()) {
+        return;
+    }
+
+    console.log("Checking veriuson");
+    GM_xmlhttpRequest({
+        method: "GET",
+        headers: {
+            "Origin": "github.com",
+        },
+        url: `https://raw.githubusercontent.com/Splamy/ScoreSaberEnhanced/master/scoresaber.user.js`,
+        onload: function (response) {
+            let latest_script = response.responseText;
+            let latest_version = script_version_reg.exec(latest_script)[1];
+            if (current_version != latest_version) {
+                into(edit_elem,
+                    create("div", { class: "notification is-warning" }, "An update is avalilable")
+                );
+
+                /** @type {HTMLElement} */
+                let settings_menu = document.querySelector("#settings_menu i");
+                settings_menu.classList.remove("fa-cog");
+                settings_menu.classList.add("fa-bell");
+                settings_menu.style.color = "yellow";
+            } else {
+                var now = new Date();
+                now.setDate(now.getDate() + 1);
+                localStorage.setItem("update_check", now.getTime().toString());
+            }
+        }
+    });
 }
 
 // *** User compare ***
@@ -725,10 +765,7 @@ function update_self_button() {
         home_elem.href = scoresaber_link + "/u/" + home_user.id;
         home_elem.innerText = home_user.name;
     } else {
-        /** @type {HTMLDivElement} */
-        let navbar_elem = document.querySelector("#navMenu div.navbar-start");
-
-        into(navbar_elem,
+        into(get_navbar(),
             create("div", { class: "navbar-item has-dropdown is-hoverable" },
                 create("a", {
                     id: "home_user",
@@ -873,6 +910,11 @@ function setup_settings_page() {
             },
             onclick: function (ev) { ev.stopPropagation(); }
         },
+            function () {
+                let notify_box = create("div", { class: "field" });
+                check_for_updates(notify_box);
+                return notify_box;
+            }(),
             create("div", { class: "field" },
                 create("label", { class: "label" }, "Theme"),
                 create("div", { class: "control" },
@@ -911,10 +953,9 @@ function setup_settings_page() {
 
     set_div = document.body.appendChild(set_div);
 
-    /** @type {HTMLDivElement} */
-    let navbar_elem = document.querySelector("#navMenu div.navbar-start");
-    into(navbar_elem,
+    into(get_navbar(),
         create("a", {
+            id: "settings_menu",
             class: "navbar-item",
             style: {
                 cursor: "pointer",
@@ -978,6 +1019,12 @@ function load_theme(name, css) {
 /** @returns {HTMLHeadingElement} */
 function get_user_header() {
     return document.querySelector(".content div.columns h5");
+}
+
+/** @returns {HTMLDivElement} */
+function get_navbar() {
+    /** @type {HTMLDivElement} */
+    return document.querySelector("#navMenu div.navbar-start");
 }
 
 function is_user_page() {
