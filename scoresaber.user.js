@@ -36,6 +36,8 @@ const leaderboard_reg = /leaderboard\/(\d+)/;
 const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
 const user_reg = /u\/(\d+)/;
 const script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
+const user_per_page_global_leaderboard = 50;
+const user_per_page_song_leaderboard = 12;
 
 const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
     "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
@@ -301,13 +303,16 @@ function setup_song_filter_tabs() {
         score_table = table.appendChild(create("tbody"));
         let song_id = leaderboard_reg.exec(window.location.pathname)[1];
 
-        /** @type {[Song, HTMLElement]} */
-        // @ts-ignore
-        let elements = Object.keys(user_list).map(user_id => {
+        /** @type {[Song, HTMLElement][]} */
+        let elements = [];
+        for (var user_id in user_list) {
             let user = user_list[user_id];
             let song = user.songs[song_id];
-            return [song, generate_song_table_row(user_id, user, song_id)];
-        });
+            // Check if the user has a score on this song
+            if (!song)
+                continue;
+            elements.push([song, generate_song_table_row(user_id, user, song_id)]);
+        };
         elements.sort((a, b) => { let [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; })
         elements.forEach(x => score_table.appendChild(x[1]));
     }
@@ -869,7 +874,7 @@ function setup_user_rank_link_swap() {
     let elem_global = document.querySelector(".content div.columns ul li a");
     let res_global = leaderboard_rank_reg.exec(elem_global.innerText);
     let number_global = Number(res_global[1].replace(/,/g, ""));
-    elem_global.href = scoresaber_link + "/global/" + rank_to_page(number_global, 50);
+    elem_global.href = scoresaber_link + "/global/" + rank_to_page(number_global, user_per_page_global_leaderboard);
 }
 
 function setup_song_rank_link_swap() {
@@ -884,7 +889,7 @@ function setup_song_rank_link_swap() {
         rank_elem.innerHTML = '';
         into(rank_elem,
             create("a", {
-                href: `${leaderboard_link}?page=${rank_to_page(rank, 12)}`
+                href: `${leaderboard_link}?page=${rank_to_page(rank, user_per_page_song_leaderboard)}`
             }, `#${rank}`)
         );
     }
