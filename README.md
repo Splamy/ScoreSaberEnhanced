@@ -11,6 +11,10 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 ![Compare](https://i.imgur.com/3xy8FQo.png)
 
+- Compare scores on a song page with friends
+
+![Compare2](https://i.imgur.com/ZtCGEbx.png)
+
 # Pin
 - Pin your own profile to the nav bar
 - Jump directly to other saved users
@@ -25,3 +29,5 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 # Other
 - Rank number link on a user page jumps to the page where the user is
 - Fixes BeastSaber links on song pages
+- Rank number now links to the song leaderboard page where the user is
+![LinkFix2](https://i.imgur.com/U1quEKP.png)
