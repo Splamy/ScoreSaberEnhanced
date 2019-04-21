@@ -45,3 +45,8 @@ declare module swal {
 	function close(): void;
 	function setActionValue(text: string): void;
 }
+
+interface ParentNode {
+	querySelector<E extends HTMLElement = HTMLElement>(selectors: string): E | null;
+	querySelectorAll<E extends HTMLElement = HTMLElement>(selectors: string): NodeListOf<E>;
+}

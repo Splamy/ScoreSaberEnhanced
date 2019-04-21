@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.0.5
+// @version      1.0.6
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -20,7 +20,7 @@
 // @ts-check
 
 /**
- * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
+ * @typedef {{ time: string, pp?:number, accuracy?: number, score?: number, mods?:string[] }} Song
  * @typedef {{ id: string, name: string }} User
  * @typedef {{ name: string, songs: {[song_id: string]: Song } }} DbUser
  * @typedef {"small"|"medium"|"large"} BulmaSize
@@ -68,13 +68,14 @@ let users_elem;
 let last_selected;
 let debug = false;
 
-// Cache
 /** @type {User} */
 let _current_user;
 /** @type {User} */
 let _home_user;
 /** @type {HTMLStyleElement} */
 let style_themed_elem
+/** @type {HTMLElement} */
+let song_table_backup;
 
 // *** Buttons and styles ***
 
@@ -230,19 +231,15 @@ function setup_dl_link_user_site() {
     let table = document.querySelector("table.ranking.songs");
 
     // add a new column for our links
-    /** @type {HTMLTableRowElement} */
     let table_tr = table.querySelector("thead tr");
     into(table_tr, create("th", { class: "compact" }, "BS"));
     into(table_tr, create("th", { class: "compact" }, "OC"));
 
     // add a link for each song
-    /** @type {NodeListOf<HTMLTableRowElement>} */
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
-        // there's only one link, so 'a' will find it.
-        /** @type {HTMLAnchorElement} */
-        let leaderboard_elem = row.querySelector("th.song a");
-        let leaderboard_link = leaderboard_elem.href;
+        // @ts-ignore // there's only one link, so 'a' will find it.
+        let leaderboard_link = row.querySelector("th.song a").href;
 
         // link to the website
         into(row,
@@ -298,21 +295,37 @@ function setup_song_filter_tabs() {
 
     function load_friends() {
         let score_table = document.querySelector(".ranking .global > tbody");
-        score_table.innerHTML = "";
-        for (let user_id in user_list) {
+        song_table_backup = score_table;
+        let table = score_table.parentNode;
+        table.removeChild(score_table);
+        score_table = table.appendChild(create("tbody"));
+        let song_id = leaderboard_reg.exec(window.location.pathname)[1];
+
+        /** @type {[Song, HTMLElement]} */
+        // @ts-ignore
+        let elements = Object.keys(user_list).map(user_id => {
             let user = user_list[user_id];
-            Object.keys(user.songs)
-                .filter(song_id => song_id === leaderboard_reg.exec(window.location.pathname)[1])
-                .forEach(song_id => {
-                    score_table.appendChild(generate_song_table_row(user_id, user, song_id));
-                });
-        }
-        tab_list_content.querySelector(".filter_tab").classList.remove("is-active");
-        tab_list_content.querySelector("#friends_tab").classList.add("is-active");
+            let song = user.songs[song_id];
+            return [song, generate_song_table_row(user_id, user, song_id)];
+        });
+        elements.sort((a, b) => { let [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; })
+        elements.forEach(x => score_table.appendChild(x[1]));
     }
 
-    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", () => window.location.reload(), true, true));
-    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", () => load_friends(), false, false));
+    function load_all() {
+        if (!song_table_backup) {
+            return;
+        }
+
+        let score_table = document.querySelector(".ranking .global > tbody");
+        let table = score_table.parentNode;
+        table.removeChild(score_table);
+        score_table = table.appendChild(song_table_backup);
+        song_table_backup = undefined;
+    }
+
+    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
+    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
     // tab_list_content.appendChild(generate_tab("Around Me", "around_me_tab", () => {}, false, false));
 }
 
@@ -329,8 +342,11 @@ function generate_song_table_row(user_id, user, song_id) {
         create("td", { class: "score" }, song.score ? song.score.toString() : "-"),
         create("td", { class: "timeset" }, song.time),
         create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
-        create("td", { class: "percentage" }, song.accuracy ? song.accuracy.toString() : "-"),
-        create("td", { class: "pp" }, song.pp.toString())
+        create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"),
+        create("td", { class: "pp" },
+            create("span", { class: "scoreTop ppValue" }, format_en(song.pp)),
+            create("span", { class: "scoreTop ppLabel" }, "pp")
+        )
     )
 }
 
@@ -342,27 +358,27 @@ function generate_song_table_player(user_id, user) {
     return create("a", { href: `${scoresaber_link}/u/${user_id}` }, user.name);
 }
 
-function toggled_class(bool, cssClass) {
-    return bool === true ? cssClass : "";
-}
-
 /**
  * @param {string | HTMLElement} title
- * @param {Function} action
- * @param {boolean} isActive
- * @param {boolean} hasOffset
+ * @param {string} css_id
+ * @param {(() => any) | undefined} action
+ * @param {boolean} is_active
+ * @param {boolean} has_offset
  */
-function generate_tab(title, cssId, action, isActive, hasOffset) {
-    let tabClass = `filter_tab ${toggled_class(isActive, "is-active")} ${toggled_class(hasOffset, "offset_tab")}`;
+function generate_tab(title, css_id, action, is_active, has_offset) {
+    let tabClass = `filter_tab ${toggled_class(is_active, "is-active")} ${toggled_class(has_offset, "offset_tab")}`;
     return create("li", {
-        id: cssId,
+        id: css_id,
         class: tabClass,
     },
         create("a", {
             class: "has-text-info",
-            onclick: action
-        },
-            title)
+            onclick: () => {
+                document.querySelectorAll(".tabs > ul .filter_tab").forEach(x => x.classList.remove("is-active"));
+                document.getElementById(css_id).classList.add("is-active");
+                if (action) action();
+            }
+        }, title)
     );
 }
 
@@ -379,11 +395,14 @@ async function fetch_id(link) {
     return id_result[1];
 }
 
+/**
+ * @param {HTMLElement} edit_elem
+ */
 function check_for_updates(edit_elem) {
     let current_version = GM_info.script.version;
     let update_check = localStorage.getItem("update_check");
 
-    if(update_check && Number(update_check) >= new Date().getTime()) {
+    if (update_check && Number(update_check) >= new Date().getTime()) {
         return;
     }
 
@@ -402,7 +421,6 @@ function check_for_updates(edit_elem) {
                     create("div", { class: "notification is-warning" }, "An update is avalilable")
                 );
 
-                /** @type {HTMLElement} */
                 let settings_menu = document.querySelector("#settings_menu i");
                 settings_menu.classList.remove("fa-cog");
                 settings_menu.classList.add("fa-bell");
@@ -505,7 +523,6 @@ function update_user_compare_songtable(other_user) {
     ranking_table_header.querySelector(".score").insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_data.name));
 
     // Update table
-    /** @type {NodeListOf<HTMLElement>} */
     let table_row = table.querySelectorAll("tbody tr");
     for (let row of table_row) {
         // reset style
@@ -548,18 +565,8 @@ function update_user_compare_songtable(other_user) {
             continue;
         }
 
-        let value1;
-        let value2;
-        if (song.pp > 0) {
-            value1 = song.pp;
-            value2 = other_song.pp;
-        } else if (song.score > 0) {
-            value1 = song.score;
-            value2 = other_song.score;
-        } else if (song.accuracy > 0) {
-            value1 = song.accuracy;
-            value2 = other_song.accuracy;
-        } else {
+        let [value1, value2] = get_song_compare_value(song, other_song);
+        if (value1 === 0 && value2 === 0) {
             logc("No score");
             continue;
         }
@@ -621,7 +628,6 @@ async function fetch_user(id) {
         let doc = await fetch_user_page(id, page);
 
         if (page_max === undefined) {
-            /** @type {HTMLAnchorElement} */
             let last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
             // weird bug on the scoresaber site:
             // It lists for e.g. 20 pages, but 21 might be needed
@@ -695,11 +701,8 @@ function get_row_data(row) {
 
     /** @type {HTMLAnchorElement} */
     let leaderboard_elem = row.querySelector("th.song a");
-    /** @type {HTMLSpanElement} */
     let pp_elem = row.querySelector("th.score .ppValue");
-    /** @type {HTMLSpanElement} */
     let score_elem = row.querySelector("th.score .scoreBottom");
-    /** @type {HTMLSpanElement} */
     let time_elem = row.querySelector("th.song .time");
 
     let song_id = leaderboard_reg.exec(leaderboard_elem.href)[1];
@@ -862,13 +865,29 @@ function setup_wide_table_checkbox() {
 function setup_user_rank_link_swap() {
     if (!is_user_page()) { return; }
 
-    /** @type {NodeListOf<HTMLAnchorElement>} */
-    let links = document.querySelectorAll(".content div.columns ul li a");
-
-    let elem_global = links[0];
+    /** @type {HTMLAnchorElement} */
+    let elem_global = document.querySelector(".content div.columns ul li a");
     let res_global = leaderboard_rank_reg.exec(elem_global.innerText);
     let number_global = Number(res_global[1].replace(/,/g, ""));
-    elem_global.href = scoresaber_link + "/global/" + Math.floor((number_global + 49) / 50);
+    elem_global.href = scoresaber_link + "/global/" + rank_to_page(number_global, 50);
+}
+
+function setup_song_rank_link_swap() {
+    if (!is_user_page()) { return; }
+
+    let song_elems = document.querySelectorAll("table.ranking.songs tbody tr");
+    for (let row of song_elems) {
+        let rank_elem = row.querySelector(".rank");
+        // @ts-ignore // there's only one link, so 'a' will find it.
+        let leaderboard_link = row.querySelector("th.song a").href;
+        let rank = Number(rank_elem.innerText.slice(1));
+        rank_elem.innerHTML = '';
+        into(rank_elem,
+            create("a", {
+                href: `${leaderboard_link}?page=${rank_to_page(rank, 12)}`
+            }, `#${rank}`)
+        );
+    }
 }
 
 // ** Settings page **
@@ -1023,7 +1042,6 @@ function get_user_header() {
 
 /** @returns {HTMLDivElement} */
 function get_navbar() {
-    /** @type {HTMLDivElement} */
     return document.querySelector("#navMenu div.navbar-start");
 }
 
@@ -1046,7 +1064,6 @@ function get_current_user() {
 
 /** @param {Document} doc */
 function get_document_user(doc) {
-    /** @type {HTMLAnchorElement} */
     let username_elem = doc.querySelector(".content .title a")
     let user_name = username_elem.innerText.trim();
     // TODO will be wrong when calling from a different page
@@ -1153,14 +1170,22 @@ function create(tag, attrs, ...children) {
 }
 
 /**
+ * Removes all child elements
+ * @param {HTMLElement} elem
+ */
+function clear_children(elem) {
+    while (elem.lastChild) {
+        elem.removeChild(elem.lastChild);
+    }
+}
+
+/**
  * Into, but replaces the content
  * @param {HTMLElement} parent
  * @param {...(HTMLElement | string)} children
  */
 function intor(parent, ...children) {
-    while (parent.lastChild) {
-        parent.removeChild(parent.lastChild);
-    }
+    clear_children(parent);
     return into(parent, ...children);
 }
 
@@ -1194,11 +1219,47 @@ function logc(message, ...optionalParams) {
 }
 
 /**
- * @param {number} num
+ * @param {number?} num
  * @returns {string}
  */
 function format_en(num) {
+    if (num === undefined)
+        return "-";
     return num.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * @param {boolean} bool
+ * @param {string} css_class
+ */
+function toggled_class(bool, css_class) {
+    return bool ? css_class : "";
+}
+
+/**
+ * @param {number} rank
+ * @param {number} ranks_per_page
+ * @returns {number}
+ */
+function rank_to_page(rank, ranks_per_page) {
+    return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
+}
+
+/**
+ * @param {Song} song_a
+ * @param {Song} song_b
+ * @returns {[number, number]?}
+ */
+function get_song_compare_value(song_a, song_b) {
+    if (song_a.pp > 0 && song_b.pp) {
+        return [song_a.pp, song_b.pp]
+    } else if (song_a.score > 0 && song_b.score) {
+        return [song_a.score, song_b.score]
+    } else if (song_a.accuracy > 0 && song_b.accuracy) {
+        return [song_a.accuracy, song_b.accuracy]
+    } else {
+        return [0, 0];
+    }
 }
 
 setup_log();
@@ -1210,6 +1271,7 @@ window.addEventListener('DOMContentLoaded', function () {
     setup_dl_link_leaderboard();
     setup_self_pin_button();
     setup_user_rank_link_swap();
+    setup_song_rank_link_swap();
     setup_user_compare();
     update_self_button();
     setup_wide_table_checkbox();
