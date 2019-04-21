@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.0.7
+// @version      1.1.0
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -723,7 +723,7 @@ function get_row_data(row) {
     let score_res = score_reg.exec(score_elem.innerText);
     logc(score_res);
     if (score_res[1] === "score") {
-        score = Number(score_res[2].replace(/,/g, ''));
+        score = number_invariant(score_res[2]);
     } else if (score_res[1] === "accuracy") {
         accuracy = Number(score_res[2]);
     }
@@ -877,7 +877,7 @@ function setup_user_rank_link_swap() {
     /** @type {HTMLAnchorElement} */
     let elem_global = document.querySelector(".content div.columns ul li a");
     let res_global = leaderboard_rank_reg.exec(elem_global.innerText);
-    let number_global = Number(res_global[1].replace(/,/g, ""));
+    let number_global = number_invariant(res_global[1]);
     elem_global.href = scoresaber_link + "/global/" + rank_to_page(number_global, user_per_page_global_leaderboard);
 }
 
@@ -889,7 +889,7 @@ function setup_song_rank_link_swap() {
         let rank_elem = row.querySelector(".rank");
         // @ts-ignore // there's only one link, so 'a' will find it.
         let leaderboard_link = row.querySelector("th.song a").href;
-        let rank = Number(rank_elem.innerText.slice(1));
+        let rank = number_invariant(rank_elem.innerText.slice(1));
         rank_elem.innerHTML = '';
         into(rank_elem,
             create("a", {
@@ -1257,7 +1257,7 @@ function rank_to_page(rank, ranks_per_page) {
 /**
  * @param {Song} song_a
  * @param {Song} song_b
- * @returns {[number, number]?}
+ * @returns {[number, number]}
  */
 function get_song_compare_value(song_a, song_b) {
     if (song_a.pp > 0 && song_b.pp) {
@@ -1269,6 +1269,14 @@ function get_song_compare_value(song_a, song_b) {
     } else {
         return [0, 0];
     }
+}
+
+/**
+ * @param {string} num
+ * @returns {number}
+ */
+function number_invariant(num) {
+    return Number(num.replace(/,/g, ''));
 }
 
 setup_log();
