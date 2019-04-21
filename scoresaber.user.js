@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.0.6
+// @version      1.0.7
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
-// @require      https://unpkg.com/sweetalert@2.1.2/dist/sweetalert.min.js
+// @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
+// @require      https://cdn.jsdelivr.net/npm/timeago.js@3.0.2/dist/timeago.min.js
 // @require      https://beatsaver.com/js/oneclick.js
 // @run-at       document-body
 // @grant        GM_xmlhttpRequest
@@ -38,6 +39,9 @@ const user_reg = /u\/(\d+)/;
 const script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 const user_per_page_global_leaderboard = 50;
 const user_per_page_song_leaderboard = 12;
+/** @type{any} */
+// @ts-ignore
+timeago = timeago();
 
 const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
     "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
@@ -345,7 +349,7 @@ function generate_song_table_row(user_id, user, song_id) {
         create("td", { class: "rank" }, "-"),
         create("td", { class: "player" }, generate_song_table_player(user_id, user)),
         create("td", { class: "score" }, song.score ? song.score.toString() : "-"),
-        create("td", { class: "timeset" }, song.time),
+        create("td", { class: "timeset" }, timeago.format(song.time)),
         create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
         create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"),
         create("td", { class: "pp" },
