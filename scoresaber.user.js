@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.1.0
+// @version      1.1.1
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -21,7 +21,7 @@
 // @ts-check
 
 /**
- * @typedef {{ time: string, pp?:number, accuracy?: number, score?: number, mods?:string[] }} Song
+ * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
  * @typedef {{ id: string, name: string }} User
  * @typedef {{ name: string, songs: {[song_id: string]: Song } }} DbUser
  * @typedef {"small"|"medium"|"large"} BulmaSize
@@ -348,7 +348,7 @@ function generate_song_table_row(user_id, user, song_id) {
         create("td", { class: "picture" }),
         create("td", { class: "rank" }, "-"),
         create("td", { class: "player" }, generate_song_table_player(user_id, user)),
-        create("td", { class: "score" }, song.score ? song.score.toString() : "-"),
+        create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"),
         create("td", { class: "timeset" }, timeago.format(song.time)),
         create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
         create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"),
@@ -890,11 +890,12 @@ function setup_song_rank_link_swap() {
         // @ts-ignore // there's only one link, so 'a' will find it.
         let leaderboard_link = row.querySelector("th.song a").href;
         let rank = number_invariant(rank_elem.innerText.slice(1));
+        let rank_str = rank_elem.innerText;
         rank_elem.innerHTML = '';
         into(rank_elem,
             create("a", {
                 href: `${leaderboard_link}?page=${rank_to_page(rank, user_per_page_song_leaderboard)}`
-            }, `#${rank}`)
+            }, rank_str)
         );
     }
 }
@@ -1228,13 +1229,13 @@ function logc(message, ...optionalParams) {
 }
 
 /**
- * @param {number?} num
+ * @param {number} num
+ * @param {number} [digits]
  * @returns {string}
  */
-function format_en(num) {
-    if (num === undefined)
-        return "-";
-    return num.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function format_en(num, digits) {
+    if(digits === undefined) digits = 2;
+    return num.toLocaleString("en", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 /**
