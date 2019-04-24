@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.1.1
+// @version      1.1.2
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -31,7 +31,7 @@
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
 const bsaber_link = "https://bsaber.com/songs/";
-const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/((\d+)-(\d+))/;
+const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+)/;
 const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
 const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
@@ -136,14 +136,6 @@ function generate_oneclick_button(click, size) {
  * @returns {HTMLElement}
  */
 function generate_bsaber_button(href) {
-    // Fixing bsaber links:
-    // Scoresaber links to "https://bsaber.com/songs/12896-13835"
-    // But the bsaber link should be: "https://bsaber.com/songs/12896"
-    let match = bsaber_link_reg.exec(href);
-    if (match) {
-        href = bsaber_link + match[2];
-    }
-
     return create("a", {
         class: "button icon is-large tooltip",
         style: {
@@ -276,7 +268,7 @@ function setup_dl_link_leaderboard() {
     /** @type {HTMLAnchorElement} */
     let link_element = document.querySelector("h4.is-4 + div > a");
 
-    let id = bsaber_link_reg.exec(link_element.href)[1];
+    let id = get_id_from_song_link(link_element.href);
 
     let details_box = link_element.parentElement;
     let hr_elem = details_box.querySelector("hr");
@@ -396,12 +388,10 @@ function generate_tab(title, css_id, action, is_active, has_offset) {
  * @returns {Promise<string>}
  */
 async function fetch_id(link) {
-    // we cant get the beatsaver song directly so we fetch
-    // the song version (<id>-<id>) from the leaderboard site with an async
-    // fetch request.
+    // we cant get the beatsaver song link directly so we fetch
+    // the song id from the leaderboard site with an async fetch request.
     let leaderboard_text = await (await fetch(link)).text();
-    let id_result = bsaber_link_reg.exec(leaderboard_text);
-    return id_result[1];
+    return get_id_from_song_link(leaderboard_text);
 }
 
 /**
@@ -1278,6 +1268,18 @@ function get_song_compare_value(song_a, song_b) {
  */
 function number_invariant(num) {
     return Number(num.replace(/,/g, ''));
+}
+
+/**
+ * @param {string} link
+ * @returns {string}
+ */
+function get_id_from_song_link(link) {
+    let match = bsaber_link_reg.exec(link);
+    if (match) {
+        return match[1];
+    }
+    return "0";
 }
 
 setup_log();
