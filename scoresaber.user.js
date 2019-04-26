@@ -1033,6 +1033,18 @@ function load_theme(name, css) {
     }
 }
 
+function highlight_user() {
+    if (!is_leaderboard_page()) {
+        return;
+    }
+    let user_id = get_home_user().id;
+    let element = document.querySelector(`table.ranking.global a[href='/u/${user_id}']`);
+
+    if (element != null) {
+        element.parentElement.parentElement.style.backgroundColor="lightgreen";
+    }
+}
+
 // *** Html/Localstore Getter/Setter ***
 
 /** @returns {HTMLHeadingElement} */
@@ -1297,4 +1309,5 @@ window.addEventListener('DOMContentLoaded', function () {
     setup_wide_table_checkbox();
     setup_settings_page();
     setup_song_filter_tabs();
+    highlight_user();
 });
