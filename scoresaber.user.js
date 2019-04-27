@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.1.2
+// @version      1.2.0
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -19,6 +19,7 @@
 // @connect      githubusercontent.com
 // ==/UserScript==
 // @ts-check
+/// <reference path="userscript.d.ts" />
 
 /**
  * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
@@ -50,10 +51,12 @@ const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
 const theme_light = `:root {
     --color-ahead: rgb(128, 255, 128);
     --color-behind: rgb(255, 128, 128);
+    --color-highlight: lightgreen;
 }`;
 const theme_dark = `:root {
     --color-ahead: rgb(0, 128, 0);
     --color-behind: rgb(128, 0, 0);
+    --color-highlight: darkgreen;
 }
 .beatsaver_bg {
     filter: invert(1);
@@ -1034,14 +1037,13 @@ function load_theme(name, css) {
 }
 
 function highlight_user() {
-    if (!is_leaderboard_page()) {
-        return;
-    }
+    // (No page check, this should work on global and song boards)
+
     let user_id = get_home_user().id;
     let element = document.querySelector(`table.ranking.global a[href='/u/${user_id}']`);
 
     if (element != null) {
-        element.parentElement.parentElement.style.backgroundColor="lightgreen";
+        element.parentElement.parentElement.style.backgroundColor="var(--color-highlight)";
     }
 }
 
