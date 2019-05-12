@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.0
+// @version      1.2.1
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -10,12 +10,12 @@
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
 // @require      https://cdn.jsdelivr.net/npm/timeago.js@3.0.2/dist/timeago.min.js
-// @require      https://beatsaver.com/js/oneclick.js
 // @run-at       document-body
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_info
 // @connect      unpkg.com
+// @connect      beatsaver.com
 // @connect      githubusercontent.com
 // ==/UserScript==
 // @ts-check
@@ -31,6 +31,7 @@
 "use strict";
 const scoresaber_link = "https://scoresaber.com";
 const beatsaver_link = "https://beatsaver.com/browse/detail/"
+const beatsaver_detail_api_link = "https://beatsaver.com/api/songs/detail/"
 const bsaber_link = "https://bsaber.com/songs/";
 const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+)/;
 const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
@@ -246,8 +247,8 @@ function setup_dl_link_user_site() {
         into(row,
             create("th", { class: "compact" },
                 generate_beatsaver_button(async () => {
-                    let id = await fetch_id(leaderboard_link);
-                    window.open(beatsaver_link + id, '_blank');
+                    let simple_id = await fetch_id(leaderboard_link);
+                    window.open(beatsaver_link + simple_id, '_blank');
                 }, "medium")
             )
         );
@@ -256,8 +257,7 @@ function setup_dl_link_user_site() {
         into(row,
             create("th", { class: "compact" },
                 generate_oneclick_button(async () => {
-                    let id = await fetch_id(leaderboard_link);
-                    oneClick(this, id);
+                    await oneclick_autoresolve(undefined, leaderboard_link);
                 }, "medium")
             )
         );
@@ -271,7 +271,7 @@ function setup_dl_link_leaderboard() {
     /** @type {HTMLAnchorElement} */
     let link_element = document.querySelector("h4.is-4 + div > a");
 
-    let id = get_id_from_song_link(link_element.href);
+    let simple_id = get_id_from_song_link(link_element.href);
 
     let details_box = link_element.parentElement;
     let hr_elem = details_box.querySelector("hr");
@@ -282,9 +282,9 @@ function setup_dl_link_leaderboard() {
             id: "leaderboard_tool_strip"
         },
             generate_bsaber_button(link_element.href),
-            generate_beatsaver_button(beatsaver_link + id, "large"),
-            generate_oneclick_button(() => {
-                oneClick(this, id);
+            generate_beatsaver_button(beatsaver_link + simple_id, "large"),
+            generate_oneclick_button(async () => {
+                await oneclick_autoresolve(simple_id, undefined);
             }, "large")
         ), hr_elem);
 }
@@ -334,6 +334,7 @@ function setup_song_filter_tabs() {
 }
 
 /**
+ * @param {string} user_id
  * @param {DbUser} user
  * @param {string} song_id
  */
@@ -395,6 +396,51 @@ async function fetch_id(link) {
     // the song id from the leaderboard site with an async fetch request.
     let leaderboard_text = await (await fetch(link)).text();
     return get_id_from_song_link(leaderboard_text);
+}
+
+/**
+ * @param {string} simple_id
+ * @param {string} leaderboard_link
+ */
+async function oneclick_autoresolve(simple_id, leaderboard_link) {
+    if (simple_id === undefined) {
+        if (leaderboard_link === undefined) {
+            throw Error("Invalid resolve call");
+        }
+        simple_id = await fetch_id(leaderboard_link);
+    }
+
+    let data = await fetch2(beatsaver_detail_api_link + simple_id);
+    let json = JSON.parse(data);
+    let full_id = json.song.key;
+
+    await oneclick_install(full_id);
+}
+
+/**
+ * @param {string} full_id
+ */
+async function oneclick_install(full_id) {
+    const lastCheck = localStorage.getItem('oneclick-prompt');
+    const prompt = lastCheck === undefined ||
+        new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
+
+    if (prompt) {
+        localStorage.setItem('oneclick-prompt', new Date().getTime().toString())
+
+        const resp = await swal({
+            icon: 'warning',
+            buttons: {
+                install: { text: 'Get ModSaber Installer', closeModal: false, className: 'swal-button--cancel' },
+                done: { text: 'OK' },
+            },
+            text: 'OneClick Install requires the BeatSaberModInstaller or BeatDrop2 to function.\nPlease install it before proceeding.',
+        });
+
+        if (resp === 'install') window.open('https://github.com/beat-saber-modding-group/BeatSaberModInstaller/releases');
+    }
+
+    window.location.assign(`beatdrop://download/${full_id}`);
 }
 
 /**
@@ -1038,12 +1084,13 @@ function load_theme(name, css) {
 
 function highlight_user() {
     // (No page check, this should work on global and song boards)
+    let home_user = get_home_user();
+    if (!home_user) { return; }
 
-    let user_id = get_home_user().id;
-    let element = document.querySelector(`table.ranking.global a[href='/u/${user_id}']`);
+    let element = document.querySelector(`table.ranking.global a[href='/u/${home_user.id}']`);
 
     if (element != null) {
-        element.parentElement.parentElement.style.backgroundColor="var(--color-highlight)";
+        element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
     }
 }
 
@@ -1238,7 +1285,7 @@ function logc(message, ...optionalParams) {
  * @returns {string}
  */
 function format_en(num, digits) {
-    if(digits === undefined) digits = 2;
+    if (digits === undefined) digits = 2;
     return num.toLocaleString("en", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
@@ -1294,6 +1341,46 @@ function get_id_from_song_link(link) {
         return match[1];
     }
     return "0";
+}
+
+/**
+ * @param {string} url
+ * @returns {Promise<string>}
+ */
+function fetch2(url) {
+    return new Promise(function (resolve, reject) {
+        let host = getHostName(url);
+        let request_param = {
+            method: "GET",
+            url: url,
+            headers: { "Origin": host },
+            onload: (req) => {
+                if (req.status >= 200 && req.status < 300) {
+                    resolve(req.responseText);
+                } else {
+                    reject();
+                }
+            },
+            onerror: () => {
+                reject();
+            }
+        };
+        GM_xmlhttpRequest(request_param);
+    });
+}
+
+/**
+ * @param {string} url
+ * @returns {string | undefined}
+ */
+function getHostName(url) {
+    var match = url.match(/:\/\/([^/:]+)/i);
+    if (match && match.length > 1 && typeof match[1] === 'string' && match[1].length > 0) {
+        return match[1];
+    }
+    else {
+        return undefined;
+    }
 }
 
 setup_log();
