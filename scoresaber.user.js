@@ -440,7 +440,7 @@ async function oneclick_install(full_id) {
         if (resp === 'install') window.open('https://github.com/beat-saber-modding-group/BeatSaberModInstaller/releases');
     }
 
-    window.location.assign(`beatdrop://download/${full_id}`);
+    window.location.assign(`beatsaver://${full_id}`);
 }
 
 /**
