@@ -673,7 +673,14 @@ async function fetch_user(id) {
 
     for (; page <= (page_max || 4); page++) {
         intor(status_elem, `Updating page ${page}/${(page_max || "?")}`);
-        let doc = await fetch_user_page(id, page);
+        let doc;
+        let tries = 5;
+        let sleep = (timeout) => { return new Promise(resolve => setTimeout(resolve, timeout)) };
+        while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
+            await sleep(500);
+            doc = await fetch_user_page(id, page);
+            tries--;
+        }
 
         if (page_max === undefined) {
             let last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
