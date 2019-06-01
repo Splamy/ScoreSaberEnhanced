@@ -28,6 +28,5 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 # Other
 - Rank number link on a user page jumps to the page where the user is
-- Fixes BeastSaber links on song pages
 - Rank number now links to the song leaderboard page where the user is
 ![LinkFix2](https://i.imgur.com/U1quEKP.png)

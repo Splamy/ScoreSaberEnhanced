@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.1
+// @version      1.2.2
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -269,14 +269,12 @@ function setup_dl_link_leaderboard() {
 
     // find the element we want to modify
     /** @type {HTMLAnchorElement} */
-    let link_element = document.querySelector("h4.is-4 + div > a");
+    let link_element = document.querySelector("div.box hr + a");
 
     let simple_id = get_id_from_song_link(link_element.href);
 
     let details_box = link_element.parentElement;
-    let hr_elem = details_box.querySelector("hr");
 
-    details_box.removeChild(link_element);
     details_box.insertBefore(
         create("div", {
             id: "leaderboard_tool_strip"
@@ -286,7 +284,8 @@ function setup_dl_link_leaderboard() {
             generate_oneclick_button(async () => {
                 await oneclick_autoresolve(simple_id, undefined);
             }, "large")
-        ), hr_elem);
+        ), link_element);
+    details_box.removeChild(link_element);
 }
 
 function setup_song_filter_tabs() {
@@ -411,6 +410,11 @@ async function oneclick_autoresolve(simple_id, leaderboard_link) {
     }
 
     let data = await fetch2(beatsaver_detail_api_link + simple_id);
+    if(!data) {
+        console.log("Failed to retrive song details");
+        return;
+    }
+
     let json = JSON.parse(data);
     let full_id = json.song.key;
 
