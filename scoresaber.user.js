@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.2
+// @version      1.2.3
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -234,8 +234,8 @@ function setup_dl_link_user_site() {
 
     // add a new column for our links
     let table_tr = table.querySelector("thead tr");
-    into(table_tr, create("th", { class: "compact" }, "BS"));
-    into(table_tr, create("th", { class: "compact" }, "OC"));
+    into(table_tr, create("th", { class: "compact bs_link" }, "BS"));
+    into(table_tr, create("th", { class: "compact oc_link" }, "OC"));
 
     // add a link for each song
     let table_row = table.querySelectorAll("tbody tr");
@@ -245,7 +245,7 @@ function setup_dl_link_user_site() {
 
         // link to the website
         into(row,
-            create("th", { class: "compact" },
+            create("th", { class: "compact bs_link" },
                 generate_beatsaver_button(async () => {
                     let simple_id = await fetch_id(leaderboard_link);
                     window.open(beatsaver_link + simple_id, '_blank');
@@ -255,7 +255,7 @@ function setup_dl_link_user_site() {
 
         // oneclick installer
         into(row,
-            create("th", { class: "compact" },
+            create("th", { class: "compact oc_link" },
                 generate_oneclick_button(async () => {
                     await oneclick_autoresolve(undefined, leaderboard_link);
                 }, "medium")
@@ -484,6 +484,16 @@ function check_for_updates(edit_elem) {
             }
         }
     });
+}
+
+function update_button_visibility() {
+    let table = document.querySelector("table.ranking.songs");
+
+    table.querySelectorAll("th.bs_link").forEach(bs_link =>
+        bs_link.style.display = get_show_bs_link() ? '' : 'none');
+
+    table.querySelectorAll("th.oc_link").forEach(oc_link =>
+        oc_link.style.display = get_show_oc_link() ? '' : 'none');
 }
 
 // *** User compare ***
@@ -1026,6 +1036,37 @@ function setup_settings_page() {
                     }
                 }),
                 create("label", { for: "wide_song_table", class: "checkbox" }, "Always expand table to full width"),
+            ),
+            create("div", { class: "field" },
+                create("label", {class: "label" }, "Links"),
+            ),
+            create("div", { class: "field" },
+                create("input", {
+                    id: "show_bs_link",
+                    type: "checkbox",
+                    class: "is-checkradio",
+                    checked: get_show_bs_link(),
+                    onchange: function () {
+                        // @ts-ignore
+                        set_show_bs_link(this.checked);
+                        update_button_visibility();
+                    }
+                }),
+                create("label", { for: "show_bs_link", class: "checkbox" }, "Show BeatSaver link"),
+            ),
+            create("div", { class: "field" },
+                create("input", {
+                    id: "show_oc_link",
+                    type: "checkbox",
+                    class: "is-checkradio",
+                    checked: get_show_oc_link(),
+                    onchange: function () {
+                        // @ts-ignore
+                        set_show_oc_link(this.checked);
+                        update_button_visibility();
+                    }
+                }),
+                create("label", { for: "show_oc_link", class: "checkbox" }, "Show OneClick link"),
             )
         )
     );
@@ -1075,7 +1116,7 @@ function load_last_theme() {
     load_theme(theme_name, theme_css);
 }
 
-/** 
+/**
  * @param {string} name
  * @param {string} css */
 function load_theme(name, css) {
@@ -1200,6 +1241,27 @@ function set_wide_table(value) {
 function get_wide_table() {
     return localStorage.getItem("wide_song_table") === "true";
 }
+
+/** @param {boolean} value */
+function set_show_bs_link(value) {
+    localStorage.setItem("show_bs_link", value ? "true" : "false");
+}
+
+/** @returns {boolean} */
+function get_show_bs_link() {
+    return (localStorage.getItem("show_bs_link") || "true") === "true";
+}
+
+/** @param {boolean} value */
+function set_show_oc_link(value) {
+    localStorage.setItem("show_oc_link", value ? "true" : "false");
+}
+
+/** @returns {boolean} */
+function get_show_oc_link() {
+    return (localStorage.getItem("show_oc_link") || "true") === "true";
+}
+
 
 // *** Utility ***
 
@@ -1406,6 +1468,7 @@ window.addEventListener('DOMContentLoaded', function () {
     setup_song_rank_link_swap();
     setup_user_compare();
     update_self_button();
+    update_button_visibility();
     setup_wide_table_checkbox();
     setup_settings_page();
     setup_song_filter_tabs();
