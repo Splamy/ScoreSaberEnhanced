@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.3
+// @version      1.2.4
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -487,6 +487,8 @@ function check_for_updates(edit_elem) {
 }
 
 function update_button_visibility() {
+    if (!is_user_page()) { return; }
+
     let table = document.querySelector("table.ranking.songs");
 
     table.querySelectorAll("th.bs_link").forEach(bs_link =>
