@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.4
+// @version      1.2.5
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -36,7 +36,7 @@ const bsaber_link = "https://bsaber.com/songs/";
 const bsaber_link_reg = /https?:\/\/bsaber.com\/songs\/(\d+)/;
 const score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 const leaderboard_reg = /leaderboard\/(\d+)/;
-const leaderboard_rank_reg = /#([\d,]+)\s*\/\s*#([\d,]+)/;
+const leaderboard_rank_reg = /#([\d,]+)/;
 const user_reg = /u\/(\d+)/;
 const script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 const user_per_page_global_leaderboard = 50;
