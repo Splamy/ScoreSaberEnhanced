@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.2.5
+// @version      1.2.6
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -270,6 +270,8 @@ function setup_dl_link_leaderboard() {
     // find the element we want to modify
     /** @type {HTMLAnchorElement} */
     let link_element = document.querySelector("div.box hr + a");
+    if (!link_element) // temporary until all scoresaber links are back
+        return;
 
     let simple_id = get_id_from_song_link(link_element.href);
 
@@ -410,7 +412,7 @@ async function oneclick_autoresolve(simple_id, leaderboard_link) {
     }
 
     let data = await fetch2(beatsaver_detail_api_link + simple_id);
-    if(!data) {
+    if (!data) {
         console.log("Failed to retrive song details");
         return;
     }
@@ -1040,7 +1042,7 @@ function setup_settings_page() {
                 create("label", { for: "wide_song_table", class: "checkbox" }, "Always expand table to full width"),
             ),
             create("div", { class: "field" },
-                create("label", {class: "label" }, "Links"),
+                create("label", { class: "label" }, "Links"),
             ),
             create("div", { class: "field" },
                 create("input", {
@@ -1392,10 +1394,37 @@ function get_song_compare_value(song_a, song_b) {
     } else if (song_a.score > 0 && song_b.score) {
         return [song_a.score, song_b.score]
     } else if (song_a.accuracy > 0 && song_b.accuracy) {
-        return [song_a.accuracy, song_b.accuracy]
+        return [song_a.accuracy * get_song_mod_multiplier(song_a), song_b.accuracy * get_song_mod_multiplier(song_b)]
     } else {
         return [0, 0];
     }
+}
+
+/**
+ * @param {Song} song
+ * @returns {number}
+ */
+function get_song_mod_multiplier(song) {
+    if (!song.mods)
+        return 1.0;
+
+    // Note: ranked maps may use different values for modifiers like GN, DA, FS
+    // this function returns a modifier which should only be used for accuracy.
+    let multiplier = 1.0;
+    for (let mod of song.mods) {
+        switch (mod) {
+            case "NF": multiplier -= 0.50; break;
+            case "NO": multiplier -= 0.05; break;
+            case "NB": multiplier -= 0.10; break;
+            case "SS": multiplier -= 0.30; break;
+            case "NA": multiplier -= 0.30; break;
+
+            case "DA": multiplier += 0.07; break;
+            case "GN": multiplier += 0.11; break;
+            case "FS": multiplier += 0.08; break;
+        }
+    }
+    return Math.max(0, multiplier);
 }
 
 /**
