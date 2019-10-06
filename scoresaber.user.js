@@ -20,6 +20,7 @@
 // ==/UserScript==
 // @ts-check
 /// <reference path="userscript.d.ts" />
+/// <reference path="chart.d.ts" />
 
 /**
  * @typedef {{ time: string, pp:number, accuracy?: number, score?: number, mods?:string[] }} Song
@@ -85,6 +86,8 @@ let _home_user;
 let style_themed_elem
 /** @type {HTMLElement} */
 let song_table_backup;
+/** @type {Chart} */
+let chart;
 
 // *** Buttons and styles ***
 
@@ -922,6 +925,129 @@ function setup_wide_table_checkbox() {
     }));
 }
 
+// ** Song graph **
+
+/**
+ * @param {CanvasRenderingContext2D} canvasContext
+ * @param {Chart.ChartDataSets[]} datasets
+ * @param {Array<string | string[]>} labels
+ */
+function chartUserData(canvasContext, datasets, labels) {
+    if (chart != undefined) {
+        chart.data = {
+            labels,
+            datasets
+        };
+        chart.update();
+        return;
+    }
+
+    chart = new Chart(canvasContext, {
+        type: 'line',
+        data: {
+            labels,
+            datasets,
+        },
+        options: {
+            elements: {
+                point: {
+                    radius: 2,
+                }
+            },
+            tooltips: {
+                callbacks: {
+                    label: tooltipItem => tooltipItem.yLabel,
+                    title: () => null,
+                }
+            },
+            scales: {
+                xAxes: [{
+                    display: false,
+                }]
+            }
+        },
+    });
+}
+
+/**
+ * @param {string} user_id
+ */
+function get_graph_data(user_id) {
+    let user = user_list[user_id];
+    if (user == undefined)
+        return [];
+
+    let data = [];
+    let data_scaled = [];
+    Object.keys(user.songs)
+        .filter(sid => user.songs[sid].pp > 0)
+        .sort((a, b) => user.songs[b].pp - user.songs[a].pp)
+        .forEach((songId, index) => {
+            //labels.push("lul");
+            let pp = user.songs[songId].pp;
+            data.push(pp);
+            data_scaled.push(pp * Math.pow(0.965, index));
+        });
+    let color = (Number(user_id) % 3600) / 10;
+
+    return [{
+        label: `${user.name} (song pp)`,
+        backgroundColor: `hsl(${color}, 100%, 50%)`,
+        borderColor: `hsl(${color}, 100%, 50%)`,
+        fill: false,
+        data,
+    }, {
+        label: `${user.name} (scaled pp)`,
+        backgroundColor: `hsl(${color}, 60%, 25%)`,
+        borderColor: `hsl(${color}, 60%, 25%)`,
+        fill: false,
+        data: data_scaled,
+    }];
+}
+
+function update_pp_distribution_graph() {
+    /** @type {HTMLCanvasElement} */
+    let chart_elem = document.getElementById("pp_chart");
+    let dataSets = get_graph_data(get_current_user().id);
+    if (get_current_user().id != get_compare_user())
+        dataSets = [...dataSets, ...get_graph_data(get_compare_user())];
+
+    let max = 0;
+    for (const set of dataSets) {
+        max = Math.max(max, set.data.length);
+    }
+    for (const set of dataSets) {
+        if (set.data.length < max) {
+            set.data.length = max;
+            set.data.fill(0, set.data.length, max);
+        }
+    }
+    let labels = Array(max);
+    labels.fill("Song", 0, max);
+
+    chartUserData(chart_elem.getContext("2d"), dataSets, labels);
+}
+
+function setup_pp_distribution_graph() {
+    if (!is_user_page())
+        return;
+
+    let baseBox = document.querySelector(".section > .container > .content > *:nth-child(1)")
+    baseBox.insertAdjacentElement("afterend",
+        create("div", { class: "box has-shadow" },
+            create("canvas", {
+                id: "pp_chart",
+                style: {
+                    width: "100%",
+                    height: "20em",
+                }
+            })
+        )
+    );
+
+    update_pp_distribution_graph();
+}
+
 // ** Link util **
 
 function setup_user_rank_link_swap() {
@@ -1214,9 +1340,10 @@ function get_compare_user() {
 
 /** @param {string} user */
 function set_compare_user(user) {
-    update_user_compare_songtable(user);
     last_selected = user;
     localStorage.setItem("last_selected", user);
+    update_user_compare_songtable(user);
+    update_pp_distribution_graph();
 }
 
 /** @param {User} user */
@@ -1493,4 +1620,5 @@ window.addEventListener('DOMContentLoaded', function () {
     setup_settings_page();
     setup_song_filter_tabs();
     highlight_user();
+    setup_pp_distribution_graph();
 });
