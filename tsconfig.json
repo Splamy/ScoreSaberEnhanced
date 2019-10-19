@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "es6",
+        "sourceMap": true,
+        "watch": false,
+        "rootDir": "src",
+        "outDir": "out",
+        // scoresaber.user.js
+
+        "removeComments": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "alwaysStrict": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        //,"noUnusedParameters": true
+        "strictPropertyInitialization": true,
+        "strictFunctionTypes": true,
+        "strict": true,
+    }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "scoresaberenhanced",
+  "version": "1.2.7",
+  "description": "Adds links to beatsaver, player comparison and various other improvements",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Splamy/ScoreSaberEnhanced.git"
+  },
+  "keywords": [
+    "BeatSaber",
+    "ScoreSaber",
+    "Beat",
+    "Saber",
+    "Score",
+    "Enhanced",
+    "UserScript"
+  ],
+  "author": "Splamy, TheAsuro",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Splamy/ScoreSaberEnhanced/issues"
+  },
+  "homepage": "https://github.com/Splamy/ScoreSaberEnhanced#readme",
+  "devDependencies": {
+    "gulp": "^4.0.2",
+    "gulp-concat": "^2.6.1",
+    "rollup": "^1.25.0",
+    "rollup-plugin-typescript": "^1.0.1",
+    "tslib": "^1.10.0",
+    "typescript": "^3.6.4"
+  }
+}
