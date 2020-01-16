@@ -10,7 +10,6 @@ export function check_for_updates(edit_elem: HTMLElement): void {
 		return;
 	}
 
-	console.log("Checking veriuson");
 	GM_xmlhttpRequest({
 		method: "GET",
 		headers: {

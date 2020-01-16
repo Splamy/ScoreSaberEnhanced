@@ -96,7 +96,6 @@ export function setup_dl_link_user_site(): void {
 	for (const row of table_row) {
 		// there's only one link, so 'a' will find it.
 		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
-		console.log("imgLog", image_link);
 		const song_hash = get_song_hash_from_text(image_link);
 
 		// link to the website

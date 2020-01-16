@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.3.1
+// @version      1.3.2
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -829,7 +829,6 @@
         const table_row = table.querySelectorAll("tbody tr");
         for (const row of table_row) {
             const image_link = check(row.querySelector("th.song img")).src;
-            console.log("imgLog", image_link);
             const song_hash = get_song_hash_from_text(image_link);
             into(row, create("th", { class: "compact bs_link" }, generate_beatsaver_button(song_hash, "medium")));
             into(row, create("th", { class: "compact oc_link" }, generate_oneclick_button(song_hash, "medium")));
@@ -976,7 +975,6 @@ span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapp
         if (update_check && Number(update_check) >= new Date().getTime()) {
             return;
         }
-        console.log("Checking veriuson");
         GM_xmlhttpRequest({
             method: "GET",
             headers: {
