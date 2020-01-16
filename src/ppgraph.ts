@@ -1,11 +1,11 @@
+import { get_compare_user, get_current_user, is_user_page } from "./env";
 import g from "./global";
-import { check } from "./util/err";
-import { get_current_user, get_compare_user, is_user_page } from "./env";
 import { create } from "./util/dom";
+import { check } from "./util/err";
 
 let chart: Chart | undefined;
 
-function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: Array<string | string[]>) {
+function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: Array<string | string[]>): void {
 	if (chart !== undefined) {
 		chart.data = {
 			labels,
@@ -17,7 +17,7 @@ function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.
 
 	// @ts-ignore
 	chart = new Chart(canvasContext, {
-		type: 'line',
+		type: "line",
 		data: {
 			labels,
 			datasets,
@@ -44,22 +44,22 @@ function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.
 }
 
 function get_graph_data(user_id: string) {
-	let user = g.user_list[user_id];
-	if (user == undefined)
+	const user = g.user_list[user_id];
+	if (user === undefined)
 		return [];
 
-	let data: number[] = [];
-	let data_scaled: number[] = [];
+	const data: number[] = [];
+	const data_scaled: number[] = [];
 	Object.keys(user.songs)
 		.filter(sid => user.songs[sid].pp > 0)
 		.sort((a, b) => user.songs[b].pp - user.songs[a].pp)
 		.forEach((songId, index) => {
-			//labels.push("lul");
-			let pp = user.songs[songId].pp;
+			// labels.push("lul");
+			const pp = user.songs[songId].pp;
 			data.push(pp);
 			data_scaled.push(pp * Math.pow(0.965, index));
 		});
-	let color = (Number(user_id) % 3600) / 10;
+	const color = (Number(user_id) % 3600) / 10;
 
 	return [{
 		label: `${user.name} (song pp)`,
@@ -76,13 +76,13 @@ function get_graph_data(user_id: string) {
 	}];
 }
 
-export function update_pp_distribution_graph() {
-	let chart_elem = document.getElementById("pp_chart") as HTMLCanvasElement | null;
+export function update_pp_distribution_graph(): void {
+	const chart_elem = document.getElementById("pp_chart") as HTMLCanvasElement | null;
 	if (chart_elem == null)
 		return;
 	let dataSets = get_graph_data(get_current_user().id);
-	let compare_user = get_compare_user();
-	if (get_current_user().id != compare_user && compare_user !== undefined)
+	const compare_user = get_compare_user();
+	if (get_current_user().id !== compare_user && compare_user !== undefined)
 		dataSets = [...dataSets, ...get_graph_data(compare_user)];
 
 	let max = 0;
@@ -95,17 +95,17 @@ export function update_pp_distribution_graph() {
 			set.data.fill(0, set.data.length, max);
 		}
 	}
-	let labels = Array(max);
+	const labels = Array(max);
 	labels.fill("Song", 0, max);
 
 	chartUserData(check(chart_elem.getContext("2d")), dataSets, labels);
 }
 
-export function setup_pp_distribution_graph() {
+export function setup_pp_distribution_graph(): void {
 	if (!is_user_page())
 		return;
 
-	let baseBox = check(document.querySelector(".section > .container > .content > *:nth-child(1)"));
+	const baseBox = check(document.querySelector(".section > .container > .content > *:nth-child(1)"));
 	baseBox.insertAdjacentElement("afterend",
 		create("div", { class: "box has-shadow" },
 			create("canvas", {

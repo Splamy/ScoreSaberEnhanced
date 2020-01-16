@@ -1,0 +1,23 @@
+{
+	"extends": "tslint:recommended",
+	"rules": {
+		"indent": false,
+		"array-type": false,
+		"curly": false,
+		"forin": false,
+		"arrow-parens": false,
+		"no-console": false,
+		"object-literal-sort-keys": false,
+		"max-line-length": false,
+		"trailing-comma": false,
+		"no-unnecessary-initializer": false,
+		"object-literal-shorthand": false,
+		"variable-name": {
+			"options": [
+				"ban-keywords",
+				"check-format",
+				"allow-snake-case"
+			]
+		}
+	}
+}

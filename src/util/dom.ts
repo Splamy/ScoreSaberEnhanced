@@ -3,7 +3,8 @@ type AutoBuild<T extends keyof HTMLElementTagNameMap> = Partial<ElementBuilder<T
 	style: Partial<CSSStyleDeclaration>,
 	id: string,
 	class: string | string[],
-	for: string
+	for: string,
+	disabled: boolean
 }>;
 
 export function create<K extends keyof HTMLElementTagNameMap>(
@@ -19,7 +20,7 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 				for (const styleName in attrs.style) { ele.style[styleName as any] = attrs.style[styleName as any]!; }
 			} else if (attrName === "class") {
 				if (typeof attrs.class === "string") {
-					let classes = attrs.class.split(/ /g).filter(c => c.trim().length > 0);
+					const classes = attrs.class.split(/ /g).filter(c => c.trim().length > 0);
 					ele.classList.add(...classes);
 				} else {
 					ele.classList.add(...attrs.class!);
@@ -30,6 +31,9 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 			} else if (attrName === "selected") {
 				// @ts-ignore
 				ele.selected = attrs[attrName] ? "selected" : undefined;
+			} else if (attrName === "disabled") {
+				// @ts-ignore
+				if (attrs[attrName]) ele.setAttribute("disabled", undefined);
 			} else {
 				// @ts-ignore
 				ele[attrName] = attrs[attrName];
@@ -62,7 +66,7 @@ export function intor(parent: HTMLElement, ...children: (HTMLElement | string)[]
  * Appends the children to the parent
  */
 export function into(parent: HTMLElement, ...children: (HTMLElement | string)[]): void {
-	for (let child of children) {
+	for (const child of children) {
 		if (typeof child === "string") {
 			if (children.length > 1) {
 				parent.appendChild(create("div", {}, child));

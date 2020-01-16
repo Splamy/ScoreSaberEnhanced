@@ -1,21 +1,18 @@
-import * as themes from "./themes";
-import * as settings from "./settings";
-import * as log from "./log";
-import * as usercache from "./usercache";
-import * as scoreboard from "./scoreboard";
-import * as song_leaderboard from "./song_leaderboard";
 import * as compare from "./compare";
-import * as ppgraph from "./ppgraph";
+import * as log from "./log";
+// import * as ppgraph from "./ppgraph";
+import * as scoreboard from "./scoreboard";
+import * as settings from "./settings";
+import * as song_leaderboard from "./song_leaderboard";
+import * as themes from "./themes";
 import * as user from "./user";
-
-// @ ts-ignore
-//timeago = timeago();
+import * as usercache from "./usercache";
 
 log.setup();
 themes.setup();
 settings.load_last_theme();
 usercache.load();
-window.addEventListener("DOMContentLoaded", function () {
+window.addEventListener("DOMContentLoaded", () => {
 	scoreboard.setup_dl_link_user_site();
 	scoreboard.setup_dl_link_leaderboard();
 	user.setup_self_pin_button();
@@ -28,5 +25,5 @@ window.addEventListener("DOMContentLoaded", function () {
 	settings.setup();
 	song_leaderboard.setup_song_filter_tabs();
 	song_leaderboard.highlight_user();
-	//ppgraph.setup_pp_distribution_graph();
+	// ppgraph.setup_pp_distribution_graph();
 });

@@ -1,6 +1,5 @@
-import { ISong, IBeatSaverSongInfo } from "../declarations/Types";
+import { IBeatSaverSongInfo, ISong } from "../declarations/Types";
 import g from "../global";
-import { check } from "./err";
 import { fetch2 } from "./net";
 
 export function get_song_compare_value(song_a: ISong, song_b: ISong): [number, number] {
@@ -22,7 +21,7 @@ function get_song_mod_multiplier(song: ISong): number {
 	// Note: ranked maps may use different values for modifiers like GN, DA, FS
 	// this function returns a modifier which should only be used for accuracy.
 	let multiplier = 1.0;
-	for (let mod of song.mods) {
+	for (const mod of song.mods) {
 		switch (mod) {
 			case "NF": multiplier -= 0.50; break;
 			case "NO": multiplier -= 0.05; break;
@@ -38,29 +37,36 @@ function get_song_mod_multiplier(song: ISong): number {
 	return Math.max(0, multiplier);
 }
 
-export function get_song_hash_from_text(text: string): string {
-	return check(g.song_hash_reg.exec(text))[1];
+export function get_song_hash_from_text(text: string): string | undefined {
+	const res = g.song_hash_reg.exec(text);
+	return res ? res[1] : undefined;
 }
 
-export async function fetch_song_info_by_hash(hash: string): Promise<IBeatSaverSongInfo> {
-	const data = JSON.parse(await fetch2(g.beatsaver_hash_api + hash));
-	return data;
+export async function fetch_song_info_by_hash(hash: string): Promise<IBeatSaverSongInfo | undefined> {
+	try {
+		const fetch_data = await fetch2(g.beatsaver_hash_api + hash);
+		const data = JSON.parse(fetch_data);
+		return data;
+	} catch (e) { return undefined; }
 }
 
-export async function fetch_hash(link: string): Promise<string> {
+export async function fetch_hash(link: string): Promise<string | undefined> {
 	// we cant get the beatsaver song link directly so we fetch
 	// the song hash from the leaderboard site with an async fetch request.
-	let leaderboard_text = await (await fetch(link)).text();
+	const leaderboard_text = await (await fetch(link)).text();
 	return get_song_hash_from_text(leaderboard_text);
 }
 
-export async function oneclick_install_byhash(song_hash: string) {
+export async function oneclick_install_byhash(song_hash: string): Promise<boolean> {
 	const song_info = await fetch_song_info_by_hash(song_hash);
+	if (!song_info) return false;
 	await oneclick_install(song_info.key);
+	return true;
 }
 
-async function oneclick_install(song_key: string) {
+export async function oneclick_install(song_key: string): Promise<void> {
 	const lastCheck = localStorage.getItem("oneclick-prompt");
+	// tslint:disable-next-line: triple-equals
 	const prompt = lastCheck == undefined ||
 		new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
 

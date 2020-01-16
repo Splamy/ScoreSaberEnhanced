@@ -6,7 +6,9 @@ export default class Global {
 	public static users_elem: HTMLElement;
 	public static last_selected: string;
 	public static debug = false;
+	// tslint:disable-next-line: variable-name
 	public static _current_user: IUser;
+	// tslint:disable-next-line: variable-name
 	public static _home_user: IUser;
 	public static style_themed_elem: HTMLStyleElement;
 	public static song_table_backup: HTMLElement | undefined;
