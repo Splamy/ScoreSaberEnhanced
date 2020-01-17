@@ -1,0 +1,93 @@
+.compact {
+	padding-right: 0 !important;
+	padding-left: 0 !important;
+	margin-left: 0px !important;
+	margin-right: 0px !important;
+	text-align: center !important;
+}
+
+h5 > * {
+	margin-right: 0.3em;
+}
+
+#wide_song_table_css:checked ~ table.ranking.songs {
+	max-width: unset !important;
+}
+
+#leaderboard_tool_strip > * {
+	margin-right: 0.5em;
+}
+
+.offset_tab {
+	margin-left: auto;
+}
+
+.beatsaver_bg {
+	background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
+	width: 100%;
+	height: 100%;
+}
+
+.fas_big {
+	line-height: 150%;
+	padding-right: 0.5em;
+	padding-left: 0.5em;
+	min-width: 2.25em;
+	/* Fix for some themes overriding font */
+	font-weight: 900;
+	font-family: "Font Awesome 5 Free";
+}
+
+.fas_big::before {
+	font-size: 120%;
+}
+
+[data-tooltip]::before {
+	visibility: hidden;
+	background-color: #555;
+	color: #fff;
+	border-radius: 6px;
+	position: absolute;
+	z-index: 1;
+	margin-top: -5px;
+	opacity: 0;
+	transition: opacity 0.3s;
+	padding: 0.2em 1em;
+	content: attr(data-tooltip);
+	/* Default */
+	top: 0;
+	left: 50%;
+	right: auto;
+	bottom: auto;
+	transform: translate(-50%, -100%);
+}
+[data-tooltip].has-tooltip-left::before {
+	top: auto;
+	right: auto;
+	bottom: 50%;
+	left: -11px;
+	transform: translate(-100%, 50%);
+}
+[data-tooltip]:hover::before {
+	visibility: visible;
+	opacity: 1;
+}
+
+@keyframes fill_anim {
+	0%{background-position:top;}
+	20%{background-position:bottom;}
+	80%{background-position:bottom;}
+	100%{background-position:top;}
+}
+.button_error {
+	background: linear-gradient(to top, red 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+.button_success {
+	background: linear-gradient(to top, green 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}

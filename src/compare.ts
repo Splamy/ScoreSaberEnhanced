@@ -21,15 +21,15 @@ export function setup_user_compare(): void {
 	const user = get_current_user();
 	into(header,
 		create("div", {
-			class: "button icon is-medium tooltip",
+			class: "button icon is-medium",
 			style: { cursor: "pointer" },
-			onclick: async () => {
+			data: { tooltip: g.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
+			async onclick() {
 				await fetch_user(get_current_user().id);
 				update_user_compare_songtable_default();
 			},
 		},
 			create("i", { class: ["fas", g.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
-			create("div", { class: "tooltiptext" }, g.user_list[user.id] ? "Update score cache" : "Add user to your score cache")
 		)
 	);
 

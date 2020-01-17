@@ -8,15 +8,15 @@ export function setup_self_pin_button(): void {
 
 	const header = get_user_header();
 	into(header, create("div", {
-		class: "button icon is-medium tooltip",
+		class: "button icon is-medium",
 		style: { cursor: "pointer" },
-		onclick: () => {
+		data: { tooltip: "Pin this user to your navigation bar" },
+		onclick() {
 			set_home_user(get_current_user());
 			update_self_button();
 		}
 	},
 		create("i", { class: "fas fa-thumbtack" }),
-		create("div", { class: "tooltiptext" }, "Pin this user to your navigation bar")
 	));
 }
 

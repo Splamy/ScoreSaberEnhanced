@@ -1,9 +1,9 @@
-import { BulmaSize } from "./declarations/Types";
+import { BulmaSize, IBeatSaverSongInfo } from "./declarations/Types";
 import { get_wide_table, is_song_leaderboard_page, is_user_page } from "./env";
 import g from "./global";
 import { create, into } from "./util/dom";
 import { check } from "./util/err";
-import { number_invariant } from "./util/format";
+import { number_invariant, toggled_class } from "./util/format";
 import { fetch_song_info_by_hash, get_song_hash_from_text, oneclick_install } from "./util/song";
 
 function new_page(link: string): void {
@@ -12,57 +12,56 @@ function new_page(link: string): void {
 
 function generate_beatsaver_button(song_hash: string | undefined, size: BulmaSize): HTMLElement {
 	const base_elem = create("div", {
-		class: `button icon is-${size}`,
+		class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
 		style: {
 			cursor: song_hash === undefined ? "default" : "pointer",
 			padding: "0",
 		},
 		disabled: song_hash === undefined,
-		onclick: async () => {
-			if (!song_hash) { return; }
-			const song_info = await fetch_song_info_by_hash(song_hash);
-			if (!song_info) { failed_to_download(); return; }
-			new_page(g.beatsaver_link + song_info.key);
+		data: { tooltip: "View on BeatSaver" },
+		onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => new_page(g.beatsaver_link + song_info.key))
+				.catch(() => failed_to_download(this as any));
 		},
-	});
-	into(base_elem, create("div", { class: "beatsaver_bg" }));
+	},
+		create("div", { class: "beatsaver_bg" }),
+	);
 	return base_elem;
 }
 
 function generate_oneclick_button(song_hash: string | undefined, size: BulmaSize): HTMLElement {
 	return create("div", {
-		class: `button icon is-${size}`,
+		class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
 		style: {
 			cursor: song_hash === undefined ? "default" : "pointer",
 		},
 		disabled: song_hash === undefined,
-		onclick: async () => {
-			if (!song_hash) { return; }
-			const song_info = await fetch_song_info_by_hash(song_hash);
-			if (!song_info) { failed_to_download(); return; }
-			await oneclick_install(song_info.key);
+		data: { tooltip: "Download with OneClick™" },
+		onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => oneclick_install(song_info.key))
+				.then(() => ok_after_download(this as any))
+				.catch(() => failed_to_download(this as any));
 		},
-	}, create("i", { class: "fas fa-cloud-download-alt" }));
-}
-
-// TODO move to a better place
-function failed_to_download() {
-	console.log("Failed to download");
+	},
+		create("i", { class: "fas fa-cloud-download-alt" }),
+	);
 }
 
 function generate_bsaber_button(song_hash: string | undefined): HTMLElement {
 	return create("a", {
-		class: "button icon is-large tooltip",
+		class: "button icon is-large",
 		style: {
 			cursor: song_hash === undefined ? "default" : "pointer",
 			padding: "0",
 		},
 		disabled: song_hash === undefined,
-		onclick: async () => {
-			if (!song_hash) { return; }
-			const song_info = await fetch_song_info_by_hash(song_hash);
-			if (!song_info) { failed_to_download(); return; }
-			new_page(g.bsaber_link + song_info.key);
+		data: { tooltip: "View/Add rating on BeastSaber" },
+		async onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => new_page(g.bsaber_link + song_info.key))
+				.catch(() => failed_to_download(this as any));
 		},
 	},
 		create("div", {
@@ -76,8 +75,35 @@ function generate_bsaber_button(song_hash: string | undefined): HTMLElement {
 				borderRadius: "inherit",
 			}
 		}),
-		create("div", { class: "tooltiptext" }, "View/Add rating on BeastSaber")
 	);
+}
+
+async function checked_hash_to_song_info(ref: HTMLElement, song_hash?: string, ): Promise<IBeatSaverSongInfo> {
+	reset_download_visual(ref);
+	if (!song_hash) { failed_to_download(ref); throw new Error("song_hash is undefined"); }
+	const song_info = await fetch_song_info_by_hash(song_hash);
+	if (!song_info) { failed_to_download(ref); throw new Error("song_info is undefined"); }
+	return song_info;
+}
+
+
+function reset_download_visual(ref: HTMLElement) {
+	if (ref) {
+		ref.classList.remove("button_success");
+		ref.classList.remove("button_error");
+	}
+}
+
+function failed_to_download(ref?: HTMLElement) {
+	if (ref) {
+		ref.classList.add("button_error");
+	}
+}
+
+function ok_after_download(ref: HTMLElement) {
+	if (ref) {
+		ref.classList.add("button_success");
+	}
 }
 
 export function setup_dl_link_user_site(): void {

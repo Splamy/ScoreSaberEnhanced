@@ -51,7 +51,7 @@ export async function fetch_song_info_by_hash(hash: string): Promise<IBeatSaverS
 }
 
 export async function fetch_hash(link: string): Promise<string | undefined> {
-	// we cant get the beatsaver song link directly so we fetch
+	// we can't get the beatsaver song link directly so we fetch
 	// the song hash from the leaderboard site with an async fetch request.
 	const leaderboard_text = await (await fetch(link)).text();
 	return get_song_hash_from_text(leaderboard_text);

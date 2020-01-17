@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.3.2
+// @version      1.4.0
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -190,6 +190,12 @@
                 else if (attrName === "disabled") {
                     if (attrs[attrName])
                         ele.setAttribute("disabled", undefined);
+                }
+                else if (attrName === "data") {
+                    const data_dict = attrs[attrName];
+                    for (const data_key in data_dict) {
+                        ele.setAttribute(`data-${data_key}`, data_dict[data_key]);
+                    }
                 }
                 else {
                     ele[attrName] = attrs[attrName];
@@ -472,13 +478,16 @@
         header.style.alignItems = "center";
         const user = get_current_user();
         into(header, create("div", {
-            class: "button icon is-medium tooltip",
+            class: "button icon is-medium",
             style: { cursor: "pointer" },
-            onclick: () => __awaiter(this, void 0, void 0, function* () {
-                yield fetch_user(get_current_user().id);
-                update_user_compare_songtable_default();
-            }),
-        }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }), create("div", { class: "tooltiptext" }, Global.user_list[user.id] ? "Update score cache" : "Add user to your score cache")));
+            data: { tooltip: Global.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
+            onclick() {
+                return __awaiter(this, void 0, void 0, function* () {
+                    yield fetch_user(get_current_user().id);
+                    update_user_compare_songtable_default();
+                });
+            },
+        }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] })));
         Global.status_elem = create("div");
         into(header, Global.status_elem);
         Global.users_elem = create("div", {
@@ -743,69 +752,53 @@
     }
     function generate_beatsaver_button(song_hash, size) {
         const base_elem = create("div", {
-            class: `button icon is-${size}`,
+            class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
             style: {
                 cursor: song_hash === undefined ? "default" : "pointer",
                 padding: "0",
             },
             disabled: song_hash === undefined,
-            onclick: () => __awaiter(this, void 0, void 0, function* () {
-                if (!song_hash) {
-                    return;
-                }
-                const song_info = yield fetch_song_info_by_hash(song_hash);
-                if (!song_info) {
-                    failed_to_download();
-                    return;
-                }
-                new_page(Global.beatsaver_link + song_info.key);
-            }),
-        });
-        into(base_elem, create("div", { class: "beatsaver_bg" }));
+            data: { tooltip: "View on BeatSaver" },
+            onclick() {
+                checked_hash_to_song_info(this, song_hash)
+                    .then(song_info => new_page(Global.beatsaver_link + song_info.key))
+                    .catch(() => failed_to_download(this));
+            },
+        }, create("div", { class: "beatsaver_bg" }));
         return base_elem;
     }
     function generate_oneclick_button(song_hash, size) {
         return create("div", {
-            class: `button icon is-${size}`,
+            class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
             style: {
                 cursor: song_hash === undefined ? "default" : "pointer",
             },
             disabled: song_hash === undefined,
-            onclick: () => __awaiter(this, void 0, void 0, function* () {
-                if (!song_hash) {
-                    return;
-                }
-                const song_info = yield fetch_song_info_by_hash(song_hash);
-                if (!song_info) {
-                    failed_to_download();
-                    return;
-                }
-                yield oneclick_install(song_info.key);
-            }),
+            data: { tooltip: "Download with OneClick™" },
+            onclick() {
+                checked_hash_to_song_info(this, song_hash)
+                    .then(song_info => oneclick_install(song_info.key))
+                    .then(() => ok_after_download(this))
+                    .catch(() => failed_to_download(this));
+            },
         }, create("i", { class: "fas fa-cloud-download-alt" }));
-    }
-    function failed_to_download() {
-        console.log("Failed to download");
     }
     function generate_bsaber_button(song_hash) {
         return create("a", {
-            class: "button icon is-large tooltip",
+            class: "button icon is-large",
             style: {
                 cursor: song_hash === undefined ? "default" : "pointer",
                 padding: "0",
             },
             disabled: song_hash === undefined,
-            onclick: () => __awaiter(this, void 0, void 0, function* () {
-                if (!song_hash) {
-                    return;
-                }
-                const song_info = yield fetch_song_info_by_hash(song_hash);
-                if (!song_info) {
-                    failed_to_download();
-                    return;
-                }
-                new_page(Global.bsaber_link + song_info.key);
-            }),
+            data: { tooltip: "View/Add rating on BeastSaber" },
+            onclick() {
+                return __awaiter(this, void 0, void 0, function* () {
+                    checked_hash_to_song_info(this, song_hash)
+                        .then(song_info => new_page(Global.bsaber_link + song_info.key))
+                        .catch(() => failed_to_download(this));
+                });
+            },
         }, create("div", {
             style: {
                 backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
@@ -816,7 +809,38 @@
                 height: "100%",
                 borderRadius: "inherit",
             }
-        }), create("div", { class: "tooltiptext" }, "View/Add rating on BeastSaber"));
+        }));
+    }
+    function checked_hash_to_song_info(ref, song_hash) {
+        return __awaiter(this, void 0, void 0, function* () {
+            reset_download_visual(ref);
+            if (!song_hash) {
+                failed_to_download(ref);
+                throw new Error("song_hash is undefined");
+            }
+            const song_info = yield fetch_song_info_by_hash(song_hash);
+            if (!song_info) {
+                failed_to_download(ref);
+                throw new Error("song_info is undefined");
+            }
+            return song_info;
+        });
+    }
+    function reset_download_visual(ref) {
+        if (ref) {
+            ref.classList.remove("button_success");
+            ref.classList.remove("button_error");
+        }
+    }
+    function failed_to_download(ref) {
+        if (ref) {
+            ref.classList.add("button_error");
+        }
+    }
+    function ok_after_download(ref) {
+        if (ref) {
+            ref.classList.add("button_success");
+        }
     }
     function setup_dl_link_user_site() {
         if (!is_user_page()) {
@@ -911,61 +935,101 @@ span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapp
 	text-shadow: 1px 1px 2px #000;
 }`;
     function setup$1() {
-        GM_addStyle(`.compact {
-		padding-right: 0 !important;
-		padding-left: 0 !important;
-		margin-left: 0px !important;
-		margin-right: 0px !important;
-		text-align: center !important;
-	}
-	h5 > * {
-		margin-right: 0.3em;
-	}
-	#wide_song_table_css:checked ~ table.ranking.songs {
-		max-width: unset !important;
-	}
-	.beatsaver_bg {
-		background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
-		width: 100%;
-		height: 100%;
-		background-color: #FFF;
-	}
-	.fas_big {
-		line-height: 150%;
-		padding-right: 0.5em;
-		padding-left: 0.5em;
-		min-width: 2.25em;
-		/* Fix for some themes overriding font */
-		font-weight: 900;
-		font-family: "Font Awesome 5 Free";
-	}
-	.fas_big::before {
-		font-size: 120%;
-	}
-	.tooltip { }
-	.tooltip .tooltiptext {
-		visibility: hidden;
-		background-color: #555;
-		color: #fff;
-		border-radius: 6px;
-		position: absolute;
-		z-index: 1;
-		bottom: 125%;
-		margin-left: -3em;
-		opacity: 0;
-		transition: opacity 0.3s;
-		padding: 0.2em 1em;
-	}
-	.tooltip:hover .tooltiptext {
-		visibility: visible;
-		opacity: 1;
-	}
-	#leaderboard_tool_strip > * {
-		margin-right: 0.5em;
-	}
-	.offset_tab {
-		margin-left: auto;
-	}`);
+        const style_data = `.compact {
+	padding-right: 0 !important;
+	padding-left: 0 !important;
+	margin-left: 0px !important;
+	margin-right: 0px !important;
+	text-align: center !important;
+}
+
+h5 > * {
+	margin-right: 0.3em;
+}
+
+#wide_song_table_css:checked ~ table.ranking.songs {
+	max-width: unset !important;
+}
+
+#leaderboard_tool_strip > * {
+	margin-right: 0.5em;
+}
+
+.offset_tab {
+	margin-left: auto;
+}
+
+.beatsaver_bg {
+	background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
+	width: 100%;
+	height: 100%;
+}
+
+.fas_big {
+	line-height: 150%;
+	padding-right: 0.5em;
+	padding-left: 0.5em;
+	min-width: 2.25em;
+	/* Fix for some themes overriding font */
+	font-weight: 900;
+	font-family: "Font Awesome 5 Free";
+}
+
+.fas_big::before {
+	font-size: 120%;
+}
+
+[data-tooltip]::before {
+	visibility: hidden;
+	background-color: #555;
+	color: #fff;
+	border-radius: 6px;
+	position: absolute;
+	z-index: 1;
+	margin-top: -5px;
+	opacity: 0;
+	transition: opacity 0.3s;
+	padding: 0.2em 1em;
+	content: attr(data-tooltip);
+	/* Default */
+	top: 0;
+	left: 50%;
+	right: auto;
+	bottom: auto;
+	transform: translate(-50%, -100%);
+}
+[data-tooltip].has-tooltip-left::before {
+	top: auto;
+	right: auto;
+	bottom: 50%;
+	left: -11px;
+	transform: translate(-100%, 50%);
+}
+[data-tooltip]:hover::before {
+	visibility: visible;
+	opacity: 1;
+}
+
+@keyframes fill_anim {
+	0%{background-position:top;}
+	20%{background-position:bottom;}
+	80%{background-position:bottom;}
+	100%{background-position:top;}
+}
+.button_error {
+	background: linear-gradient(to top, red 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+.button_success {
+	background: linear-gradient(to top, green 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+`;
+        GM_addStyle(style_data);
         into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
     }
 
@@ -1200,13 +1264,14 @@ span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapp
         }
         const header = get_user_header();
         into(header, create("div", {
-            class: "button icon is-medium tooltip",
+            class: "button icon is-medium",
             style: { cursor: "pointer" },
-            onclick: () => {
+            data: { tooltip: "Pin this user to your navigation bar" },
+            onclick() {
                 set_home_user(get_current_user());
                 update_self_button();
             }
-        }, create("i", { class: "fas fa-thumbtack" }), create("div", { class: "tooltiptext" }, "Pin this user to your navigation bar")));
+        }, create("i", { class: "fas fa-thumbtack" })));
     }
     function update_self_button() {
         var _a;

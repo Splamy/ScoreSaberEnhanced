@@ -4,7 +4,8 @@ type AutoBuild<T extends keyof HTMLElementTagNameMap> = Partial<ElementBuilder<T
 	id: string,
 	class: string | string[],
 	for: string,
-	disabled: boolean
+	disabled: boolean,
+	data: { [att: string]: string }
 }>;
 
 export function create<K extends keyof HTMLElementTagNameMap>(
@@ -34,6 +35,12 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 			} else if (attrName === "disabled") {
 				// @ts-ignore
 				if (attrs[attrName]) ele.setAttribute("disabled", undefined);
+			} else if (attrName === "data") {
+				// @ts-ignore
+				const data_dict: { [att: string]: string } = attrs[attrName];
+				for (const data_key in data_dict) {
+					ele.setAttribute(`data-${data_key}`, data_dict[data_key]);
+				}
 			} else {
 				// @ts-ignore
 				ele[attrName] = attrs[attrName];
