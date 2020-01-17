@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.4.0
+// @version      1.4.1
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -467,6 +467,17 @@
             window.location.assign(`beatsaver://${song_key}`);
         });
     }
+    function song_equals(a, b) {
+        if (a === undefined && b === undefined)
+            return true;
+        if (a === undefined || b === undefined)
+            return false;
+        return (a.accuracy === b.accuracy &&
+            a.mods === b.mods &&
+            a.pp === b.pp &&
+            a.score === b.score &&
+            a.time === b.time);
+    }
 
     function setup_user_compare() {
         if (!is_user_page()) {
@@ -660,7 +671,8 @@
                     break;
                 }
             }
-            process_user_page(document, user);
+            const [, has_updated] = process_user_page(document, user);
+            updated = updated || has_updated;
             if (updated) {
                 save();
             }
@@ -687,12 +699,14 @@
         const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
         for (const row of table_row) {
             const [song_id, song] = get_row_data(row);
-            if (user.songs[song_id] && user.songs[song_id].time === song.time) {
+            const song_old = user.songs[song_id];
+            if (song_old && song_old.time === song.time) {
+                logc("Old found: ", song);
                 has_old_entry = true;
             }
             else {
-                logc("Updated: ", song);
-                has_updated = true;
+                logc("Updated: ", song_old, song);
+                has_updated = has_updated || !song_equals(song_old, song);
             }
             user.songs[song_id] = song;
         }

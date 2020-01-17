@@ -7,7 +7,7 @@ import * as usercache from "./usercache";
 import { create, into, intor } from "./util/dom";
 import { check } from "./util/err";
 import { format_en, number_invariant } from "./util/format";
-import { get_song_compare_value } from "./util/song";
+import { get_song_compare_value, song_equals } from "./util/song";
 
 export function setup_user_compare(): void {
 	if (!is_user_page()) { return; }
@@ -242,7 +242,8 @@ async function fetch_user(id: string): Promise<void> {
 	}
 
 	// process current page to allow force-updating the current site
-	process_user_page(document, user);
+	const [, has_updated] = process_user_page(document, user);
+	updated = updated || has_updated;
 
 	if (updated) {
 		usercache.save();
@@ -273,13 +274,14 @@ function process_user_page(doc: Document, user: IDbUser) {
 	const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
 	for (const row of table_row) {
 		const [song_id, song] = get_row_data(row);
-		if (user.songs[song_id] && user.songs[song_id].time === song.time) {
+		const song_old = user.songs[song_id];
+		if (song_old && song_old.time === song.time) {
+			logc("Old found: ", song);
 			has_old_entry = true;
 		} else {
-			logc("Updated: ", song);
-			has_updated = true;
+			logc("Updated: ", song_old, song);
+			has_updated = has_updated || !song_equals(song_old, song);
 		}
-
 		user.songs[song_id] = song;
 	}
 

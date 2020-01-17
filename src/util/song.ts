@@ -88,3 +88,16 @@ export async function oneclick_install(song_key: string): Promise<void> {
 	console.log("Downloading: ", song_key);
 	window.location.assign(`beatsaver://${song_key}`);
 }
+
+export function song_equals(a?: ISong, b?: ISong): boolean {
+	if (a === undefined && b === undefined)
+		return true;
+	if (a === undefined || b === undefined)
+		return false;
+	return (
+		a.accuracy === b.accuracy &&
+		a.mods === b.mods &&
+		a.pp === b.pp &&
+		a.score === b.score &&
+		a.time === b.time);
+}
