@@ -1,10 +1,11 @@
-import { IDbUser, ISong } from "./declarations/Types";
-import { get_home_user, is_song_leaderboard_page } from "./env";
-import g from "./global";
-import { create } from "./util/dom";
-import { check } from "./util/err";
-import { format_en, toggled_class } from "./util/format";
-import { get_song_compare_value } from "./util/song";
+import * as buttons from "../components/buttons";
+import { IDbUser, ISong } from "../declarations/Types";
+import { get_home_user, is_song_leaderboard_page } from "../env";
+import g from "../global";
+import { create } from "../util/dom";
+import { check } from "../util/err";
+import { format_en, toggled_class } from "../util/format";
+import { get_song_compare_value, get_song_hash_from_text } from "../util/song";
 
 export function setup_song_filter_tabs(): void {
 	if (!is_song_leaderboard_page()) { return; }
@@ -47,6 +48,25 @@ export function setup_song_filter_tabs(): void {
 	tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
 	tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
 	// tab_list_content.appendChild(generate_tab("Around Me", "around_me_tab", () => {}, false, false));
+}
+
+export function setup_dl_link_leaderboard(): void {
+	if (!is_song_leaderboard_page()) { return; }
+
+	// find the element we want to modify
+	let details_box = check(document.querySelector(".content .title.is-5"));
+	details_box = check(details_box.parentElement);
+
+	const song_hash = get_song_hash_from_text(details_box.innerHTML);
+
+	details_box.appendChild(
+		create("div", {
+			id: "leaderboard_tool_strip"
+		},
+			buttons.generate_bsaber(song_hash),
+			buttons.generate_beatsaver(song_hash, "large"),
+			buttons.generate_oneclick(song_hash, "large")
+		));
 }
 
 function generate_song_table_row(user_id: string, user: IDbUser, song_id: string): HTMLElement {

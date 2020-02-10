@@ -1,12 +1,12 @@
 import * as compare from "./compare";
-import * as log from "./log";
+import * as header from "./header";
+import * as page_user from "./pages/user";
 import * as ppgraph from "./ppgraph";
-import * as scoreboard from "./scoreboard";
 import * as settings from "./settings";
-import * as song_leaderboard from "./song_leaderboard";
+import * as page_song from "./pages/song";
 import * as themes from "./themes";
-import * as user from "./user";
 import * as usercache from "./usercache";
+import * as log from "./util/log";
 
 log.setup();
 themes.setup();
@@ -15,23 +15,24 @@ usercache.load();
 
 let has_loaded = false;
 function onload(): void {
-	log.logc("LOADING");
 	if (has_loaded) {
+		log.logc("Already loaded");
 		return;
 	}
+	log.logc("LOADING");
 	has_loaded = true;
-	scoreboard.setup_dl_link_user_site();
-	scoreboard.setup_dl_link_leaderboard();
-	user.setup_self_pin_button();
-	scoreboard.setup_user_rank_link_swap();
-	scoreboard.setup_song_rank_link_swap();
+	page_user.setup_dl_link_user_site();
+	page_user.setup_user_rank_link_swap();
+	page_user.setup_song_rank_link_swap();
+	page_user.setup_wide_table_checkbox();
+	page_song.setup_dl_link_leaderboard();
+	page_song.setup_song_filter_tabs();
+	page_song.highlight_user();
+	header.setup_self_pin_button();
+	header.setup_self_button();
 	compare.setup_user_compare();
-	user.update_self_button();
-	settings.update_button_visibility();
-	scoreboard.setup_wide_table_checkbox();
 	settings.setup();
-	song_leaderboard.setup_song_filter_tabs();
-	song_leaderboard.highlight_user();
+	settings.update_button_visibility();
 	ppgraph.setup_pp_graph();
 }
 

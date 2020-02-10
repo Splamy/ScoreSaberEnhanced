@@ -1,4 +1,4 @@
-import g from "./global";
+import g from "../global";
 
 export function setup(): void {
 	g.debug = localStorage.getItem("debug") === "true";

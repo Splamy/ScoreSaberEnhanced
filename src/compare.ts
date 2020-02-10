@@ -1,12 +1,12 @@
+import SseEvent from "./components/events";
 import { IDbUser, ISong } from "./declarations/Types";
 import { get_compare_user, get_current_user, get_document_user, get_user_header, insert_compare_feature, is_user_page, set_compare_user } from "./env";
 import g from "./global";
-import { logc } from "./log";
-import { update_pp_graph, update_pp_graph_buttons } from "./ppgraph";
 import * as usercache from "./usercache";
 import { create, into, intor } from "./util/dom";
 import { check } from "./util/err";
 import { format_en, number_invariant } from "./util/format";
+import { logc } from "./util/log";
 import { get_song_compare_value, song_equals } from "./util/song";
 
 export function setup_user_compare(): void {
@@ -26,7 +26,6 @@ export function setup_user_compare(): void {
 			data: { tooltip: g.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
 			async onclick() {
 				await fetch_user(get_current_user().id);
-				update_user_compare_songtable_default();
 			},
 		},
 			create("i", { class: ["fas", g.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
@@ -40,7 +39,12 @@ export function setup_user_compare(): void {
 	insert_compare_feature(g.users_elem);
 
 	update_user_compare_dropdown();
-	update_user_compare_songtable_default();
+
+	SseEvent.UserCacheChanged.register(update_user_compare_dropdown);
+	SseEvent.UserCacheChanged.register(update_user_compare_songtable);
+	SseEvent.CompareUserChanged.register(update_user_compare_songtable);
+
+	SseEvent.CompareUserChanged.invoke();
 }
 
 export function update_user_compare_dropdown(): void {
@@ -52,8 +56,9 @@ export function update_user_compare_dropdown(): void {
 			create("select", {
 				id: "user_compare",
 				onchange() {
-					set_compare_user((this as HTMLSelectElement).value);
-					on_user_compare_changed();
+					const user = (this as HTMLSelectElement).value; // TOOO convert to IUser
+					set_compare_user(user);
+					SseEvent.CompareUserChanged.invoke();
 				}
 			}, ...Object.keys(g.user_list).map(id => {
 				const user = g.user_list[id];
@@ -63,15 +68,15 @@ export function update_user_compare_dropdown(): void {
 	);
 }
 
-function update_user_compare_songtable_default(): void {
-	const compare = get_compare_user();
-	if (compare) {
-		update_user_compare_songtable(compare);
-	}
-}
-
-export function update_user_compare_songtable(other_user: string): void {
+export function update_user_compare_songtable(other_user?: string): void {
 	if (!is_user_page()) { return; }
+
+	if (other_user === undefined) {
+		other_user = get_compare_user();
+		if (other_user === undefined) {
+			return; // TODO maybe clean up list ?
+		}
+	}
 
 	const other_data = g.user_list[other_user];
 	if (!other_data) {
@@ -246,7 +251,7 @@ async function fetch_user(id: string): Promise<void> {
 
 	intor(g.status_elem, "User updated");
 
-	on_user_list_changed();
+	SseEvent.UserCacheChanged.invoke();
 }
 
 async function fetch_user_page(id: string, page: string | number): Promise<Document> {
@@ -281,66 +286,4 @@ function process_user_page(doc: Document, user: IDbUser) {
 	}
 
 	return [has_old_entry, has_updated];
-}
-
-export function update_self_user_list(): void {
-	const home_user_list_elem = check(document.getElementById("home_user_list"));
-	intor(home_user_list_elem,
-		...Object.keys(g.user_list).map(id => {
-			const user = g.user_list[id];
-			return create("a", {
-				class: "navbar-item",
-				style: {
-					paddingRight: "1em",
-					flexWrap: "nowrap",
-					display: "flex",
-				},
-				href: g.scoresaber_link + "/u/" + id,
-			},
-				create("div", { style: { flex: "1" } }, user.name),
-				create("a", {
-					class: "button icon is-medium is-danger is-outlined",
-					style: { marginLeft: "3em" },
-					onclick: () => {
-						swal(`Delete User "${user.name}" from cache?`, {
-							dangerMode: true,
-							buttons: true,
-						}).then((deleteUser) => {
-							logc("DELETE!", deleteUser);
-							if (deleteUser) {
-								delete_user(id);
-							}
-						});
-						return false;
-					}
-				},
-					create("i", { class: "fas fa-trash-alt" })
-				),
-			);
-		})
-	);
-}
-
-function delete_user(user_id: string): void {
-	if (g.user_list[user_id]) {
-		delete g.user_list[user_id];
-		usercache.save();
-		on_user_list_changed();
-	}
-}
-
-// TODO create eventsystem
-
-function on_user_list_changed(): void {
-	update_user_compare_dropdown();
-	update_self_user_list();
-	update_pp_graph_buttons();
-}
-
-function on_user_compare_changed(): void {
-	const compare_user = get_compare_user();
-	if (!compare_user)
-		return;
-	update_user_compare_songtable(compare_user);
-	update_pp_graph();
 }

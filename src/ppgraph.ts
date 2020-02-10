@@ -1,3 +1,4 @@
+import SseEvent from "./components/events";
 import { get_compare_user, get_current_user, insert_compare_display, insert_compare_feature, is_user_page } from "./env";
 import g from "./global";
 import { create } from "./util/dom";
@@ -7,6 +8,36 @@ import { button, IButtonElement } from "./util/toggle_button";
 let chart: Chart | undefined;
 let chart_elem: HTMLCanvasElement | undefined;
 let chart_button: IButtonElement | undefined;
+
+export function setup_pp_graph(): void {
+	if (!is_user_page()) { return; }
+
+	chart_elem = create("canvas");
+	const chart_container = create("div", {
+		style: {
+			width: "100%",
+			height: "20em",
+			display: "none", // for the toggle button
+		}
+	}, chart_elem);
+	insert_compare_display(chart_container);
+
+	chart_button = button({
+		default: false,
+		text: "Show pp Graph",
+		onclick(active) {
+			if (!chart_elem) return;
+			this.innerText = (active ? "Hide" : "Show") + " pp Graph";
+			set_pp_graph_visibility(chart_container, active);
+		}
+	});
+	insert_compare_feature(chart_button);
+
+	update_pp_graph_buttons();
+
+	SseEvent.UserCacheChanged.register(update_pp_graph_buttons);
+	SseEvent.CompareUserChanged.register(update_pp_graph);
+}
 
 function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: Array<string | string[]>): void {
 	if (chart !== undefined) {
@@ -81,7 +112,7 @@ function get_graph_data(user_id: string) {
 	}];
 }
 
-export function update_pp_graph(): void {
+function update_pp_graph(): void {
 	if (chart_elem === undefined)
 		return;
 	let dataSets = get_graph_data(get_current_user().id);
@@ -103,33 +134,6 @@ export function update_pp_graph(): void {
 	labels.fill("Song", 0, max);
 
 	chartUserData(check(chart_elem.getContext("2d")), dataSets, labels);
-}
-
-export function setup_pp_graph(): void {
-	if (!is_user_page()) { return; }
-
-	chart_elem = create("canvas");
-	const chart_container = create("div", {
-		style: {
-			width: "100%",
-			height: "20em",
-			display: "none", // for the toggle button
-		}
-	}, chart_elem);
-	insert_compare_display(chart_container);
-
-	chart_button = button({
-		default: false,
-		text: "Show pp Graph",
-		onclick(active) {
-			if (!chart_elem) return;
-			this.innerText = (active ? "Hide" : "Show") + " pp Graph";
-			set_pp_graph_visibility(chart_container, active);
-		}
-	});
-	insert_compare_feature(chart_button);
-
-	update_pp_graph_buttons();
 }
 
 export function update_pp_graph_buttons() {

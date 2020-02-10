@@ -14,7 +14,7 @@ export const theme_dark = `:root {
 	--color-behind: rgb(128, 0, 0);
 	--color-highlight: darkgreen;
 }
-.beatsaver_bg {
+.button > .beatsaver_bg {
 	background-color: white;
 }
 /* Reset colors for generic themes */

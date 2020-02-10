@@ -1,5 +1,5 @@
 import g from "./global";
-import { logc } from "./log";
+import { logc } from "./util/log";
 
 export function load(): void {
 	const json = localStorage.getItem("users");
