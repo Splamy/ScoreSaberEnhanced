@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.0
+ - Added song stats from BeatSaver and BeastSaber to song page
+
 1.5.0
  - Added pp distribution graph
  - Adjust colors to dark mode of ScoreSaber

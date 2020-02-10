@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.5.0
+// @version      1.6.0
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -17,6 +17,7 @@
 // @connect      unpkg.com
 // @connect      beatsaver.com
 // @connect      githubusercontent.com
+// @connect      bsaber.com
 // ==/UserScript==
 
 (function () {
@@ -27,7 +28,6 @@
 	Global.debug = false;
 	Global.scoresaber_link = "https://scoresaber.com";
 	Global.beatsaver_link = "https://beatsaver.com/beatmap/";
-	Global.beatsaver_hash_api = "https://beatsaver.com/api/maps/by-hash/";
 	Global.bsaber_songs_link = "https://bsaber.com/songs/";
 	Global.song_hash_reg = /\/([\da-zA-Z]{40})\.png/;
 	Global.score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
@@ -318,6 +318,22 @@
 	    }
 	}
 
+	const api_cache = {};
+	async function get_data_by_hash(song_hash) {
+	    const cached_data = api_cache[song_hash];
+	    if (cached_data)
+	        return cached_data;
+	    try {
+	        const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
+	        const data = JSON.parse(data_str);
+	        api_cache[song_hash] = data;
+	        return data;
+	    }
+	    catch (e) {
+	        return undefined;
+	    }
+	}
+
 	function get_song_compare_value(song_a, song_b) {
 	    if (song_a.pp > 0 && song_b.pp) {
 	        return [song_a.pp, song_b.pp];
@@ -369,16 +385,6 @@
 	function get_song_hash_from_text(text) {
 	    const res = Global.song_hash_reg.exec(text);
 	    return res ? res[1] : undefined;
-	}
-	async function fetch_song_info_by_hash(hash) {
-	    try {
-	        const fetch_data = await fetch2(Global.beatsaver_hash_api + hash);
-	        const data = JSON.parse(fetch_data);
-	        return data;
-	    }
-	    catch (e) {
-	        return undefined;
-	    }
 	}
 	async function oneclick_install(song_key) {
 	    const lastCheck = localStorage.getItem("oneclick-prompt");
@@ -716,7 +722,7 @@
 
 	function generate_beatsaver(song_hash, size) {
 	    const base_elem = create("div", {
-	        class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
+	        class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
 	        style: {
 	            cursor: song_hash === undefined ? "default" : "pointer",
 	            padding: "0",
@@ -779,7 +785,7 @@
 	        failed_to_download(ref);
 	        throw new Error("song_hash is undefined");
 	    }
-	    const song_info = await fetch_song_info_by_hash(song_hash);
+	    const song_info = await get_data_by_hash(song_hash);
 	    if (!song_info) {
 	        failed_to_download(ref);
 	        throw new Error("song_info is undefined");
@@ -1064,7 +1070,7 @@
 	--color-behind: rgb(128, 0, 0);
 	--color-highlight: darkgreen;
 }
-.button > .beatsaver_bg {
+.beatsaver_bg_btn {
 	background-color: white;
 }
 /* Reset colors for generic themes */
@@ -1342,6 +1348,22 @@ h5 > * {
 	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = get_show_oc_link() ? "" : "none");
 	}
 
+	const api_cache$1 = {};
+	async function get_data(song_key) {
+	    const cached_data = api_cache$1[song_key];
+	    if (cached_data)
+	        return cached_data;
+	    try {
+	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
+	        const data = JSON.parse(data_str);
+	        api_cache$1[song_key] = data;
+	        return data;
+	    }
+	    catch (e) {
+	        return undefined;
+	    }
+	}
+
 	function setup_song_filter_tabs() {
 	    if (!is_song_leaderboard_page()) {
 	        return;
@@ -1386,8 +1408,39 @@ h5 > * {
 	    details_box = check(details_box.parentElement);
 	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
 	    details_box.appendChild(create("div", {
-	        id: "leaderboard_tool_strip"
+	        id: "leaderboard_tool_strip",
+	        style: {
+	            marginTop: "1em"
+	        }
 	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large")));
+	    const beatsaver_box = create("div", { class: "box" });
+	    const beastsaber_box = create("div", { class: "box" });
+	    details_box.appendChild(create("div", {
+	        class: "columns",
+	        style: {
+	            marginTop: "1em"
+	        }
+	    }, create("div", { class: "column" }, create("b", {}, "BeatSaver"), beatsaver_box), create("div", { class: "column" }, create("b", {}, "BeastSaber"), beastsaber_box)));
+	    if (!song_hash)
+	        return;
+	    get_data_by_hash(song_hash)
+	        .then(data => {
+	        if (data) {
+	            show_beatsaver_song_data(beatsaver_box, data);
+	            get_data(data.key)
+	                .then(data2 => {
+	                if (data2) {
+	                    show_beastsaber_song_data(beastsaber_box, data2);
+	                }
+	            });
+	        }
+	    });
+	}
+	function show_beatsaver_song_data(elem, data) {
+	    into(elem, create("div", { title: "Downloads" }, `💾 ${data.stats.downloads}`), create("div", { title: "Upvotes" }, `👍 ${data.stats.upVotes}`), create("div", { title: "Downvotes" }, `👎 ${data.stats.downVotes}`), create("div", { title: "Beatmap Rating" }, `💯 ${(data.stats.rating * 100).toFixed(2)}%`), create("div", { title: "Heat (Popularity)" }, `🔥 ${data.stats.heat.toFixed(2)}`));
+	}
+	function show_beastsaber_song_data(elem, data) {
+	    into(elem, create("div", { title: "Fun Factor" }, `😃 ${data.average_ratings.fun_factor}`), create("div", { title: "Rhythm" }, `🎶 ${data.average_ratings.rhythm}`), create("div", { title: "Flow" }, `🌊 ${data.average_ratings.flow}`), create("div", { title: "Pattern Quality" }, `💠 ${data.average_ratings.pattern_quality}`), create("div", { title: "Readability" }, `👓 ${data.average_ratings.readability}`), create("div", { title: "Level Quality" }, `✔️ ${data.average_ratings.level_quality}`));
 	}
 	function generate_song_table_row(user_id, user, song_id) {
 	    const song = user.songs[song_id];

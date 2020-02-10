@@ -1,8 +1,10 @@
+import * as beastsaber from "../api/beastsaber";
+import * as beatsaver from "../api/beatsaver";
 import * as buttons from "../components/buttons";
 import { IDbUser, ISong } from "../declarations/Types";
 import { get_home_user, is_song_leaderboard_page } from "../env";
 import g from "../global";
-import { create } from "../util/dom";
+import { create, into } from "../util/dom";
 import { check } from "../util/err";
 import { format_en, toggled_class } from "../util/format";
 import { get_song_compare_value, get_song_hash_from_text } from "../util/song";
@@ -61,12 +63,66 @@ export function setup_dl_link_leaderboard(): void {
 
 	details_box.appendChild(
 		create("div", {
-			id: "leaderboard_tool_strip"
+			id: "leaderboard_tool_strip",
+			style: {
+				marginTop: "1em"
+			}
 		},
 			buttons.generate_bsaber(song_hash),
 			buttons.generate_beatsaver(song_hash, "large"),
 			buttons.generate_oneclick(song_hash, "large")
 		));
+
+	const beatsaver_box = create("div", { class: "box" });
+	const beastsaber_box = create("div", { class: "box" });
+
+	details_box.appendChild(
+		create("div", {
+			class: "columns",
+			style: {
+				marginTop: "1em"
+			}
+		},
+			create("div", { class: "column" }, create("b", {}, "BeatSaver"), beatsaver_box),
+			create("div", { class: "column" }, create("b", {}, "BeastSaber"), beastsaber_box),
+		));
+
+	if (!song_hash)
+		return;
+
+	beatsaver.get_data_by_hash(song_hash)
+		.then(data => {
+			if (data) {
+				show_beatsaver_song_data(beatsaver_box, data);
+				beastsaber.get_data(data.key)
+					.then(data2 => {
+						if (data2) {
+							show_beastsaber_song_data(beastsaber_box, data2);
+						}
+					});
+			}
+		});
+}
+
+function show_beatsaver_song_data(elem: HTMLElement, data: beatsaver.IBeatSaverData) {
+	into(elem,
+		create("div", { title: "Downloads" }, `💾 ${data.stats.downloads}`),
+		create("div", { title: "Upvotes" }, `👍 ${data.stats.upVotes}`),
+		create("div", { title: "Downvotes" }, `👎 ${data.stats.downVotes}`),
+		create("div", { title: "Beatmap Rating" }, `💯 ${(data.stats.rating * 100).toFixed(2)}%`),
+		create("div", { title: "Heat (Popularity)" }, `🔥 ${data.stats.heat.toFixed(2)}`),
+	);
+}
+
+function show_beastsaber_song_data(elem: HTMLElement, data: beastsaber.IBeastSaberData) {
+	into(elem,
+		create("div", { title: "Fun Factor" }, `😃 ${data.average_ratings.fun_factor}`),
+		create("div", { title: "Rhythm" }, `🎶 ${data.average_ratings.rhythm}`),
+		create("div", { title: "Flow" }, `🌊 ${data.average_ratings.flow}`),
+		create("div", { title: "Pattern Quality" }, `💠 ${data.average_ratings.pattern_quality}`),
+		create("div", { title: "Readability" }, `👓 ${data.average_ratings.readability}`),
+		create("div", { title: "Level Quality" }, `✔️ ${data.average_ratings.level_quality}`),
+	);
 }
 
 function generate_song_table_row(user_id: string, user: IDbUser, song_id: string): HTMLElement {

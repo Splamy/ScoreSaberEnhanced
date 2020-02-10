@@ -17,11 +17,3 @@ export interface IDbUser {
 }
 
 export type BulmaSize = "small" | "medium" | "large";
-
-export interface IBeatSaverSongInfo {
-	key: string;
-	name: string;
-	hash: string;
-	downloadURL: string;
-	// ...
-}

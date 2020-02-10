@@ -1,6 +1,6 @@
-import { IBeatSaverSongInfo, ISong } from "../declarations/Types";
+import * as beatsaver from "../api/beatsaver";
+import { ISong } from "../declarations/Types";
 import g from "../global";
-import { fetch2 } from "./net";
 
 export function get_song_compare_value(song_a: ISong, song_b: ISong): [number, number] {
 	if (song_a.pp > 0 && song_b.pp) {
@@ -42,14 +42,6 @@ export function get_song_hash_from_text(text: string): string | undefined {
 	return res ? res[1] : undefined;
 }
 
-export async function fetch_song_info_by_hash(hash: string): Promise<IBeatSaverSongInfo | undefined> {
-	try {
-		const fetch_data = await fetch2(g.beatsaver_hash_api + hash);
-		const data = JSON.parse(fetch_data);
-		return data;
-	} catch (e) { return undefined; }
-}
-
 export async function fetch_hash(link: string): Promise<string | undefined> {
 	// we can't get the beatsaver song link directly so we fetch
 	// the song hash from the leaderboard site with an async fetch request.
@@ -58,7 +50,7 @@ export async function fetch_hash(link: string): Promise<string | undefined> {
 }
 
 export async function oneclick_install_byhash(song_hash: string): Promise<boolean> {
-	const song_info = await fetch_song_info_by_hash(song_hash);
+	const song_info = await beatsaver.get_data_by_hash(song_hash);
 	if (!song_info) return false;
 	await oneclick_install(song_info.key);
 	return true;
