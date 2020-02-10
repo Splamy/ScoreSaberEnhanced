@@ -151,7 +151,9 @@ export function load_last_theme(): void {
 
 function load_theme(name: string, css: string): void {
 	let css_fin: string;
-	if (name === "Cyborg" || name === "Darkly" || name === "Nuclear"
+
+	if (get_scoresaber_darkmode()
+		|| name === "Cyborg" || name === "Darkly" || name === "Nuclear"
 		|| name === "Slate" || name === "Solar" || name === "Superhero") {
 		css_fin = css + " " + themes.theme_dark;
 	} else {
@@ -162,6 +164,13 @@ function load_theme(name: string, css: string): void {
 	} else {
 		g.style_themed_elem.innerHTML = css_fin;
 	}
+}
+
+function get_scoresaber_darkmode(): boolean {
+	const footer = document.querySelector("footer");
+	if (!footer)
+		return false;
+	return footer.innerText.includes("light mode");
 }
 
 export function update_button_visibility() {

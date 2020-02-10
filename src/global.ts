@@ -4,6 +4,8 @@ export default class Global {
 	public static user_list: { [user_id: string]: IDbUser };
 	public static status_elem: HTMLElement;
 	public static users_elem: HTMLElement;
+	public static feature_list: HTMLElement | undefined;
+	public static feature_display_list: HTMLElement | undefined;
 	public static last_selected: string;
 	public static debug = false;
 	// tslint:disable-next-line: variable-name
@@ -25,4 +27,8 @@ export default class Global {
 	public static readonly script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 	public static readonly user_per_page_global_leaderboard = 50;
 	public static readonly user_per_page_song_leaderboard = 12;
+	/**
+	 * This is the exponential factor ScoreSaber is using to weight their scores.
+	 */
+	public static readonly pp_weighting_factor = 0.965;
 }

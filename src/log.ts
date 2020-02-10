@@ -6,6 +6,6 @@ export function setup(): void {
 
 export function logc(message: any, ...optionalParams: any[]): void {
 	if (g.debug) {
-		console.log(message, ...optionalParams);
+		console.log("DBG", message, ...optionalParams);
 	}
 }

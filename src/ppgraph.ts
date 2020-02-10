@@ -1,9 +1,12 @@
-import { get_compare_user, get_current_user, is_user_page } from "./env";
+import { get_compare_user, get_current_user, insert_compare_display, insert_compare_feature, is_user_page } from "./env";
 import g from "./global";
 import { create } from "./util/dom";
 import { check } from "./util/err";
+import { button, IButtonElement } from "./util/toggle_button";
 
 let chart: Chart | undefined;
+let chart_elem: HTMLCanvasElement | undefined;
+let chart_button: IButtonElement | undefined;
 
 function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: Array<string | string[]>): void {
 	if (chart !== undefined) {
@@ -23,6 +26,8 @@ function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.
 			datasets,
 		},
 		options: {
+			responsive: true,
+			maintainAspectRatio: false,
 			elements: {
 				point: {
 					radius: 2,
@@ -57,7 +62,7 @@ function get_graph_data(user_id: string) {
 			// labels.push("lul");
 			const pp = user.songs[songId].pp;
 			data.push(pp);
-			data_scaled.push(pp * Math.pow(0.965, index));
+			data_scaled.push(+(pp * Math.pow(g.pp_weighting_factor, index)).toFixed(2));
 		});
 	const color = (Number(user_id) % 3600) / 10;
 
@@ -68,7 +73,7 @@ function get_graph_data(user_id: string) {
 		fill: false,
 		data,
 	}, {
-		label: `${user.name} (scaled pp)`,
+		label: `${user.name} (weighted pp)`,
 		backgroundColor: `hsl(${color}, 60%, 25%)`,
 		borderColor: `hsl(${color}, 60%, 25%)`,
 		fill: false,
@@ -76,9 +81,8 @@ function get_graph_data(user_id: string) {
 	}];
 }
 
-export function update_pp_distribution_graph(): void {
-	const chart_elem = document.getElementById("pp_chart") as HTMLCanvasElement | null;
-	if (chart_elem == null)
+export function update_pp_graph(): void {
+	if (chart_elem === undefined)
 		return;
 	let dataSets = get_graph_data(get_current_user().id);
 	const compare_user = get_compare_user();
@@ -101,22 +105,56 @@ export function update_pp_distribution_graph(): void {
 	chartUserData(check(chart_elem.getContext("2d")), dataSets, labels);
 }
 
-export function setup_pp_distribution_graph(): void {
-	if (!is_user_page())
-		return;
+export function setup_pp_graph(): void {
+	if (!is_user_page()) { return; }
 
-	const baseBox = check(document.querySelector(".section > .container > .content > *:nth-child(1)"));
-	baseBox.insertAdjacentElement("afterend",
-		create("div", { class: "box has-shadow" },
-			create("canvas", {
-				id: "pp_chart",
-				style: {
-					width: "100%",
-					height: "20em",
-				}
-			})
-		)
-	);
+	chart_elem = create("canvas");
+	const chart_container = create("div", {
+		style: {
+			width: "100%",
+			height: "20em",
+			display: "none", // for the toggle button
+		}
+	}, chart_elem);
+	insert_compare_display(chart_container);
 
-	update_pp_distribution_graph();
+	chart_button = button({
+		default: false,
+		text: "Show pp Graph",
+		onclick(active) {
+			if (!chart_elem) return;
+			this.innerText = (active ? "Hide" : "Show") + " pp Graph";
+			set_pp_graph_visibility(chart_container, active);
+		}
+	});
+	insert_compare_feature(chart_button);
+
+	update_pp_graph_buttons();
+}
+
+export function update_pp_graph_buttons() {
+	if (!chart_button) { return; }
+
+	// Check if the current user is in the database
+	const user = get_current_user();
+	if (g.user_list[user.id] === undefined) {
+		// He is now, we disable the feature
+		chart_button.setAttribute("disabled", "");
+		chart_button.setAttribute("data-tooltip", "Add the user to your score cache for this feature");
+		chart_button.off();
+	} else {
+		chart_button.removeAttribute("disabled");
+		chart_button.removeAttribute("data-tooltip");
+	}
+}
+
+function set_pp_graph_visibility(elem: HTMLElement, active: boolean) {
+	if (active) {
+		if (!chart) {
+			update_pp_graph();
+		}
+		elem.style.display = "";
+	} else {
+		elem.style.display = "none";
+	}
 }

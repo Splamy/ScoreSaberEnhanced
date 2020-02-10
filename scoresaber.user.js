@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.4.1
+// @version      1.5.0
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -61,105 +61,7 @@
     Global.script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
     Global.user_per_page_global_leaderboard = 50;
     Global.user_per_page_song_leaderboard = 12;
-
-    function check(elem) {
-        if (elem === undefined || elem === null) {
-            throw new Error("Expected value to not be null");
-        }
-        return elem;
-    }
-
-    function get_user_header() {
-        return check(document.querySelector(".content div.columns h5"));
-    }
-    function get_navbar() {
-        return check(document.querySelector("#navMenu div.navbar-start"));
-    }
-    function is_user_page() {
-        return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/u/");
-    }
-    function is_song_leaderboard_page() {
-        return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/leaderboard/");
-    }
-    function get_current_user() {
-        if (Global._current_user) {
-            return Global._current_user;
-        }
-        if (!is_user_page()) {
-            throw new Error("Not on a user page");
-        }
-        Global._current_user = get_document_user(document);
-        return Global._current_user;
-    }
-    function get_document_user(doc) {
-        const username_elem = check(doc.querySelector(".content .title a"));
-        const user_name = username_elem.innerText.trim();
-        const user_id = Global.user_reg.exec(window.location.href)[1];
-        return { id: user_id, name: user_name };
-    }
-    function get_home_user() {
-        if (Global._home_user) {
-            return Global._home_user;
-        }
-        const json = localStorage.getItem("home_user");
-        if (!json) {
-            return undefined;
-        }
-        Global._home_user = JSON.parse(json);
-        return Global._home_user;
-    }
-    function get_compare_user() {
-        var _a;
-        if (Global.last_selected) {
-            return Global.last_selected;
-        }
-        const stored_last = localStorage.getItem("last_selected");
-        if (stored_last) {
-            Global.last_selected = stored_last;
-            return Global.last_selected;
-        }
-        const compare = document.getElementById("user_compare");
-        if ((_a = compare) === null || _a === void 0 ? void 0 : _a.value) {
-            Global.last_selected = compare.value;
-            return Global.last_selected;
-        }
-        return undefined;
-    }
-    function set_compare_user(user) {
-        Global.last_selected = user;
-        localStorage.setItem("last_selected", user);
-    }
-    function set_home_user(user) {
-        Global._home_user = user;
-        localStorage.setItem("home_user", JSON.stringify(user));
-    }
-    function set_wide_table(value) {
-        localStorage.setItem("wide_song_table", value ? "true" : "false");
-    }
-    function get_wide_table() {
-        return localStorage.getItem("wide_song_table") === "true";
-    }
-    function set_show_bs_link(value) {
-        localStorage.setItem("show_bs_link", value ? "true" : "false");
-    }
-    function get_show_bs_link() {
-        return (localStorage.getItem("show_bs_link") || "true") === "true";
-    }
-    function set_show_oc_link(value) {
-        localStorage.setItem("show_oc_link", value ? "true" : "false");
-    }
-    function get_show_oc_link() {
-        return (localStorage.getItem("show_oc_link") || "true") === "true";
-    }
-
-    function setup() {
-        Global.debug = localStorage.getItem("debug") === "true";
-    }
-    function logc(message, ...optionalParams) {
-        if (Global.debug) {
-            console.log(message, ...optionalParams);
-        }
-    }
+    Global.pp_weighting_factor = 0.965;
 
     function create(tag, attrs, ...children) {
         if (!tag)
@@ -230,7 +132,177 @@
         }
     }
 
+    function check(elem) {
+        if (elem === undefined || elem === null) {
+            throw new Error("Expected value to not be null");
+        }
+        return elem;
+    }
+
+    function get_user_header() {
+        return check(document.querySelector(".content div.columns h5"));
+    }
+    function get_navbar() {
+        return check(document.querySelector("#navMenu div.navbar-start"));
+    }
+    function is_user_page() {
+        return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/u/");
+    }
+    function is_song_leaderboard_page() {
+        return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/leaderboard/");
+    }
+    function get_current_user() {
+        if (Global._current_user) {
+            return Global._current_user;
+        }
+        if (!is_user_page()) {
+            throw new Error("Not on a user page");
+        }
+        Global._current_user = get_document_user(document);
+        return Global._current_user;
+    }
+    function get_document_user(doc) {
+        const username_elem = check(doc.querySelector(".content .title a"));
+        const user_name = username_elem.innerText.trim();
+        const user_id = Global.user_reg.exec(window.location.href)[1];
+        return { id: user_id, name: user_name };
+    }
+    function get_home_user() {
+        if (Global._home_user) {
+            return Global._home_user;
+        }
+        const json = localStorage.getItem("home_user");
+        if (!json) {
+            return undefined;
+        }
+        Global._home_user = JSON.parse(json);
+        return Global._home_user;
+    }
+    function get_compare_user() {
+        var _a;
+        if (Global.last_selected) {
+            return Global.last_selected;
+        }
+        const stored_last = localStorage.getItem("last_selected");
+        if (stored_last) {
+            Global.last_selected = stored_last;
+            return Global.last_selected;
+        }
+        const compare = document.getElementById("user_compare");
+        if ((_a = compare) === null || _a === void 0 ? void 0 : _a.value) {
+            Global.last_selected = compare.value;
+            return Global.last_selected;
+        }
+        return undefined;
+    }
+    function insert_compare_feature(elem) {
+        if (!is_user_page()) {
+            throw Error("Invalid call to 'insert_compare_feature'");
+        }
+        setup_compare_feature_list();
+        elem.style.marginLeft = "1em";
+        into(check(Global.feature_list), elem);
+    }
+    function insert_compare_display(elem) {
+        if (!is_user_page()) {
+            throw Error("Invalid call to 'insert_compare_display'");
+        }
+        setup_compare_feature_list();
+        into(check(Global.feature_display_list), elem);
+    }
+    function setup_compare_feature_list() {
+        if (Global.feature_list === undefined) {
+            const select_score_order_elem = check(document.querySelector(".content div.select"));
+            const parent_box_elem = check(select_score_order_elem.parentElement);
+            Global.feature_list = create("div", { class: "level-item" });
+            const level_box_elem = create("div", { class: "level" }, Global.feature_list);
+            parent_box_elem.replaceChild(level_box_elem, select_score_order_elem);
+            insert_compare_feature(select_score_order_elem);
+            Global.feature_display_list = create("div", { class: "level-item" });
+            level_box_elem.insertAdjacentElement("afterend", Global.feature_display_list);
+        }
+    }
+    function set_compare_user(user) {
+        Global.last_selected = user;
+        localStorage.setItem("last_selected", user);
+    }
+    function set_home_user(user) {
+        Global._home_user = user;
+        localStorage.setItem("home_user", JSON.stringify(user));
+    }
+    function set_wide_table(value) {
+        localStorage.setItem("wide_song_table", value ? "true" : "false");
+    }
+    function get_wide_table() {
+        return localStorage.getItem("wide_song_table") === "true";
+    }
+    function set_show_bs_link(value) {
+        localStorage.setItem("show_bs_link", value ? "true" : "false");
+    }
+    function get_show_bs_link() {
+        return (localStorage.getItem("show_bs_link") || "true") === "true";
+    }
+    function set_show_oc_link(value) {
+        localStorage.setItem("show_oc_link", value ? "true" : "false");
+    }
+    function get_show_oc_link() {
+        return (localStorage.getItem("show_oc_link") || "true") === "true";
+    }
+
+    function setup() {
+        Global.debug = localStorage.getItem("debug") === "true";
+    }
+    function logc(message, ...optionalParams) {
+        if (Global.debug) {
+            console.log("DBG", message, ...optionalParams);
+        }
+    }
+
+    function get_state(elem) {
+        return !elem.classList.contains(elem.view_class);
+    }
+    function set_state(elem, state) {
+        if (state) {
+            elem.classList.remove(elem.view_class);
+        }
+        else {
+            elem.classList.add(elem.view_class);
+        }
+    }
+    function button(opt) {
+        var _a, _b;
+        const btn = create("div", {
+            class: ["button"]
+        }, opt.text);
+        btn.view_class = `is-${_a = opt.type, (_a !== null && _a !== void 0 ? _a : "primary")}`;
+        btn.on = () => {
+            var _a;
+            set_state(btn, true);
+            (_a = opt.onclick) === null || _a === void 0 ? void 0 : _a.call(btn, true);
+        };
+        btn.off = () => {
+            var _a;
+            set_state(btn, false);
+            (_a = opt.onclick) === null || _a === void 0 ? void 0 : _a.call(btn, false);
+        };
+        btn.toggle = () => {
+            var _a;
+            const state = !get_state(btn);
+            set_state(btn, state);
+            (_a = opt.onclick) === null || _a === void 0 ? void 0 : _a.call(btn, state);
+        };
+        btn.onclick = () => {
+            if (btn.getAttribute("disabled") == null) {
+                btn.toggle();
+            }
+        };
+        set_state(btn, (_b = opt.default, (_b !== null && _b !== void 0 ? _b : false)));
+        return btn;
+    }
+
     let chart;
+    let chart_elem;
+    let chart_button;
     function chartUserData(canvasContext, datasets, labels) {
         if (chart !== undefined) {
             chart.data = {
@@ -247,6 +319,8 @@
                 datasets,
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 elements: {
                     point: {
                         radius: 2,
@@ -278,7 +352,7 @@
             .forEach((songId, index) => {
             const pp = user.songs[songId].pp;
             data.push(pp);
-            data_scaled.push(pp * Math.pow(0.965, index));
+            data_scaled.push(+(pp * Math.pow(Global.pp_weighting_factor, index)).toFixed(2));
         });
         const color = (Number(user_id) % 3600) / 10;
         return [{
@@ -288,16 +362,15 @@
                 fill: false,
                 data,
             }, {
-                label: `${user.name} (scaled pp)`,
+                label: `${user.name} (weighted pp)`,
                 backgroundColor: `hsl(${color}, 60%, 25%)`,
                 borderColor: `hsl(${color}, 60%, 25%)`,
                 fill: false,
                 data: data_scaled,
             }];
     }
-    function update_pp_distribution_graph() {
-        const chart_elem = document.getElementById("pp_chart");
-        if (chart_elem == null)
+    function update_pp_graph() {
+        if (chart_elem === undefined)
             return;
         let dataSets = get_graph_data(get_current_user().id);
         const compare_user = get_compare_user();
@@ -316,6 +389,58 @@
         const labels = Array(max);
         labels.fill("Song", 0, max);
         chartUserData(check(chart_elem.getContext("2d")), dataSets, labels);
+    }
+    function setup_pp_graph() {
+        if (!is_user_page()) {
+            return;
+        }
+        chart_elem = create("canvas");
+        const chart_container = create("div", {
+            style: {
+                width: "100%",
+                height: "20em",
+                display: "none",
+            }
+        }, chart_elem);
+        insert_compare_display(chart_container);
+        chart_button = button({
+            default: false,
+            text: "Show pp Graph",
+            onclick(active) {
+                if (!chart_elem)
+                    return;
+                this.innerText = (active ? "Hide" : "Show") + " pp Graph";
+                set_pp_graph_visibility(chart_container, active);
+            }
+        });
+        insert_compare_feature(chart_button);
+        update_pp_graph_buttons();
+    }
+    function update_pp_graph_buttons() {
+        if (!chart_button) {
+            return;
+        }
+        const user = get_current_user();
+        if (Global.user_list[user.id] === undefined) {
+            chart_button.setAttribute("disabled", "");
+            chart_button.setAttribute("data-tooltip", "Add the user to your score cache for this feature");
+            chart_button.off();
+        }
+        else {
+            chart_button.removeAttribute("disabled");
+            chart_button.removeAttribute("data-tooltip");
+        }
+    }
+    function set_pp_graph_visibility(elem, active) {
+        if (active) {
+            if (!chart) {
+                update_pp_graph();
+            }
+            elem.style.display = "";
+        }
+        else {
+            elem.style.display = "none";
+        }
     }
 
     function load() {
@@ -483,7 +608,6 @@
         if (!is_user_page()) {
             return;
         }
-        const content = check(document.querySelector(".content"));
         const header = get_user_header();
         header.style.display = "flex";
         header.style.alignItems = "center";
@@ -501,13 +625,8 @@
         }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] })));
         Global.status_elem = create("div");
         into(header, Global.status_elem);
-        Global.users_elem = create("div", {
-            style: {
-                display: "inline",
-                marginLeft: "1em"
-            }
-        });
-        check(content.querySelector("div.select")).insertAdjacentElement("afterend", Global.users_elem);
+        Global.users_elem = create("div");
+        insert_compare_feature(Global.users_elem);
         update_user_compare_dropdown();
         update_user_compare_songtable_default();
     }
@@ -752,13 +871,14 @@
     function on_user_list_changed() {
         update_user_compare_dropdown();
         update_self_user_list();
+        update_pp_graph_buttons();
     }
     function on_user_compare_changed() {
         const compare_user = get_compare_user();
         if (!compare_user)
             return;
         update_user_compare_songtable(compare_user);
-        update_pp_distribution_graph();
+        update_pp_graph();
     }
 
     function new_page(link) {
@@ -939,7 +1059,7 @@
 	--color-highlight: darkgreen;
 }
 .beatsaver_bg {
-	filter: invert(1);
+	background-color: white;
 }
 /* Reset colors for generic themes */
 span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
@@ -1041,6 +1161,12 @@ h5 > * {
 	background-size: 100% 200%;
 	background-position:top;
 	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+
+/* Fix weird tab list offset */
+
+.content li {
+	margin-top: 0;
 }
 `;
         GM_addStyle(style_data);
@@ -1180,7 +1306,8 @@ h5 > * {
     }
     function load_theme(name, css) {
         let css_fin;
-        if (name === "Cyborg" || name === "Darkly" || name === "Nuclear"
+        if (get_scoresaber_darkmode()
+            || name === "Cyborg" || name === "Darkly" || name === "Nuclear"
             || name === "Slate" || name === "Solar" || name === "Superhero") {
             css_fin = css + " " + theme_dark;
         }
@@ -1193,6 +1320,12 @@ h5 > * {
         else {
             Global.style_themed_elem.innerHTML = css_fin;
         }
+    }
+    function get_scoresaber_darkmode() {
+        const footer = document.querySelector("footer");
+        if (!footer)
+            return false;
+        return footer.innerText.includes("light mode");
     }
     function update_button_visibility() {
         if (!is_user_page()) {
@@ -1312,7 +1445,13 @@ h5 > * {
     setup$1();
     load_last_theme();
     load();
-    window.addEventListener("DOMContentLoaded", () => {
+    let has_loaded = false;
+    function onload() {
+        logc("LOADING");
+        if (has_loaded) {
+            return;
+        }
+        has_loaded = true;
         setup_dl_link_user_site();
         setup_dl_link_leaderboard();
         setup_self_pin_button();
@@ -1325,7 +1464,14 @@ h5 > * {
         setup$2();
         setup_song_filter_tabs();
         highlight_user();
-    });
+        setup_pp_graph();
+    }
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+        onload();
+    }
+    window.addEventListener("DOMContentLoaded", onload);
+    window.addEventListener("load", onload);
+    window.document.addEventListener("load", onload);
 
 }());
 //# sourceMappingURL=rollup.js.map

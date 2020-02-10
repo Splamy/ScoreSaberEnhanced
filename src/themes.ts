@@ -15,7 +15,7 @@ export const theme_dark = `:root {
 	--color-highlight: darkgreen;
 }
 .beatsaver_bg {
-	filter: invert(1);
+	background-color: white;
 }
 /* Reset colors for generic themes */
 span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {

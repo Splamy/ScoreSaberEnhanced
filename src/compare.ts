@@ -1,8 +1,8 @@
 import { IDbUser, ISong } from "./declarations/Types";
-import { get_compare_user, get_current_user, get_document_user, get_user_header, is_user_page, set_compare_user } from "./env";
+import { get_compare_user, get_current_user, get_document_user, get_user_header, insert_compare_feature, is_user_page, set_compare_user } from "./env";
 import g from "./global";
 import { logc } from "./log";
-import { update_pp_distribution_graph } from "./ppgraph";
+import { update_pp_graph, update_pp_graph_buttons } from "./ppgraph";
 import * as usercache from "./usercache";
 import { create, into, intor } from "./util/dom";
 import { check } from "./util/err";
@@ -13,7 +13,7 @@ export function setup_user_compare(): void {
 	if (!is_user_page()) { return; }
 
 	// find the element we want to modify
-	const content = check(document.querySelector(".content"));
+
 	const header = get_user_header();
 	header.style.display = "flex";
 	header.style.alignItems = "center";
@@ -36,13 +36,8 @@ export function setup_user_compare(): void {
 	g.status_elem = create("div");
 	into(header, g.status_elem);
 
-	g.users_elem = create("div", {
-		style: {
-			display: "inline",
-			marginLeft: "1em"
-		}
-	});
-	check(content.querySelector("div.select")).insertAdjacentElement("afterend", g.users_elem);
+	g.users_elem = create("div");
+	insert_compare_feature(g.users_elem);
 
 	update_user_compare_dropdown();
 	update_user_compare_songtable_default();
@@ -339,6 +334,7 @@ function delete_user(user_id: string): void {
 function on_user_list_changed(): void {
 	update_user_compare_dropdown();
 	update_self_user_list();
+	update_pp_graph_buttons();
 }
 
 function on_user_compare_changed(): void {
@@ -346,5 +342,5 @@ function on_user_compare_changed(): void {
 	if (!compare_user)
 		return;
 	update_user_compare_songtable(compare_user);
-	update_pp_distribution_graph();
+	update_pp_graph();
 }

@@ -91,3 +91,9 @@ h5 > * {
 	background-position:top;
 	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
 }
+
+/* Fix weird tab list offset */
+
+.content li {
+	margin-top: 0;
+}

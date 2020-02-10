@@ -1,5 +1,6 @@
 import { IUser } from "./declarations/Types";
 import g from "./global";
+import { create, into } from "./util/dom";
 import { check } from "./util/err";
 
 export function get_user_header(): HTMLHeadingElement {
@@ -63,6 +64,44 @@ export function get_compare_user(): string | undefined {
 		return g.last_selected;
 	}
 	return undefined;
+}
+
+/**
+ * Adds an element into the toolbar which is right above the song scores of a user.
+ */
+export function insert_compare_feature(elem: HTMLElement) {
+	if (!is_user_page()) { throw Error("Invalid call to 'insert_compare_feature'"); }
+	setup_compare_feature_list();
+	elem.style.marginLeft = "1em";
+	into(check(g.feature_list), elem);
+}
+
+/**
+ * Adds an element between the toolbar and the song scores of a user.
+ */
+export function insert_compare_display(elem: HTMLElement) {
+	if (!is_user_page()) { throw Error("Invalid call to 'insert_compare_display'"); }
+	setup_compare_feature_list();
+	into(check(g.feature_display_list), elem);
+}
+
+function setup_compare_feature_list() {
+	if (g.feature_list === undefined) {
+		// find the old dropdown elem to replace it with out container
+		const select_score_order_elem = check(document.querySelector(".content div.select"));
+		const parent_box_elem = check(select_score_order_elem.parentElement);
+		g.feature_list = create("div", { class: "level-item" });
+		const level_box_elem = create("div", { class: "level" }, g.feature_list);
+
+		parent_box_elem.replaceChild(level_box_elem, select_score_order_elem);
+
+		// reinsert the dropdown in our own cotainer now
+		insert_compare_feature(select_score_order_elem);
+
+		// Setup the box for feature display elements
+		g.feature_display_list = create("div", { class: "level-item" });
+		level_box_elem.insertAdjacentElement("afterend", g.feature_display_list);
+	}
 }
 
 export function set_compare_user(user: string): void {
