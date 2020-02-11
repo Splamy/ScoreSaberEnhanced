@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.6.0
+// @version      1.6.1
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -285,6 +285,18 @@
 	function number_invariant(num) {
 	    return Number(num.replace(/,/g, ""));
 	}
+	function number_to_timespan(num) {
+	    const SECONDS_IN_MINUTE = 60;
+	    const MINUTES_IN_HOUR = 60;
+	    let str = "";
+	    let mod = (num % SECONDS_IN_MINUTE);
+	    str = mod.toFixed(0) + str;
+	    num = (num - mod) / SECONDS_IN_MINUTE;
+	    mod = (num % MINUTES_IN_HOUR);
+	    str = mod.toFixed(0) + ":" + str;
+	    num = (num - mod) / MINUTES_IN_HOUR;
+	    return str;
+	}
 
 	function fetch2(url) {
 	    return new Promise((resolve, reject) => {
@@ -318,15 +330,15 @@
 	    }
 	}
 
-	const api_cache = {};
+	const api_cache = new Map();
 	async function get_data_by_hash(song_hash) {
-	    const cached_data = api_cache[song_hash];
+	    const cached_data = api_cache.get(song_hash);
 	    if (cached_data)
 	        return cached_data;
 	    try {
 	        const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
 	        const data = JSON.parse(data_str);
-	        api_cache[song_hash] = data;
+	        api_cache.set(song_hash, data);
 	        return data;
 	    }
 	    catch (e) {
@@ -1348,15 +1360,15 @@ h5 > * {
 	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = get_show_oc_link() ? "" : "none");
 	}
 
-	const api_cache$1 = {};
+	const api_cache$1 = new Map();
 	async function get_data(song_key) {
-	    const cached_data = api_cache$1[song_key];
+	    const cached_data = api_cache$1.get(song_key);
 	    if (cached_data)
 	        return cached_data;
 	    try {
 	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
 	        const data = JSON.parse(data_str);
-	        api_cache$1[song_key] = data;
+	        api_cache$1.set(song_key, data);
 	        return data;
 	    }
 	    catch (e) {
@@ -1413,14 +1425,16 @@ h5 > * {
 	            marginTop: "1em"
 	        }
 	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large")));
-	    const beatsaver_box = create("div", { class: "box" });
-	    const beastsaber_box = create("div", { class: "box" });
+	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
+	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+	    const column_style = { class: "column", style: { padding: "0 0.75em" } };
 	    details_box.appendChild(create("div", {
 	        class: "columns",
 	        style: {
 	            marginTop: "1em"
 	        }
-	    }, create("div", { class: "column" }, create("b", {}, "BeatSaver"), beatsaver_box), create("div", { class: "column" }, create("b", {}, "BeastSaber"), beastsaber_box)));
+	    }, create("div", column_style, beatsaver_box), create("div", column_style, beastsaber_box)));
 	    if (!song_hash)
 	        return;
 	    get_data_by_hash(song_hash)
@@ -1437,10 +1451,10 @@ h5 > * {
 	    });
 	}
 	function show_beatsaver_song_data(elem, data) {
-	    into(elem, create("div", { title: "Downloads" }, `💾 ${data.stats.downloads}`), create("div", { title: "Upvotes" }, `👍 ${data.stats.upVotes}`), create("div", { title: "Downvotes" }, `👎 ${data.stats.downVotes}`), create("div", { title: "Beatmap Rating" }, `💯 ${(data.stats.rating * 100).toFixed(2)}%`), create("div", { title: "Heat (Popularity)" }, `🔥 ${data.stats.heat.toFixed(2)}`));
+	    intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
 	}
 	function show_beastsaber_song_data(elem, data) {
-	    into(elem, create("div", { title: "Fun Factor" }, `😃 ${data.average_ratings.fun_factor}`), create("div", { title: "Rhythm" }, `🎶 ${data.average_ratings.rhythm}`), create("div", { title: "Flow" }, `🌊 ${data.average_ratings.flow}`), create("div", { title: "Pattern Quality" }, `💠 ${data.average_ratings.pattern_quality}`), create("div", { title: "Readability" }, `👓 ${data.average_ratings.readability}`), create("div", { title: "Level Quality" }, `✔️ ${data.average_ratings.level_quality}`));
+	    intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
 	}
 	function generate_song_table_row(user_id, user, song_id) {
 	    const song = user.songs[song_id];

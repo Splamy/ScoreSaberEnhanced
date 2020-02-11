@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.1
+ - Improved layout of bs/bs stats and added song length
+
 1.6.0
  - Added song stats from BeatSaver and BeastSaber to song page
 

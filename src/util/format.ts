@@ -10,3 +10,20 @@ export function toggled_class(bool: boolean, css_class: string): string {
 export function number_invariant(num: string): number {
 	return Number(num.replace(/,/g, ""));
 }
+
+export function number_to_timespan(num: number): string {
+	const SECONDS_IN_MINUTE = 60;
+	const MINUTES_IN_HOUR = 60;
+	let str = "";
+
+	let mod = (num % SECONDS_IN_MINUTE);
+	str = mod.toFixed(0) + str;
+	num = (num - mod) / SECONDS_IN_MINUTE;
+
+	mod = (num % MINUTES_IN_HOUR);
+	str = mod.toFixed(0) + ":" + str;
+	num = (num - mod) / MINUTES_IN_HOUR;
+
+	// optional hours
+	return str;
+}

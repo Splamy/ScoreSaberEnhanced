@@ -4,9 +4,9 @@ import * as buttons from "../components/buttons";
 import { IDbUser, ISong } from "../declarations/Types";
 import { get_home_user, is_song_leaderboard_page } from "../env";
 import g from "../global";
-import { create, into } from "../util/dom";
+import { create, intor } from "../util/dom";
 import { check } from "../util/err";
-import { format_en, toggled_class } from "../util/format";
+import { format_en, number_to_timespan, toggled_class } from "../util/format";
 import { get_song_compare_value, get_song_hash_from_text } from "../util/song";
 
 export function setup_song_filter_tabs(): void {
@@ -73,9 +73,17 @@ export function setup_dl_link_leaderboard(): void {
 			buttons.generate_oneclick(song_hash, "large")
 		));
 
-	const beatsaver_box = create("div", { class: "box" });
-	const beastsaber_box = create("div", { class: "box" });
+	const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
+	const beatsaver_box = create("div", box_style,
+		create("b", {}, "BeatSaver"),
+		create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" }))
+	);
+	const beastsaber_box = create("div", box_style,
+		create("b", {}, "BeastSaber"),
+		create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" }))
+	);
 
+	const column_style = { class: "column", style: { padding: "0 0.75em" } };
 	details_box.appendChild(
 		create("div", {
 			class: "columns",
@@ -83,8 +91,8 @@ export function setup_dl_link_leaderboard(): void {
 				marginTop: "1em"
 			}
 		},
-			create("div", { class: "column" }, create("b", {}, "BeatSaver"), beatsaver_box),
-			create("div", { class: "column" }, create("b", {}, "BeastSaber"), beastsaber_box),
+			create("div", column_style, beatsaver_box),
+			create("div", column_style, beastsaber_box),
 		));
 
 	if (!song_hash)
@@ -105,23 +113,23 @@ export function setup_dl_link_leaderboard(): void {
 }
 
 function show_beatsaver_song_data(elem: HTMLElement, data: beatsaver.IBeatSaverData) {
-	into(elem,
-		create("div", { title: "Downloads" }, `💾 ${data.stats.downloads}`),
-		create("div", { title: "Upvotes" }, `👍 ${data.stats.upVotes}`),
-		create("div", { title: "Downvotes" }, `👎 ${data.stats.downVotes}`),
-		create("div", { title: "Beatmap Rating" }, `💯 ${(data.stats.rating * 100).toFixed(2)}%`),
-		create("div", { title: "Heat (Popularity)" }, `🔥 ${data.stats.heat.toFixed(2)}`),
+	intor(elem,
+		create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`),
+		create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`),
+		create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`),
+		create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`),
+		create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`),
 	);
 }
 
 function show_beastsaber_song_data(elem: HTMLElement, data: beastsaber.IBeastSaberData) {
-	into(elem,
-		create("div", { title: "Fun Factor" }, `😃 ${data.average_ratings.fun_factor}`),
-		create("div", { title: "Rhythm" }, `🎶 ${data.average_ratings.rhythm}`),
-		create("div", { title: "Flow" }, `🌊 ${data.average_ratings.flow}`),
-		create("div", { title: "Pattern Quality" }, `💠 ${data.average_ratings.pattern_quality}`),
-		create("div", { title: "Readability" }, `👓 ${data.average_ratings.readability}`),
-		create("div", { title: "Level Quality" }, `✔️ ${data.average_ratings.level_quality}`),
+	intor(elem,
+		create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`),
+		create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`),
+		create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`),
+		create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`),
+		create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`),
+		create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`),
 	);
 }
 
