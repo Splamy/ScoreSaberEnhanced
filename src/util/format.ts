@@ -27,3 +27,11 @@ export function number_to_timespan(num: number): string {
 	// optional hours
 	return str;
 }
+
+export function round2(num: number): number {
+	return Math.round(num * 100) / 100;
+}
+
+export function read_inline_date(date: string): moment.Moment {
+	return moment.utc(date, "YYYY-MM-DD HH:mm:ss UTC");
+}

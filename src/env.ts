@@ -27,7 +27,7 @@ export function get_current_user(): IUser {
 	return g._current_user;
 }
 
-export function get_document_user(doc: Document) {
+export function get_document_user(doc: Document): IUser {
 	const username_elem = check(doc.querySelector(".content .title a"));
 	const user_name = username_elem.innerText.trim();
 	// TODO will be wrong when calling from a different page
@@ -69,7 +69,7 @@ export function get_compare_user(): string | undefined {
 /**
  * Adds an element into the toolbar which is right above the song scores of a user.
  */
-export function insert_compare_feature(elem: HTMLElement) {
+export function insert_compare_feature(elem: HTMLElement): void {
 	if (!is_user_page()) { throw Error("Invalid call to 'insert_compare_feature'"); }
 	setup_compare_feature_list();
 	elem.style.marginLeft = "1em";
@@ -79,13 +79,13 @@ export function insert_compare_feature(elem: HTMLElement) {
 /**
  * Adds an element between the toolbar and the song scores of a user.
  */
-export function insert_compare_display(elem: HTMLElement) {
+export function insert_compare_display(elem: HTMLElement): void {
 	if (!is_user_page()) { throw Error("Invalid call to 'insert_compare_display'"); }
 	setup_compare_feature_list();
 	into(check(g.feature_display_list), elem);
 }
 
-function setup_compare_feature_list() {
+function setup_compare_feature_list(): void {
 	if (g.feature_list === undefined) {
 		// find the old dropdown elem to replace it with out container
 		const select_score_order_elem = check(document.querySelector(".content div.select"));
@@ -117,7 +117,6 @@ export function set_home_user(user: IUser): void {
 export function set_wide_table(value: boolean): void {
 	localStorage.setItem("wide_song_table", value ? "true" : "false");
 }
-
 export function get_wide_table(): boolean {
 	return localStorage.getItem("wide_song_table") === "true";
 }
@@ -125,7 +124,6 @@ export function get_wide_table(): boolean {
 export function set_show_bs_link(value: boolean): void {
 	localStorage.setItem("show_bs_link", value ? "true" : "false");
 }
-
 export function get_show_bs_link(): boolean {
 	return (localStorage.getItem("show_bs_link") || "true") === "true";
 }
@@ -133,7 +131,13 @@ export function get_show_bs_link(): boolean {
 export function set_show_oc_link(value: boolean): void {
 	localStorage.setItem("show_oc_link", value ? "true" : "false");
 }
-
 export function get_show_oc_link(): boolean {
 	return (localStorage.getItem("show_oc_link") || "true") === "true";
+}
+
+export function set_use_new_ss_api(value: boolean): void {
+	localStorage.setItem("use_new_api", value ? "true" : "false");
+}
+export function get_use_new_ss_api(): boolean {
+	return (localStorage.getItem("use_new_api") || "true") === "true";
 }

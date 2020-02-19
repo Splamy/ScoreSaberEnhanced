@@ -1,4 +1,4 @@
-import { get_navbar, get_show_bs_link, get_show_oc_link, get_wide_table, is_user_page, set_show_bs_link, set_show_oc_link, set_wide_table } from "./env";
+import * as env from "./env";
 import g from "./global";
 import * as themes from "./themes";
 import { check_for_updates } from "./updater";
@@ -65,9 +65,9 @@ export function setup(): void {
 					id: "wide_song_table",
 					type: "checkbox",
 					class: "is-checkradio",
-					checked: get_wide_table(),
+					checked: env.get_wide_table(),
 					onchange() {
-						set_wide_table((this as HTMLInputElement).checked);
+						env.set_wide_table((this as HTMLInputElement).checked);
 						(check(document.getElementById("wide_song_table_css")) as HTMLInputElement).checked = (this as HTMLInputElement).checked;
 					}
 				}),
@@ -81,9 +81,9 @@ export function setup(): void {
 					id: "show_bs_link",
 					type: "checkbox",
 					class: "is-checkradio",
-					checked: get_show_bs_link(),
+					checked: env.get_show_bs_link(),
 					onchange() {
-						set_show_bs_link((this as HTMLInputElement).checked);
+						env.set_show_bs_link((this as HTMLInputElement).checked);
 						update_button_visibility();
 					}
 				}),
@@ -94,20 +94,35 @@ export function setup(): void {
 					id: "show_oc_link",
 					type: "checkbox",
 					class: "is-checkradio",
-					checked: get_show_oc_link(),
+					checked: env.get_show_oc_link(),
 					onchange() {
-						set_show_oc_link((this as HTMLInputElement).checked);
+						env.set_show_oc_link((this as HTMLInputElement).checked);
 						update_button_visibility();
 					}
 				}),
 				create("label", { for: "show_oc_link", class: "checkbox" }, "Show OneClick link"),
-			)
+			),
+			create("div", { class: "field" },
+				create("label", { class: "label" }, "Other"),
+			),
+			create("div", { class: "field" },
+				create("input", {
+					id: "use_new_ss_api",
+					type: "checkbox",
+					class: "is-checkradio",
+					checked: env.get_use_new_ss_api(),
+					onchange() {
+						env.set_use_new_ss_api((this as HTMLInputElement).checked);
+					}
+				}),
+				create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api"),
+			),
 		)
 	);
 
 	set_div = document.body.appendChild(set_div);
 
-	into(get_navbar(),
+	into(env.get_navbar(),
 		create("a", {
 			id: "settings_menu",
 			class: "navbar-item",
@@ -174,13 +189,13 @@ function get_scoresaber_darkmode(): boolean {
 }
 
 export function update_button_visibility() {
-	if (!is_user_page()) { return; }
+	if (!env.is_user_page()) { return; }
 
 	const table = check(document.querySelector("table.ranking.songs"));
 
 	table.querySelectorAll("th.bs_link").forEach(bs_link =>
-		bs_link.style.display = get_show_bs_link() ? "" : "none");
+		bs_link.style.display = env.get_show_bs_link() ? "" : "none");
 
 	table.querySelectorAll("th.oc_link").forEach(oc_link =>
-		oc_link.style.display = get_show_oc_link() ? "" : "none");
+		oc_link.style.display = env.get_show_oc_link() ? "" : "none");
 }

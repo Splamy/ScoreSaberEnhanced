@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.6.1
+// @version      1.6.2
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -9,7 +9,7 @@
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
-// @require      https://cdn.jsdelivr.net/npm/timeago.js@4.0.2/dist/timeago.min.js
+// @require      https://cdn.jsdelivr.net/npm/moment@2.24.0/moment.js
 // @run-at       document-body
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -38,36 +38,6 @@
 	Global.user_per_page_global_leaderboard = 50;
 	Global.user_per_page_song_leaderboard = 12;
 	Global.pp_weighting_factor = 0.965;
-
-	function setup() {
-	    Global.debug = localStorage.getItem("debug") === "true";
-	}
-	function logc(message, ...optionalParams) {
-	    if (Global.debug) {
-	        console.log("DBG", message, ...optionalParams);
-	    }
-	}
-
-	class SseEventHandler {
-	    constructor(eventName) {
-	        this.eventName = eventName;
-	        this.callList = [];
-	    }
-	    invoke() {
-	        logc("Event", this.eventName);
-	        for (const func of this.callList) {
-	            func();
-	        }
-	    }
-	    register(func) {
-	        this.callList.push(func);
-	    }
-	}
-	class SseEvent {
-	}
-	SseEvent.UserCacheChanged = new SseEventHandler("UserCacheChanged");
-	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
-	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
 
 	function create(tag, attrs, ...children) {
 	    if (!tag)
@@ -254,24 +224,11 @@
 	function get_show_oc_link() {
 	    return (localStorage.getItem("show_oc_link") || "true") === "true";
 	}
-
-	function load() {
-	    const json = localStorage.getItem("users");
-	    if (!json) {
-	        Global.user_list = {};
-	        return;
-	    }
-	    try {
-	        Global.user_list = JSON.parse(json);
-	    }
-	    catch (ex) {
-	        Global.user_list = {};
-	        localStorage.setItem("users", "{}");
-	    }
-	    logc("Loaded usercache", Global.user_list);
+	function set_use_new_ss_api(value) {
+	    localStorage.setItem("use_new_api", value ? "true" : "false");
 	}
-	function save() {
-	    localStorage.setItem("users", JSON.stringify(Global.user_list));
+	function get_use_new_ss_api() {
+	    return (localStorage.getItem("use_new_api") || "true") === "true";
 	}
 
 	function format_en(num, digits) {
@@ -296,6 +253,213 @@
 	    str = mod.toFixed(0) + ":" + str;
 	    num = (num - mod) / MINUTES_IN_HOUR;
 	    return str;
+	}
+	function round2(num) {
+	    return Math.round(num * 100) / 100;
+	}
+	function read_inline_date(date) {
+	    return moment.utc(date, "YYYY-MM-DD HH:mm:ss UTC");
+	}
+
+	function setup() {
+	    Global.debug = localStorage.getItem("debug") === "true";
+	}
+	function logc(message, ...optionalParams) {
+	    if (Global.debug) {
+	        console.log("DBG", message, ...optionalParams);
+	    }
+	}
+
+	const SCORESABER_LINK = "https://new.scoresaber.com/api";
+	async function get_user_recent_songs_dynamic(user_id, page) {
+	    logc(`Fetching user ${user_id} page ${page}`);
+	    if (get_use_new_ss_api()) {
+	        return get_user_recent_songs_new_api_wrap(user_id, page);
+	    }
+	    else {
+	        return get_user_recent_songs_old_api_wrap(user_id, page);
+	    }
+	}
+	async function get_user_recent_songs_new_api_wrap(user_id, page) {
+	    const recent_songs = await get_user_recent_songs(user_id, page);
+	    return {
+	        meta: {},
+	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
+	                time: s.timeset,
+	                pp: s.pp,
+	                accuracy: s.maxScoreEx !== 0 ? round2((s.score / s.maxScoreEx) * 100) : undefined,
+	                score: s.score !== 0 ? s.score : undefined,
+	                mods: s.mods ? s.mods.split(/,/g) : undefined
+	            }])
+	    };
+	}
+	async function get_user_recent_songs(user_id, page) {
+	    const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+	    const data = await req.json();
+	    return sanitize_song_ids(data);
+	}
+	async function get_user_info_basic(user_id) {
+	    const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/full`);
+	    const data = await req.json();
+	    return sanitize_player_ids(data);
+	}
+	function sanitize_player_ids(data) {
+	    data.playerInfo.playerid = String(data.playerInfo.playerid);
+	    return data;
+	}
+	function sanitize_song_ids(data) {
+	    for (const s of data.scores) {
+	        s.scoreId = String(s.scoreId);
+	        s.leaderboardId = String(s.leaderboardId);
+	        s.playerId = String(s.playerId);
+	    }
+	    return data;
+	}
+	async function sleep(timeout) {
+	    return new Promise(resolve => setTimeout(resolve, timeout));
+	}
+	async function get_user_recent_songs_old_api_wrap(user_id, page) {
+	    let doc;
+	    let tries = 5;
+	    while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
+	        await sleep(500);
+	        doc = await fetch_user_page(user_id, page);
+	        tries--;
+	    }
+	    if (doc === undefined) {
+	        throw Error("Error fetching user page");
+	    }
+	    const data = {
+	        meta: {},
+	        songs: [],
+	    };
+	    const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
+	    data.meta.max_pages = Number(last_page_elem.innerText) + 1;
+	    data.meta.user_name = get_document_user(doc).name;
+	    const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
+	    for (const row of table_row) {
+	        const song_data = get_row_data(row);
+	        data.songs.push(song_data);
+	    }
+	    return data;
+	}
+	async function fetch_user_page(user_id, page) {
+	    const link = Global.scoresaber_link + `/u/${user_id}&page=${page}&sort=2`;
+	    if (window.location.href.toLowerCase() === link) {
+	        logc("Efficient get :P");
+	        return document;
+	    }
+	    const init_fetch = await (await fetch(link)).text();
+	    const parser = new DOMParser();
+	    return parser.parseFromString(init_fetch, "text/html");
+	}
+	function get_row_data(row) {
+	    const rowc = row;
+	    if (rowc.cache) {
+	        return rowc.cache;
+	    }
+	    const leaderboard_elem = check(row.querySelector("th.song a"));
+	    const pp_elem = check(row.querySelector("th.score .ppValue"));
+	    const score_elem = check(row.querySelector("th.score .scoreBottom"));
+	    const time_elem = check(row.querySelector("th.song .time"));
+	    const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
+	    const pp = Number(pp_elem.innerText);
+	    const time = read_inline_date(time_elem.title).toISOString();
+	    let score = undefined;
+	    let accuracy = undefined;
+	    let mods = undefined;
+	    const score_res = check(Global.score_reg.exec(score_elem.innerText));
+	    logc(score_res);
+	    if (score_res[1] === "score") {
+	        score = number_invariant(score_res[2]);
+	    }
+	    else if (score_res[1] === "accuracy") {
+	        accuracy = Number(score_res[2]);
+	    }
+	    if (score_res[4]) {
+	        mods = score_res[4].split(/,/g);
+	    }
+	    const song = {
+	        pp,
+	        time,
+	        score,
+	        accuracy,
+	        mods,
+	    };
+	    const data = [song_id, song];
+	    rowc.cache = data;
+	    return data;
+	}
+
+	class SseEventHandler {
+	    constructor(eventName) {
+	        this.eventName = eventName;
+	        this.callList = [];
+	    }
+	    invoke() {
+	        logc("Event", this.eventName);
+	        for (const func of this.callList) {
+	            func();
+	        }
+	    }
+	    register(func) {
+	        this.callList.push(func);
+	    }
+	}
+	class SseEvent {
+	}
+	SseEvent.UserCacheChanged = new SseEventHandler("UserCacheChanged");
+	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
+	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
+
+	const CURRENT_DATA_VER = 1;
+	function load() {
+	    const json = localStorage.getItem("users");
+	    if (!json) {
+	        reset_data();
+	        return;
+	    }
+	    try {
+	        Global.user_list = JSON.parse(json);
+	    }
+	    catch (ex) {
+	        console.error("Failed to read user cache, resetting!");
+	        reset_data();
+	        return;
+	    }
+	    const users_data_ver = get_data_ver();
+	    if (users_data_ver !== CURRENT_DATA_VER) {
+	        logc("Updating usercache format");
+	        if (users_data_ver <= 0) {
+	            for (const user_id of Object.keys(Global.user_list)) {
+	                const user = Global.user_list[user_id];
+	                for (const song_id of Object.keys(user.songs)) {
+	                    const song = user.songs[song_id];
+	                    const time = read_inline_date(song.time);
+	                    song.time = time.toISOString();
+	                }
+	            }
+	        }
+	        update_data_ver();
+	        save();
+	        logc("Update successful");
+	    }
+	    logc("Loaded usercache", Global.user_list);
+	}
+	function reset_data() {
+	    Global.user_list = {};
+	    localStorage.setItem("users", "{}");
+	    update_data_ver();
+	}
+	function get_data_ver() {
+	    var _a;
+	    return Number((_a = localStorage.getItem("users_data_ver"), (_a !== null && _a !== void 0 ? _a : "0")));
+	}
+	function update_data_ver() {
+	    localStorage.setItem("users_data_ver", String(CURRENT_DATA_VER));
+	}
+	function save() {
+	    localStorage.setItem("users", JSON.stringify(Global.user_list));
 	}
 
 	function fetch2(url) {
@@ -419,14 +583,15 @@
 	    window.location.assign(`beatsaver://${song_key}`);
 	}
 	function song_equals(a, b) {
+	    var _a, _b;
 	    if (a === undefined && b === undefined)
 	        return true;
 	    if (a === undefined || b === undefined)
 	        return false;
 	    return (a.accuracy === b.accuracy &&
-	        a.mods === b.mods &&
 	        a.pp === b.pp &&
 	        a.score === b.score &&
+	        (_a = a.mods, (_a !== null && _a !== void 0 ? _a : [])) === (_b = b.mods, (_b !== null && _b !== void 0 ? _b : [])) &&
 	        a.time === b.time);
 	}
 
@@ -542,105 +707,45 @@
 	        }
 	    }
 	}
-	function get_row_data(row) {
-	    if (row.cache) {
-	        return row.cache;
-	    }
-	    const leaderboard_elem = check(row.querySelector("th.song a"));
-	    const pp_elem = check(row.querySelector("th.score .ppValue"));
-	    const score_elem = check(row.querySelector("th.score .scoreBottom"));
-	    const time_elem = check(row.querySelector("th.song .time"));
-	    const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
-	    const pp = Number(pp_elem.innerText);
-	    const time = time_elem.title;
-	    let score = undefined;
-	    let accuracy = undefined;
-	    let mods = undefined;
-	    const score_res = check(Global.score_reg.exec(score_elem.innerText));
-	    logc(score_res);
-	    if (score_res[1] === "score") {
-	        score = number_invariant(score_res[2]);
-	    }
-	    else if (score_res[1] === "accuracy") {
-	        accuracy = Number(score_res[2]);
-	    }
-	    if (score_res[4]) {
-	        mods = score_res[4].split(/,/g);
-	    }
-	    const song = {
-	        pp,
-	        time,
-	        score,
-	        accuracy,
-	        mods,
-	    };
-	    const data = [song_id, song];
-	    row.cache = data;
-	    return data;
-	}
-	async function fetch_user(id) {
-	    let page = 1;
+	async function fetch_user(user_id) {
+	    var _a;
 	    let page_max = undefined;
+	    let user_name = undefined;
 	    let updated = false;
 	    intor(Global.status_elem, "Adding user to database...");
-	    let user = Global.user_list[id];
+	    let user = Global.user_list[user_id];
 	    if (!user) {
 	        user = {
-	            name: "User" + id,
+	            name: "User" + user_id,
 	            songs: {}
 	        };
-	        Global.user_list[id] = user;
+	        Global.user_list[user_id] = user;
 	    }
-	    for (; page <= (page_max || 4); page++) {
-	        intor(Global.status_elem, `Updating page ${page}/${(page_max || "?")}`);
-	        let doc;
-	        let tries = 5;
-	        const sleep = (timeout) => new Promise(resolve => setTimeout(resolve, timeout));
-	        while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
-	            await sleep(500);
-	            doc = await fetch_user_page(id, page);
-	            tries--;
-	        }
-	        if (doc == undefined) {
-	            console.warn("Error fetching user page");
-	            return;
-	        }
-	        if (page_max === undefined) {
-	            const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
-	            page_max = Number(last_page_elem.innerText) + 1;
-	            user.name = get_document_user(doc).name;
-	        }
-	        const [has_old_entry, has_updated] = process_user_page(doc, user);
+	    for (let page = 1; page <= ((page_max !== null && page_max !== void 0 ? page_max : 4)); page++) {
+	        intor(Global.status_elem, `Updating page ${page}/${((page_max !== null && page_max !== void 0 ? page_max : "?"))}`);
+	        const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
+	        page_max = (_a = recent_songs.meta.max_pages, (_a !== null && _a !== void 0 ? _a : page_max));
+	        const [has_old_entry, has_updated] = process_user_page(recent_songs.songs, user);
 	        updated = updated || has_updated;
 	        if (has_old_entry) {
 	            break;
 	        }
 	    }
-	    const [, has_updated] = process_user_page(document, user);
-	    updated = updated || has_updated;
+	    if (!user_name && get_use_new_ss_api()) {
+	        const user_data = await get_user_info_basic(user_id);
+	        user_name = user_data.playerInfo.name;
+	    }
+	    user.name = (user_name !== null && user_name !== void 0 ? user_name : user.name);
 	    if (updated) {
 	        save();
 	    }
 	    intor(Global.status_elem, "User updated");
 	    SseEvent.UserCacheChanged.invoke();
 	}
-	async function fetch_user_page(id, page) {
-	    const link = Global.scoresaber_link + `/u/${id}&page=${page}&sort=2`;
-	    if (window.location.href.toLowerCase() === link) {
-	        logc("Efficient get :P");
-	        return document;
-	    }
-	    logc(`Fetching user ${id} page ${page}`);
-	    const init_fetch = await (await fetch(link)).text();
-	    const parser = new DOMParser();
-	    return parser.parseFromString(init_fetch, "text/html");
-	}
-	function process_user_page(doc, user) {
+	function process_user_page(songs, user) {
 	    let has_old_entry = false;
 	    let has_updated = false;
-	    const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
-	    for (const row of table_row) {
-	        const [song_id, song] = get_row_data(row);
+	    for (const [song_id, song] of songs) {
 	        const song_old = user.songs[song_id];
 	        if (song_old && song_old.time === song.time) {
 	            logc("Old found: ", song);
@@ -729,6 +834,22 @@
 	        delete Global.user_list[user_id];
 	        save();
 	        SseEvent.UserCacheChanged.invoke();
+	    }
+	}
+
+	const api_cache$1 = new Map();
+	async function get_data(song_key) {
+	    const cached_data = api_cache$1.get(song_key);
+	    if (cached_data)
+	        return cached_data;
+	    try {
+	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
+	        const data = JSON.parse(data_str);
+	        api_cache$1.set(song_key, data);
+	        return data;
+	    }
+	    catch (e) {
+	        return undefined;
 	    }
 	}
 
@@ -822,6 +943,119 @@
 	}
 	function new_page(link) {
 	    window.open(link, "_blank");
+	}
+
+	function setup_song_filter_tabs() {
+	    if (!is_song_leaderboard_page()) {
+	        return;
+	    }
+	    const tab_list_content = check(document.querySelector(".tabs > ul"));
+	    function load_friends() {
+	        let score_table = check(document.querySelector(".ranking .global > tbody"));
+	        Global.song_table_backup = score_table;
+	        const table = check(score_table.parentNode);
+	        table.removeChild(score_table);
+	        score_table = table.appendChild(create("tbody"));
+	        const song_id = Global.leaderboard_reg.exec(window.location.pathname)[1];
+	        const elements = [];
+	        for (const user_id in Global.user_list) {
+	            const user = Global.user_list[user_id];
+	            const song = user.songs[song_id];
+	            if (!song)
+	                continue;
+	            elements.push([song, generate_song_table_row(user_id, user, song_id)]);
+	        }
+	        elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
+	        elements.forEach(x => score_table.appendChild(x[1]));
+	    }
+	    function load_all() {
+	        if (!Global.song_table_backup) {
+	            return;
+	        }
+	        let score_table = check(document.querySelector(".ranking .global > tbody"));
+	        const table = check(score_table.parentNode);
+	        table.removeChild(score_table);
+	        score_table = table.appendChild(Global.song_table_backup);
+	        Global.song_table_backup = undefined;
+	    }
+	    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
+	    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
+	}
+	function setup_dl_link_leaderboard() {
+	    if (!is_song_leaderboard_page()) {
+	        return;
+	    }
+	    let details_box = check(document.querySelector(".content .title.is-5"));
+	    details_box = check(details_box.parentElement);
+	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	    details_box.appendChild(create("div", {
+	        id: "leaderboard_tool_strip",
+	        style: {
+	            marginTop: "1em"
+	        }
+	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large")));
+	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
+	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+	    const column_style = { class: "column", style: { padding: "0 0.75em" } };
+	    details_box.appendChild(create("div", {
+	        class: "columns",
+	        style: {
+	            marginTop: "1em"
+	        }
+	    }, create("div", column_style, beatsaver_box), create("div", column_style, beastsaber_box)));
+	    if (!song_hash)
+	        return;
+	    get_data_by_hash(song_hash)
+	        .then(data => {
+	        if (data) {
+	            show_beatsaver_song_data(beatsaver_box, data);
+	            get_data(data.key)
+	                .then(data2 => {
+	                if (data2) {
+	                    show_beastsaber_song_data(beastsaber_box, data2);
+	                }
+	            });
+	        }
+	    });
+	}
+	function show_beatsaver_song_data(elem, data) {
+	    intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
+	}
+	function show_beastsaber_song_data(elem, data) {
+	    intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
+	}
+	function generate_song_table_row(user_id, user, song_id) {
+	    const song = user.songs[song_id];
+	    return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
+	}
+	function generate_song_table_player(user_id, user) {
+	    return create("a", { href: `${Global.scoresaber_link}/u/${user_id}` }, user.name);
+	}
+	function generate_tab(title, css_id, action, is_active, has_offset) {
+	    const tabClass = `filter_tab ${toggled_class(is_active, "is-active")} ${toggled_class(has_offset, "offset_tab")}`;
+	    return create("li", {
+	        id: css_id,
+	        class: tabClass,
+	    }, create("a", {
+	        class: "has-text-info",
+	        onclick: () => {
+	            document.querySelectorAll(".tabs > ul .filter_tab").forEach(x => x.classList.remove("is-active"));
+	            check(document.getElementById(css_id)).classList.add("is-active");
+	            if (action)
+	                action();
+	        }
+	    }, title));
+	}
+	function highlight_user() {
+	    const home_user = get_home_user();
+	    if (!home_user) {
+	        return;
+	    }
+	    const element = document.querySelector(`table.ranking.global a[href='/u/${home_user.id}']`);
+	    if (element != null) {
+	        element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
+	    }
 	}
 
 	function setup_dl_link_user_site() {
@@ -1293,7 +1527,15 @@ h5 > * {
 	            set_show_oc_link(this.checked);
 	            update_button_visibility();
 	        }
-	    }), create("label", { for: "show_oc_link", class: "checkbox" }, "Show OneClick link"))));
+	    }), create("label", { for: "show_oc_link", class: "checkbox" }, "Show OneClick link")), create("div", { class: "field" }, create("label", { class: "label" }, "Other")), create("div", { class: "field" }, create("input", {
+	        id: "use_new_ss_api",
+	        type: "checkbox",
+	        class: "is-checkradio",
+	        checked: get_use_new_ss_api(),
+	        onchange() {
+	            set_use_new_ss_api(this.checked);
+	        }
+	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api"))));
 	    set_div = document.body.appendChild(set_div);
 	    into(get_navbar(), create("a", {
 	        id: "settings_menu",
@@ -1358,135 +1600,6 @@ h5 > * {
 	    const table = check(document.querySelector("table.ranking.songs"));
 	    table.querySelectorAll("th.bs_link").forEach(bs_link => bs_link.style.display = get_show_bs_link() ? "" : "none");
 	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = get_show_oc_link() ? "" : "none");
-	}
-
-	const api_cache$1 = new Map();
-	async function get_data(song_key) {
-	    const cached_data = api_cache$1.get(song_key);
-	    if (cached_data)
-	        return cached_data;
-	    try {
-	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
-	        const data = JSON.parse(data_str);
-	        api_cache$1.set(song_key, data);
-	        return data;
-	    }
-	    catch (e) {
-	        return undefined;
-	    }
-	}
-
-	function setup_song_filter_tabs() {
-	    if (!is_song_leaderboard_page()) {
-	        return;
-	    }
-	    const tab_list_content = check(document.querySelector(".tabs > ul"));
-	    function load_friends() {
-	        let score_table = check(document.querySelector(".ranking .global > tbody"));
-	        Global.song_table_backup = score_table;
-	        const table = check(score_table.parentNode);
-	        table.removeChild(score_table);
-	        score_table = table.appendChild(create("tbody"));
-	        const song_id = Global.leaderboard_reg.exec(window.location.pathname)[1];
-	        const elements = [];
-	        for (const user_id in Global.user_list) {
-	            const user = Global.user_list[user_id];
-	            const song = user.songs[song_id];
-	            if (!song)
-	                continue;
-	            elements.push([song, generate_song_table_row(user_id, user, song_id)]);
-	        }
-	        elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
-	        elements.forEach(x => score_table.appendChild(x[1]));
-	    }
-	    function load_all() {
-	        if (!Global.song_table_backup) {
-	            return;
-	        }
-	        let score_table = check(document.querySelector(".ranking .global > tbody"));
-	        const table = check(score_table.parentNode);
-	        table.removeChild(score_table);
-	        score_table = table.appendChild(Global.song_table_backup);
-	        Global.song_table_backup = undefined;
-	    }
-	    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
-	    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
-	}
-	function setup_dl_link_leaderboard() {
-	    if (!is_song_leaderboard_page()) {
-	        return;
-	    }
-	    let details_box = check(document.querySelector(".content .title.is-5"));
-	    details_box = check(details_box.parentElement);
-	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
-	    details_box.appendChild(create("div", {
-	        id: "leaderboard_tool_strip",
-	        style: {
-	            marginTop: "1em"
-	        }
-	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large")));
-	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
-	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
-	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
-	    const column_style = { class: "column", style: { padding: "0 0.75em" } };
-	    details_box.appendChild(create("div", {
-	        class: "columns",
-	        style: {
-	            marginTop: "1em"
-	        }
-	    }, create("div", column_style, beatsaver_box), create("div", column_style, beastsaber_box)));
-	    if (!song_hash)
-	        return;
-	    get_data_by_hash(song_hash)
-	        .then(data => {
-	        if (data) {
-	            show_beatsaver_song_data(beatsaver_box, data);
-	            get_data(data.key)
-	                .then(data2 => {
-	                if (data2) {
-	                    show_beastsaber_song_data(beastsaber_box, data2);
-	                }
-	            });
-	        }
-	    });
-	}
-	function show_beatsaver_song_data(elem, data) {
-	    intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
-	}
-	function show_beastsaber_song_data(elem, data) {
-	    intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
-	}
-	function generate_song_table_row(user_id, user, song_id) {
-	    const song = user.songs[song_id];
-	    return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, timeago.format(song.time)), create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
-	}
-	function generate_song_table_player(user_id, user) {
-	    return create("a", { href: `${Global.scoresaber_link}/u/${user_id}` }, user.name);
-	}
-	function generate_tab(title, css_id, action, is_active, has_offset) {
-	    const tabClass = `filter_tab ${toggled_class(is_active, "is-active")} ${toggled_class(has_offset, "offset_tab")}`;
-	    return create("li", {
-	        id: css_id,
-	        class: tabClass,
-	    }, create("a", {
-	        class: "has-text-info",
-	        onclick: () => {
-	            document.querySelectorAll(".tabs > ul .filter_tab").forEach(x => x.classList.remove("is-active"));
-	            check(document.getElementById(css_id)).classList.add("is-active");
-	            if (action)
-	                action();
-	        }
-	    }, title));
-	}
-	function highlight_user() {
-	    const home_user = get_home_user();
-	    if (!home_user) {
-	        return;
-	    }
-	    const element = document.querySelector(`table.ranking.global a[href='/u/${home_user.id}']`);
-	    if (element != null) {
-	        element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
-	    }
 	}
 
 	setup();

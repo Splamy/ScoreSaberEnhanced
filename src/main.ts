@@ -1,9 +1,9 @@
 import * as compare from "./compare";
 import * as header from "./header";
+import * as page_song from "./pages/song";
 import * as page_user from "./pages/user";
 import * as ppgraph from "./ppgraph";
 import * as settings from "./settings";
-import * as page_song from "./pages/song";
 import * as themes from "./themes";
 import * as usercache from "./usercache";
 import * as log from "./util/log";

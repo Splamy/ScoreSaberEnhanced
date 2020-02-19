@@ -50,6 +50,4 @@ interface ParentNode {
 	querySelectorAll<E extends HTMLElement = HTMLElement>(selectors: string): NodeListOf<E>;
 }
 
-declare module timeago {
-	function format(time: string): string;
-}
+type Modify<T, R> = Omit<T, keyof R> & R;

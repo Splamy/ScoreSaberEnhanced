@@ -140,7 +140,7 @@ function generate_song_table_row(user_id: string, user: IDbUser, song_id: string
 		create("td", { class: "rank" }, "-"),
 		create("td", { class: "player" }, generate_song_table_player(user_id, user)),
 		create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"),
-		create("td", { class: "timeset" }, timeago.format(song.time)),
+		create("td", { class: "timeset" }, moment(song.time).fromNow()),
 		create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
 		create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"),
 		create("td", { class: "pp" },
