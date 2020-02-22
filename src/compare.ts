@@ -156,10 +156,6 @@ export function update_user_compare_songtable(other_user?: string): void {
 }
 
 async function fetch_user(user_id: string): Promise<void> {
-	let page_max = undefined;
-	let user_name = undefined;
-	let updated = false;
-
 	intor(g.status_elem, "Adding user to database...");
 
 	let user = g.user_list[user_id];
@@ -171,16 +167,19 @@ async function fetch_user(user_id: string): Promise<void> {
 		g.user_list[user_id] = user;
 	}
 
-	for (let page = 1; page <= (page_max ?? 4); page++) {
+	let page_max = undefined;
+	let user_name = undefined;
+	let updated = false;
+	for (let page = 1; ; page++) {
 		intor(g.status_elem, `Updating page ${page}/${(page_max ?? "?")}`);
 
 		const recent_songs = await scoresaber.get_user_recent_songs_dynamic(user_id, page);
 
-		page_max = recent_songs.meta.max_pages ?? page_max;
-
 		const [has_old_entry, has_updated] = process_user_page(recent_songs.songs, user);
 		updated = updated || has_updated;
-		if (has_old_entry) {
+		page_max = recent_songs.meta.max_pages ?? page_max;
+		user_name = recent_songs.meta.user_name ?? user_name;
+		if (has_old_entry || recent_songs.meta.was_last_page) {
 			break;
 		}
 	}

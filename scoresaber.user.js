@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
 // @namespace    https://scoresaber.com
-// @version      1.6.2
+// @version      1.6.3
 // @description  Adds links to beatsaver and add player comparison
 // @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
@@ -283,7 +283,9 @@
 	async function get_user_recent_songs_new_api_wrap(user_id, page) {
 	    const recent_songs = await get_user_recent_songs(user_id, page);
 	    return {
-	        meta: {},
+	        meta: {
+	            was_last_page: recent_songs.scores.length < 8
+	        },
 	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
 	                time: s.timeset,
 	                pp: s.pp,
@@ -329,13 +331,16 @@
 	    if (doc === undefined) {
 	        throw Error("Error fetching user page");
 	    }
+	    const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
+	    const max_pages = Number(last_page_elem.innerText) + 1;
 	    const data = {
-	        meta: {},
+	        meta: {
+	            max_pages,
+	            user_name: get_document_user(doc).name,
+	            was_last_page: page === max_pages,
+	        },
 	        songs: [],
 	    };
-	    const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
-	    data.meta.max_pages = Number(last_page_elem.innerText) + 1;
-	    data.meta.user_name = get_document_user(doc).name;
 	    const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
 	    for (const row of table_row) {
 	        const song_data = get_row_data(row);
@@ -708,10 +713,7 @@
 	    }
 	}
 	async function fetch_user(user_id) {
-	    var _a;
-	    let page_max = undefined;
-	    let user_name = undefined;
-	    let updated = false;
+	    var _a, _b;
 	    intor(Global.status_elem, "Adding user to database...");
 	    let user = Global.user_list[user_id];
 	    if (!user) {
@@ -721,13 +723,17 @@
 	        };
 	        Global.user_list[user_id] = user;
 	    }
-	    for (let page = 1; page <= ((page_max !== null && page_max !== void 0 ? page_max : 4)); page++) {
+	    let page_max = undefined;
+	    let user_name = undefined;
+	    let updated = false;
+	    for (let page = 1;; page++) {
 	        intor(Global.status_elem, `Updating page ${page}/${((page_max !== null && page_max !== void 0 ? page_max : "?"))}`);
 	        const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
-	        page_max = (_a = recent_songs.meta.max_pages, (_a !== null && _a !== void 0 ? _a : page_max));
 	        const [has_old_entry, has_updated] = process_user_page(recent_songs.songs, user);
 	        updated = updated || has_updated;
-	        if (has_old_entry) {
+	        page_max = (_a = recent_songs.meta.max_pages, (_a !== null && _a !== void 0 ? _a : page_max));
+	        user_name = (_b = recent_songs.meta.user_name, (_b !== null && _b !== void 0 ? _b : user_name));
+	        if (has_old_entry || recent_songs.meta.was_last_page) {
 	            break;
 	        }
 	    }
@@ -854,7 +860,7 @@
 	}
 
 	function generate_beatsaver(song_hash, size) {
-	    const base_elem = create("div", {
+	    return create("div", {
 	        class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
 	        style: {
 	            cursor: song_hash === undefined ? "default" : "pointer",
@@ -868,7 +874,6 @@
 	                .catch(() => failed_to_download(this));
 	        },
 	    }, create("div", { class: "beatsaver_bg" }));
-	    return base_elem;
 	}
 	function generate_oneclick(song_hash, size) {
 	    return create("div", {
@@ -911,6 +916,22 @@
 	            borderRadius: "inherit",
 	        }
 	    }));
+	}
+	function generate_preview(song_hash) {
+	    return create("div", {
+	        class: "button icon is-large",
+	        style: {
+	            cursor: song_hash === undefined ? "default" : "pointer",
+	            padding: "0",
+	        },
+	        disabled: song_hash === undefined,
+	        data: { tooltip: "Preview map" },
+	        onclick() {
+	            checked_hash_to_song_info(this, song_hash)
+	                .then(song_info => new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.key))
+	                .catch(() => failed_to_download(this));
+	        },
+	    }, create("i", { class: "fas fa-glasses" }));
 	}
 	async function checked_hash_to_song_info(ref, song_hash) {
 	    reset_download_visual(ref);
@@ -993,7 +1014,7 @@
 	        style: {
 	            marginTop: "1em"
 	        }
-	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large")));
+	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash)));
 	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
 	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
 	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));

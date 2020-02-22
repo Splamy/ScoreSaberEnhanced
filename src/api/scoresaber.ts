@@ -22,11 +22,13 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 	const recent_songs = await get_user_recent_songs(user_id, page);
 
 	return {
-		meta: {},
+		meta: {
+			was_last_page: recent_songs.scores.length < 8
+		},
 		songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
 			time: s.timeset,
 			pp: s.pp,
-			accuracy: s.maxScoreEx !== 0 ?  round2((s.score / s.maxScoreEx) * 100) : undefined,
+			accuracy: s.maxScoreEx !== 0 ? round2((s.score / s.maxScoreEx) * 100) : undefined,
 			score: s.score !== 0 ? s.score : undefined,
 			mods: s.mods ? s.mods.split(/,/g) : undefined
 		}])
@@ -90,15 +92,17 @@ async function get_user_recent_songs_old_api_wrap(user_id: string, page: number)
 		throw Error("Error fetching user page");
 	}
 
-	const data: IUserPageData = {
-		meta: {},
-		songs: [],
-	};
-
 	// Get meta stuff
 	const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a")!;
-	data.meta.max_pages = Number(last_page_elem.innerText) + 1;
-	data.meta.user_name = get_document_user(doc).name;
+	const max_pages = Number(last_page_elem.innerText) + 1;
+	const data: IUserPageData = {
+		meta: {
+			max_pages,
+			user_name: get_document_user(doc).name,
+			was_last_page: page === max_pages,
+		},
+		songs: [],
+	};
 
 	// Extract data into format
 	const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
@@ -170,6 +174,7 @@ interface IUserPageData {
 	meta: {
 		max_pages?: number;
 		user_name?: string;
+		was_last_page: boolean;
 	};
 	songs: ISongTuple[];
 }

@@ -5,7 +5,7 @@ import { create } from "../util/dom";
 import { toggled_class } from "../util/format";
 import { oneclick_install } from "../util/song";
 export function generate_beatsaver(song_hash: string | undefined, size: BulmaSize): HTMLElement {
-	const base_elem = create("div", {
+	return create("div", {
 		class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
 		style: {
 			cursor: song_hash === undefined ? "default" : "pointer",
@@ -21,7 +21,6 @@ export function generate_beatsaver(song_hash: string | undefined, size: BulmaSiz
 	},
 		create("div", { class: "beatsaver_bg" }),
 	);
-	return base_elem;
 }
 
 export function generate_oneclick(song_hash: string | undefined, size: BulmaSize): HTMLElement {
@@ -72,7 +71,26 @@ export function generate_bsaber(song_hash: string | undefined): HTMLElement {
 	);
 }
 
-async function checked_hash_to_song_info(ref: HTMLElement, song_hash?: string, ): Promise<beatsaver.IBeatSaverData> {
+export function generate_preview(song_hash: string | undefined): HTMLElement {
+	return create("div", {
+		class: "button icon is-large",
+		style: {
+			cursor: song_hash === undefined ? "default" : "pointer",
+			padding: "0",
+		},
+		disabled: song_hash === undefined,
+		data: { tooltip: "Preview map" },
+		onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.key))
+				.catch(() => failed_to_download(this as any));
+		},
+	},
+		create("i", { class: "fas fa-glasses" }),
+	);
+}
+
+async function checked_hash_to_song_info(ref: HTMLElement, song_hash: string | undefined): Promise<beatsaver.IBeatSaverData> {
 	reset_download_visual(ref);
 	if (!song_hash) { failed_to_download(ref); throw new Error("song_hash is undefined"); }
 	const song_info = await beatsaver.get_data_by_hash(song_hash);

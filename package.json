@@ -1,6 +1,6 @@
 {
 	"name": "scoresaberenhanced",
-	"version": "1.2.7",
+	"version": "1.6.3",
 	"description": "Adds links to beatsaver, player comparison and various other improvements",
 	"main": "src/main.ts",
 	"scripts": {

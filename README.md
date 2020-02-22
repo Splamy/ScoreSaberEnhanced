@@ -49,6 +49,15 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.3
+ - Added preview button to song page
+ - Fixed issues with the new ss backend api
+
+1.6.2
+ - Added new ScoreSaber api as loader backend.
+   Retrieving data should now be super fast again.
+   If you have Problems you can disable it in the settings.
+
 1.6.1
  - Improved layout of bs/bs stats and added song length
 
