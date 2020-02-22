@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.6.4
+// @version      1.6.5
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -1468,7 +1468,7 @@ h5 > * {
 	            const latest_script = response.responseText;
 	            const latest_version = Global.script_version_reg.exec(latest_script)[1];
 	            if (current_version !== latest_version) {
-	                into(edit_elem, create("div", { class: "notification is-warning" }, "An update is avalilable"));
+	                into(edit_elem, create("div", { class: "notification is-warning" }, "An update is available"));
 	                const settings_menu = check(document.querySelector("#settings_menu i"));
 	                settings_menu.classList.remove("fa-cog");
 	                settings_menu.classList.add("fa-bell");

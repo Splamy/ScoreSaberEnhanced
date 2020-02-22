@@ -21,7 +21,7 @@ export function check_for_updates(edit_elem: HTMLElement): void {
 			const latest_version = g.script_version_reg.exec(latest_script)![1];
 			if (current_version !== latest_version) {
 				into(edit_elem,
-					create("div", { class: "notification is-warning" }, "An update is avalilable")
+					create("div", { class: "notification is-warning" }, "An update is available")
 				);
 
 				const settings_menu = check(document.querySelector("#settings_menu i"));

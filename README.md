@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.5
+ - Fixed typo (#9)
+
 1.6.4
  - Fixed wrong accuracy calculation with new ss api
 
