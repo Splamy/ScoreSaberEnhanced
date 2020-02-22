@@ -21,10 +21,14 @@ task("build", async () => {
 });
 
 task("userscript", async () => {
+	let meta = JSON.parse(fs.readFileSync("./package.json"));
 	return src(["./src/header.user.js", "./out/rollup.js"])
-		.pipe(replace(/#include.GULP-CSS/, function(s) {
-			return fs.readFileSync("./src/style.css", "utf8");
-		}))
+		.pipe(replace(/include\$GULP_CSS/, fs.readFileSync("./src/style.css", "utf8")))
+		.pipe(replace(/include\$GULP_METADATA/, [
+			`// @version      ${meta.version}`,
+			`// @description  ${meta.description}`,
+			`// @author       ${meta.author}`,
+		].join('\n')))
 		.pipe(concat("./scoresaber.user.js"))
 		.pipe(dest("./"));
 });
@@ -34,6 +38,7 @@ exports.watch = function () {
 	watch([
 		"src/**/*.ts",
 		"src/**/*.css",
-		"src/**/*.user.js"
+		"src/**/*.user.js",
+		"./package.json",
 	], series("build", "userscript"));
 };

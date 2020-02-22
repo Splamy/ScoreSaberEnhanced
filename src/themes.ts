@@ -26,7 +26,7 @@ span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapp
 }`;
 
 export function setup(): void {
-	const style_data = `#include.GULP-CSS`;
+	const style_data = `include$GULP_CSS`;
 	GM_addStyle(style_data);
 	into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
 }

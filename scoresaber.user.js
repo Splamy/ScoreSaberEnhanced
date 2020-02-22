@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @namespace    https://scoresaber.com
-// @version      1.6.3
-// @description  Adds links to beatsaver and add player comparison
+// @version      1.6.4
+// @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
+// @namespace    https://scoresaber.com
 // @match        http*://scoresaber.com/*
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
@@ -289,7 +289,7 @@
 	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
 	                time: s.timeset,
 	                pp: s.pp,
-	                accuracy: s.maxScoreEx !== 0 ? round2((s.score / s.maxScoreEx) * 100) : undefined,
+	                accuracy: s.maxScoreEx !== 0 ? round2((s.uScore / s.maxScoreEx) * 100) : undefined,
 	                score: s.score !== 0 ? s.score : undefined,
 	                mods: s.mods ? s.mods.split(/,/g) : undefined
 	            }])

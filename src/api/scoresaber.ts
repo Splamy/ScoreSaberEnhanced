@@ -28,7 +28,7 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 		songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
 			time: s.timeset,
 			pp: s.pp,
-			accuracy: s.maxScoreEx !== 0 ? round2((s.score / s.maxScoreEx) * 100) : undefined,
+			accuracy: s.maxScoreEx !== 0 ? round2((s.uScore / s.maxScoreEx) * 100) : undefined,
 			score: s.score !== 0 ? s.score : undefined,
 			mods: s.mods ? s.mods.split(/,/g) : undefined
 		}])
@@ -182,20 +182,26 @@ interface IUserPageData {
 interface IScoresaberSong {
 	scoreId: string; // SANITIZED
 	leaderboardId: string; // SANITIZED
+	/** Final score (After applying all song modifier factors) */
 	score: number;
-	uScore: number; // ?
+	/** Unmultiplied score (Raw score before applying song modifier factors) */
+	uScore: number;
 	mods: string; // comma separated number list
 	playerId: string; // SANITIZED
-	timeset: string; // ISO time
+	/** Time of score set. Format in ISO-8601 */
+	timeset: string;
 	pp: number;
+	/** Score weighting factor (Depends on the position in the top songs list of the user) */
 	weight: number; // factor
-	id: string; // song hash
+	/** Song hash */
+	id: string;
 	name: string;
 	songSubName: string;
 	songAuthorName: string;
 	levelAuthorName: string;
 	diff: string;
-	maxScoreEx: number; // max possible score
+	/** Max possible score (Without modifiers) */
+	maxScoreEx: number;
 	rank: number;
 }
 

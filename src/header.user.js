@@ -1,9 +1,7 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
+include$GULP_METADATA
 // @namespace    https://scoresaber.com
-// @version      1.6.3
-// @description  Adds links to beatsaver and add player comparison
-// @author       Splamy, TheAsuro
 // @match        http*://scoresaber.com/*
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js

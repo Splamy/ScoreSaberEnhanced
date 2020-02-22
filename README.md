@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.4
+ - Fixed wrong accuracy calculation with new ss api
+
 1.6.3
  - Added preview button to song page
  - Fixed issues with the new ss backend api

@@ -1,11 +1,9 @@
 {
 	"name": "scoresaberenhanced",
-	"version": "1.6.3",
+	"version": "1.6.4",
 	"description": "Adds links to beatsaver, player comparison and various other improvements",
 	"main": "src/main.ts",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
+	"scripts": {},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Splamy/ScoreSaberEnhanced.git"
