@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.6.6
+ - Fixed compatibility for GreaseMonkey (#10)
+
 1.6.5
  - Fixed typo (#9)
 

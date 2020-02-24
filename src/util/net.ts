@@ -1,3 +1,5 @@
+import { SSE_xmlhttpRequest } from "./userscript";
+
 export function fetch2(url: string): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const host = get_hostname(url);
@@ -16,7 +18,7 @@ export function fetch2(url: string): Promise<string> {
 				reject(`request errored: ${url}`);
 			}
 		};
-		GM_xmlhttpRequest(request_param);
+		SSE_xmlhttpRequest(request_param);
 	});
 }
 

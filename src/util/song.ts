@@ -1,4 +1,5 @@
 import * as beatsaver from "../api/beatsaver";
+import * as modal from "../components/modal";
 import { ISong } from "../declarations/Types";
 import g from "../global";
 
@@ -58,23 +59,24 @@ export async function oneclick_install_byhash(song_hash: string): Promise<boolea
 
 export async function oneclick_install(song_key: string): Promise<void> {
 	const lastCheck = localStorage.getItem("oneclick-prompt");
-	// tslint:disable-next-line: triple-equals
-	const prompt = lastCheck == undefined ||
+	const prompt = !lastCheck ||
 		new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
 
 	if (prompt) {
 		localStorage.setItem("oneclick-prompt", new Date().getTime().toString());
 
-		const resp = await swal({
-			icon: "warning",
+		const resp = await modal.show_modal({
 			buttons: {
-				install: { text: "Get ModSaber Installer", closeModal: false, className: "swal-button--cancel" },
-				done: { text: "OK" },
+				install: { text: "Get ModAssistant Installer", class: "is-info" },
+				done: { text: "OK, now leave me alone", class: "is-success" },
 			},
-			text: "OneClick Install requires the BeatSaberModInstaller or BeatDrop2 to function.\nPlease install it before proceeding.",
+			text: "OneClick™ requires any current ModInstaller tool with the OneClick™ feature enabled.\nMake sure you have one installed before proceeding.",
 		});
 
-		if (resp === "install") window.open("https://github.com/beat-saber-modding-group/BeatSaberModInstaller/releases");
+		if (resp === "install") {
+			window.open("https://github.com/Assistant/ModAssistant/releases");
+			return;
+		}
 	}
 
 	console.log("Downloading: ", song_key);

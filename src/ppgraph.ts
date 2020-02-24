@@ -1,9 +1,9 @@
 import SseEvent from "./components/events";
+import { button, IButtonElement } from "./components/toggle_button";
 import { get_compare_user, get_current_user, insert_compare_display, insert_compare_feature, is_user_page } from "./env";
 import g from "./global";
 import { create } from "./util/dom";
 import { check } from "./util/err";
-import { button, IButtonElement } from "./util/toggle_button";
 
 let chart: Chart | undefined;
 let chart_elem: HTMLCanvasElement | undefined;

@@ -5,22 +5,36 @@ import * as page_user from "./pages/user";
 import * as ppgraph from "./ppgraph";
 import * as settings from "./settings";
 import * as themes from "./themes";
+import * as updater from "./updater";
 import * as usercache from "./usercache";
 import * as log from "./util/log";
+import * as userscript from "./util/userscript";
 
 log.setup();
-themes.setup();
-settings.load_last_theme();
+userscript.setup();
 usercache.load();
 
-let has_loaded = false;
-function onload(): void {
-	if (has_loaded) {
-		log.logc("Already loaded");
+let has_loaded_head = false;
+function on_load_head() {
+	if (!document.head) { log.logc("Head not ready"); return; }
+	if (has_loaded_head) { log.logc("Already loaded head"); return; }
+	has_loaded_head = true;
+	log.logc("Loading head");
+
+	themes.setup();
+	settings.load_last_theme();
+}
+
+let has_loaded_body = false;
+function on_load_body(): void {
+	if (document.readyState !== "complete" && document.readyState !== "interactive") {
+		log.logc("Body not ready");
 		return;
 	}
-	log.logc("LOADING");
-	has_loaded = true;
+	if (has_loaded_body) { log.logc("Already loaded body"); return; }
+	has_loaded_body = true;
+	log.logc("Loading body");
+
 	page_user.setup_dl_link_user_site();
 	page_user.setup_user_rank_link_swap();
 	page_user.setup_song_rank_link_swap();
@@ -34,11 +48,14 @@ function onload(): void {
 	settings.setup();
 	settings.update_button_visibility();
 	ppgraph.setup_pp_graph();
+	updater.check_for_updates();
 }
 
-if (document.readyState === "complete" || document.readyState === "interactive") {
-	onload();
+function onload() {
+	on_load_head();
+	on_load_body();
 }
+
+onload();
 window.addEventListener("DOMContentLoaded", onload);
 window.addEventListener("load", onload);
-window.document.addEventListener("load", onload);

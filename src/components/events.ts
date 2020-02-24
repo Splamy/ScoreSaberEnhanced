@@ -1,3 +1,4 @@
+import { BulmaColor } from "../declarations/Types";
 import { logc } from "../util/log";
 
 class SseEventHandler {
@@ -27,4 +28,19 @@ export default class SseEvent {
 	public static readonly UserCacheChanged = new SseEventHandler("UserCacheChanged");
 	public static readonly CompareUserChanged = new SseEventHandler("CompareUserChanged");
 	public static readonly PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
+	public static readonly UserNotification = new SseEventHandler("UserNotification");
+
+	public static addNotification(notify: IUserNotification): void {
+		this.notificationList.push(notify);
+		SseEvent.UserNotification.invoke();
+	}
+	public static getNotifications(): IUserNotification[] {
+		return this.notificationList;
+	}
+	private static readonly notificationList: IUserNotification[] = [];
+}
+
+export interface IUserNotification {
+	msg: string;
+	type: BulmaColor;
 }

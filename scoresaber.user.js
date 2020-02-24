@@ -1,19 +1,22 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.6.5
+// @version      1.6.6
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
-// @match        http*://scoresaber.com/*
+// @match        http://scoresaber.com/*
+// @match        https://scoresaber.com/*
 // @icon         https://scoresaber.com/imports/images/logo.ico
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
-// @require      https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js
 // @require      https://cdn.jsdelivr.net/npm/moment@2.24.0/moment.js
-// @run-at       document-body
+// @run-at       document-start
+// for Tampermonkey
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_info
+// for Greasemonkey
+// @grant        GM.xmlHttpRequest
 // @connect      unpkg.com
 // @connect      beatsaver.com
 // @connect      githubusercontent.com
@@ -412,10 +415,19 @@
 	    }
 	}
 	class SseEvent {
+	    static addNotification(notify) {
+	        this.notificationList.push(notify);
+	        SseEvent.UserNotification.invoke();
+	    }
+	    static getNotifications() {
+	        return this.notificationList;
+	    }
 	}
 	SseEvent.UserCacheChanged = new SseEventHandler("UserCacheChanged");
 	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
 	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
+	SseEvent.UserNotification = new SseEventHandler("UserNotification");
+	SseEvent.notificationList = [];
 
 	const CURRENT_DATA_VER = 1;
 	function load() {
@@ -467,6 +479,29 @@
 	    localStorage.setItem("users", JSON.stringify(Global.user_list));
 	}
 
+	let SSE_addStyle;
+	let SSE_xmlhttpRequest;
+	let SSE_info;
+	function setup$1() {
+	    if (typeof (GM) !== "undefined") {
+	        logc("Using GM.* extenstions", GM);
+	        SSE_addStyle = GM_addStyle_custom;
+	        SSE_xmlhttpRequest = GM.xmlHttpRequest;
+	        SSE_info = GM.info;
+	    }
+	    else {
+	        logc("Using GM_ extenstions");
+	        SSE_addStyle = GM_addStyle;
+	        SSE_xmlhttpRequest = GM_xmlhttpRequest;
+	        SSE_info = GM_info;
+	    }
+	}
+	function GM_addStyle_custom(css) {
+	    const style = create("style", {}, css);
+	    into(document.head, style);
+	    return style;
+	}
+
 	function fetch2(url) {
 	    return new Promise((resolve, reject) => {
 	        const host = get_hostname(url);
@@ -486,7 +521,7 @@
 	                reject(`request errored: ${url}`);
 	            }
 	        };
-	        GM_xmlhttpRequest(request_param);
+	        SSE_xmlhttpRequest(request_param);
 	    });
 	}
 	function get_hostname(url) {
@@ -513,6 +548,65 @@
 	    catch (e) {
 	        return undefined;
 	    }
+	}
+
+	class Modal {
+	    constructor(elem) {
+	        this.elem = elem;
+	    }
+	    show() {
+	        this.elem.classList.add("is-active");
+	    }
+	    close(answer) {
+	        this.elem.classList.remove("is-active");
+	        if (this.after_close)
+	            this.after_close((answer !== null && answer !== void 0 ? answer : ""));
+	    }
+	    dispose() {
+	        document.body.removeChild(this.elem);
+	    }
+	}
+	function create_modal(opt) {
+	    var _a;
+	    const base_div = create("div", { class: "modal" });
+	    const modal = new Modal(base_div);
+	    const buttons = create("div", { class: "buttons" });
+	    into(base_div, create("div", {
+	        class: "modal-background",
+	        onclick() {
+	            modal.close("x");
+	        }
+	    }), create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), buttons)), create("button", {
+	        class: "modal-close is-large",
+	        onclick() {
+	            modal.close("x");
+	        }
+	    }));
+	    if (opt.buttons) {
+	        for (const btn_name of Object.keys(opt.buttons)) {
+	            const btn_data = opt.buttons[btn_name];
+	            into(buttons, create("button", {
+	                class: ["button", (_a = btn_data.class, (_a !== null && _a !== void 0 ? _a : ""))],
+	                onclick() {
+	                    modal.close(btn_name);
+	                }
+	            }, btn_data.text));
+	        }
+	    }
+	    document.body.appendChild(base_div);
+	    if (opt.default)
+	        modal.show();
+	    return modal;
+	}
+	function show_modal(opt) {
+	    return new Promise((resolve, reject) => {
+	        opt.default = true;
+	        const modal = create_modal(opt);
+	        modal.after_close = (answer) => {
+	            modal.dispose();
+	            resolve(answer);
+	        };
+	    });
 	}
 
 	function get_song_compare_value(song_a, song_b) {
@@ -569,20 +663,21 @@
 	}
 	async function oneclick_install(song_key) {
 	    const lastCheck = localStorage.getItem("oneclick-prompt");
-	    const prompt = lastCheck == undefined ||
+	    const prompt = !lastCheck ||
 	        new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
 	    if (prompt) {
 	        localStorage.setItem("oneclick-prompt", new Date().getTime().toString());
-	        const resp = await swal({
-	            icon: "warning",
+	        const resp = await show_modal({
 	            buttons: {
-	                install: { text: "Get ModSaber Installer", closeModal: false, className: "swal-button--cancel" },
-	                done: { text: "OK" },
+	                install: { text: "Get ModAssistant Installer", class: "is-info" },
+	                done: { text: "OK, now leave me alone", class: "is-success" },
 	            },
-	            text: "OneClick Install requires the BeatSaberModInstaller or BeatDrop2 to function.\nPlease install it before proceeding.",
+	            text: "OneClick™ requires any current ModInstaller tool with the OneClick™ feature enabled.\nMake sure you have one installed before proceeding.",
 	        });
-	        if (resp === "install")
-	            window.open("https://github.com/beat-saber-modding-group/BeatSaberModInstaller/releases");
+	        if (resp === "install") {
+	            window.open("https://github.com/Assistant/ModAssistant/releases");
+	            return;
+	        }
 	    }
 	    console.log("Downloading: ", song_key);
 	    window.location.assign(`beatsaver://${song_key}`);
@@ -817,20 +912,23 @@
 	                display: "flex",
 	            },
 	            href: Global.scoresaber_link + "/u/" + id,
-	        }, create("div", { style: { flex: "1" } }, user.name), create("a", {
+	        }, create("div", { style: { flex: "1" } }, user.name), create("div", {
 	            class: "button icon is-medium is-danger is-outlined",
 	            style: { marginLeft: "3em" },
-	            onclick: () => {
-	                swal(`Delete User "${user.name}" from cache?`, {
-	                    dangerMode: true,
-	                    buttons: true,
-	                }).then((deleteUser) => {
-	                    logc("DELETE!", deleteUser);
-	                    if (deleteUser) {
-	                        delete_user(id);
-	                    }
+	            async onclick(ev) {
+	                ev.preventDefault();
+	                ev.stopPropagation();
+	                const response = await show_modal({
+	                    text: `Delete User "${user.name}" from cache?`,
+	                    buttons: {
+	                        delete: { text: "Delete", class: "is-danger" },
+	                        x: { text: "Abort", class: "is-info" }
+	                    },
 	                });
-	                return false;
+	                if (response === "delete") {
+	                    logc("Delete user", id, user.name);
+	                    delete_user(id);
+	                }
 	            }
 	        }, create("i", { class: "fas fa-trash-alt" })));
 	    }));
@@ -1347,7 +1445,7 @@ span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
 span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapper {
 	text-shadow: 1px 1px 2px #000;
 }`;
-	function setup$1() {
+	function setup$2() {
 	    const style_data = `.compact {
 	padding-right: 0 !important;
 	padding-left: 0 !important;
@@ -1448,76 +1546,51 @@ h5 > * {
 	margin-top: 0;
 }
 `;
-	    GM_addStyle(style_data);
+	    SSE_addStyle(style_data);
 	    into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
 	}
 
-	function check_for_updates(edit_elem) {
-	    const current_version = GM_info.script.version;
-	    const update_check = localStorage.getItem("update_check");
-	    if (update_check && Number(update_check) >= new Date().getTime()) {
-	        return;
-	    }
-	    GM_xmlhttpRequest({
-	        method: "GET",
-	        headers: {
-	            Origin: "github.com",
+	let notify_box;
+	let settings_modal;
+	function setup$3() {
+	    notify_box = create("div", { class: "field" });
+	    const cog = create("i", { class: "fas fa-cog" });
+	    into(get_navbar(), create("a", {
+	        id: "settings_menu",
+	        class: "navbar-item",
+	        style: {
+	            cursor: "pointer",
 	        },
-	        url: `https://raw.githubusercontent.com/Splamy/ScoreSaberEnhanced/master/scoresaber.user.js`,
-	        onload(response) {
-	            const latest_script = response.responseText;
-	            const latest_version = Global.script_version_reg.exec(latest_script)[1];
-	            if (current_version !== latest_version) {
-	                into(edit_elem, create("div", { class: "notification is-warning" }, "An update is available"));
-	                const settings_menu = check(document.querySelector("#settings_menu i"));
-	                settings_menu.classList.remove("fa-cog");
-	                settings_menu.classList.add("fa-bell");
-	                settings_menu.style.color = "yellow";
-	            }
-	            else {
-	                const now = new Date();
-	                now.setDate(now.getDate() + 1);
-	                localStorage.setItem("update_check", now.getTime().toString());
-	            }
+	        onclick: () => show_settings_lazy(),
+	    }, cog));
+	    SseEvent.UserNotification.register(() => {
+	        const ntfys = SseEvent.getNotifications();
+	        if (ntfys.length) {
+	            cog.classList.remove("fa-cog");
+	            cog.classList.add("fa-bell");
+	            cog.style.color = "yellow";
+	        }
+	        else {
+	            cog.classList.remove("fa-bell");
+	            cog.classList.add("fa-cog");
+	            cog.style.color = "";
+	        }
+	        if (!notify_box)
+	            return;
+	        clear_children(notify_box);
+	        for (const ntfy of ntfys) {
+	            into(notify_box, create("div", { class: `notification is-${ntfy.type}` }, ntfy.msg));
 	        }
 	    });
 	}
-
-	function setup$2() {
+	function show_settings_lazy() {
 	    var _a;
+	    if (settings_modal) {
+	        settings_modal.show();
+	        return;
+	    }
 	    const current_theme = (_a = localStorage.getItem("theme_name"), (_a !== null && _a !== void 0 ? _a : "Default"));
-	    let set_div = create("div", {
-	        id: "settings_overlay",
-	        style: {
-	            height: "100%",
-	            width: "100%",
-	            position: "fixed",
-	            zIndex: "30",
-	            left: "0",
-	            top: "0",
-	            backgroundColor: "rgba(0,0,0, 0.2)",
-	            overflow: "hidden",
-	            display: "none",
-	            justifyContent: "center",
-	        },
-	        onclick() {
-	            this.style.display = "none";
-	        }
-	    }, create("div", {
-	        id: "settings_dialogue",
-	        class: "box has-shadow",
-	        style: {
-	            width: "100%",
-	            position: "fixed",
-	            top: "4em",
-	            maxWidth: "720px",
-	        },
-	        onclick(ev) { ev.stopPropagation(); }
-	    }, (() => {
-	        const notify_box = create("div", { class: "field" });
-	        check_for_updates(notify_box);
-	        return notify_box;
-	    })(), create("div", { class: "field" }, create("label", { class: "label" }, "Theme"), create("div", { class: "control" }, create("div", { class: "select" }, create("select", {
+	    const set_div = create("div", {}, check(notify_box), create("div", { class: "field" }, create("label", { class: "label" }, "Theme"), create("div", { class: "control" }, create("div", { class: "select" }, create("select", {
 	        onchange() {
 	            settings_set_theme(this.value);
 	        }
@@ -1556,31 +1629,17 @@ h5 > * {
 	        onchange() {
 	            set_use_new_ss_api(this.checked);
 	        }
-	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api"))));
-	    set_div = document.body.appendChild(set_div);
-	    into(get_navbar(), create("a", {
-	        id: "settings_menu",
-	        class: "navbar-item",
-	        style: {
-	            cursor: "pointer",
-	        },
-	        onclick: () => set_div.style.display = "flex",
-	    }, create("i", { class: "fas fa-cog" })));
-	}
-	function settings_set_theme(name) {
-	    GM_xmlhttpRequest({
-	        method: "GET",
-	        headers: {
-	            Origin: "unpkg.com",
-	        },
-	        url: `https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`,
-	        onload(response) {
-	            const css = response.responseText;
-	            localStorage.setItem("theme_name", name);
-	            localStorage.setItem("theme_css", css);
-	            load_theme(name, css);
-	        }
+	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api")));
+	    settings_modal = create_modal({
+	        text: set_div,
+	        default: true,
 	    });
+	}
+	async function settings_set_theme(name) {
+	    const css = await fetch2(`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`);
+	    localStorage.setItem("theme_name", name);
+	    localStorage.setItem("theme_css", css);
+	    load_theme(name, css);
 	}
 	function load_last_theme() {
 	    let theme_name = localStorage.getItem("theme_name");
@@ -1602,7 +1661,7 @@ h5 > * {
 	        css_fin = css + " " + theme_light;
 	    }
 	    if (!Global.style_themed_elem) {
-	        Global.style_themed_elem = GM_addStyle(css_fin);
+	        Global.style_themed_elem = SSE_addStyle(css_fin);
 	    }
 	    else {
 	        Global.style_themed_elem.innerHTML = css_fin;
@@ -1623,18 +1682,54 @@ h5 > * {
 	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = get_show_oc_link() ? "" : "none");
 	}
 
-	setup();
-	setup$1();
-	load_last_theme();
-	load();
-	let has_loaded = false;
-	function onload() {
-	    if (has_loaded) {
-	        logc("Already loaded");
+	async function check_for_updates() {
+	    const current_version = SSE_info.script.version;
+	    const update_check = localStorage.getItem("update_check");
+	    if (update_check && Number(update_check) >= new Date().getTime()) {
 	        return;
 	    }
-	    logc("LOADING");
-	    has_loaded = true;
+	    const latest_script = await fetch2(`https://raw.githubusercontent.com/Splamy/ScoreSaberEnhanced/master/scoresaber.user.js`);
+	    const latest_version = Global.script_version_reg.exec(latest_script)[1];
+	    if (current_version !== latest_version) {
+	        SseEvent.addNotification({ msg: "An update is available", type: "warning" });
+	    }
+	    else {
+	        const now = new Date();
+	        now.setDate(now.getDate() + 1);
+	        localStorage.setItem("update_check", now.getTime().toString());
+	    }
+	}
+
+	setup();
+	setup$1();
+	load();
+	let has_loaded_head = false;
+	function on_load_head() {
+	    if (!document.head) {
+	        logc("Head not ready");
+	        return;
+	    }
+	    if (has_loaded_head) {
+	        logc("Already loaded head");
+	        return;
+	    }
+	    has_loaded_head = true;
+	    logc("Loading head");
+	    setup$2();
+	    load_last_theme();
+	}
+	let has_loaded_body = false;
+	function on_load_body() {
+	    if (document.readyState !== "complete" && document.readyState !== "interactive") {
+	        logc("Body not ready");
+	        return;
+	    }
+	    if (has_loaded_body) {
+	        logc("Already loaded body");
+	        return;
+	    }
+	    has_loaded_body = true;
+	    logc("Loading body");
 	    setup_dl_link_user_site();
 	    setup_user_rank_link_swap();
 	    setup_song_rank_link_swap();
@@ -1645,16 +1740,18 @@ h5 > * {
 	    setup_self_pin_button();
 	    setup_self_button();
 	    setup_user_compare();
-	    setup$2();
+	    setup$3();
 	    update_button_visibility();
 	    setup_pp_graph();
+	    check_for_updates();
 	}
-	if (document.readyState === "complete" || document.readyState === "interactive") {
-	    onload();
+	function onload() {
+	    on_load_head();
+	    on_load_body();
 	}
+	onload();
 	window.addEventListener("DOMContentLoaded", onload);
 	window.addEventListener("load", onload);
-	window.document.addEventListener("load", onload);
 
 }());
 //# sourceMappingURL=rollup.js.map

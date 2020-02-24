@@ -17,3 +17,7 @@ export interface IDbUser {
 }
 
 export type BulmaSize = "small" | "medium" | "large";
+
+export type BulmaColor = "primary" | "link" | "info" | "success" | "warning" | "danger";
+
+export type BulmaColorClass = "is-primary" | "is-link" | "is-info" | "is-success" | "is-warning" | "is-danger";

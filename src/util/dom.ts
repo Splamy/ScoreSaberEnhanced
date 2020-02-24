@@ -7,11 +7,12 @@ type AutoBuild<T extends keyof HTMLElementTagNameMap> = Partial<ElementBuilder<T
 	disabled: boolean,
 	data: { [att: string]: string }
 }>;
+type IntoElem = HTMLElement | string;
 
 export function create<K extends keyof HTMLElementTagNameMap>(
 	tag: K,
 	attrs?: AutoBuild<K>,
-	...children: (HTMLElement | string)[]): HTMLElementTagNameMap[K] {
+	...children: IntoElem[]): HTMLElementTagNameMap[K] {
 	if (!tag) throw new SyntaxError("'tag' not defined");
 
 	const ele = document.createElement(tag);
@@ -64,7 +65,7 @@ export function clear_children(elem: HTMLElement): void {
 /**
  * Into, but replaces the content
  */
-export function intor(parent: HTMLElement, ...children: (HTMLElement | string)[]): void {
+export function intor(parent: HTMLElement, ...children: IntoElem[]): void {
 	clear_children(parent);
 	return into(parent, ...children);
 }
@@ -72,7 +73,7 @@ export function intor(parent: HTMLElement, ...children: (HTMLElement | string)[]
 /**
  * Appends the children to the parent
  */
-export function into(parent: HTMLElement, ...children: (HTMLElement | string)[]): void {
+export function into(parent: HTMLElement, ...children: IntoElem[]): void {
 	for (const child of children) {
 		if (typeof child === "string") {
 			if (children.length > 1) {

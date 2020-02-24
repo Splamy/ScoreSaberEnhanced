@@ -1,4 +1,4 @@
-import { create } from "./dom";
+import { create } from "../util/dom";
 
 export type IButtonElement = HTMLElement & {
 	on: () => any,

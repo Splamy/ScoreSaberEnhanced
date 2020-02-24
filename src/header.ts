@@ -1,4 +1,5 @@
 import SseEvent from "./components/events";
+import * as modal from "./components/modal";
 import { get_current_user, get_home_user, get_navbar, get_user_header, is_user_page, set_home_user } from "./env";
 import g from "./global";
 import * as usercache from "./usercache";
@@ -71,20 +72,24 @@ function update_self_user_list(): void {
 				href: g.scoresaber_link + "/u/" + id,
 			},
 				create("div", { style: { flex: "1" } }, user.name),
-				create("a", {
+				create("div", {
 					class: "button icon is-medium is-danger is-outlined",
 					style: { marginLeft: "3em" },
-					onclick: () => {
-						swal(`Delete User "${user.name}" from cache?`, {
-							dangerMode: true,
-							buttons: true,
-						}).then((deleteUser) => {
-							logc("DELETE!", deleteUser);
-							if (deleteUser) {
-								delete_user(id);
-							}
+					async onclick(ev) {
+						ev.preventDefault();
+						ev.stopPropagation();
+						const response = await modal.show_modal({
+							text: `Delete User "${user.name}" from cache?`,
+							buttons: {
+								delete: { text: "Delete", class: "is-danger" },
+								x: { text: "Abort", class: "is-info" }
+							},
 						});
-						return false;
+
+						if (response === "delete") {
+							logc("Delete user", id, user.name);
+							delete_user(id);
+						}
 					}
 				},
 					create("i", { class: "fas fa-trash-alt" })
