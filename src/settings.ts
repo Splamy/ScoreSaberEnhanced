@@ -8,6 +8,7 @@ import { clear_children, create, into, intor } from "./util/dom";
 import { check } from "./util/err";
 import { fetch2 } from "./util/net";
 import { SSE_addStyle } from "./util/userscript";
+import * as beastsaber from "./api/beastsaber";
 
 let notify_box: HTMLElement | undefined;
 let settings_modal: modal.Modal | undefined;
@@ -176,6 +177,39 @@ function show_settings_lazy() {
 			),
 			status_box,
 		),
+		create("div", { class: "field" },
+			create("label", { class: "label" }, "Beastsaber Bookmarks"),
+		),
+		create("div", { class: "field has-addons" },
+			create("div", { class: "control has-icons-left" },
+				create("input", {
+					id: "bsaber_username",
+					type: "text",
+					class: "input",
+					placeholder: "username",
+					value: env.get_bsaber_username(),
+					onchange() {
+						env.set_bsaber_username((this as HTMLInputElement).value);
+					}
+				}),
+				create("span", {class: "icon is-small is-left"},
+					create("i", {class: "fas fa-user fa-xs"})
+				),
+			),
+			create("div", { class: "control" },
+				create("div",
+					{
+						class: "button bsaber_update_bookmarks",
+						data: { tooltip: "Load Bookmarks" },
+						async onclick() {
+							await update_bsaber_bookmark_cache(this as any, env.get_bsaber_username())
+						},
+					},
+					create("i", {class: "fas fa-sync"}),
+				),
+			),
+		),
+		create("p", {class: "help bookmark-sync-status"}, "Update BeastSaber bookmark cache"),
 	);
 
 	settings_modal = modal.create_modal({
@@ -227,6 +261,34 @@ function get_scoresaber_darkmode(): boolean {
 	return document.cookie.includes("dark=1");
 }
 
+async function update_bsaber_bookmark_cache(button: any, username: string): Promise<void> {
+	button.firstChild.classList.add("fa-spin");
+	let statustext = button.parentElement.parentElement.nextSibling;
+
+	for (let page = 1; ; page++) {
+		statustext.innerText = "Loading page " + page;
+		const bookmarks = await beastsaber.get_bookmarks(username, page, 50);
+		process_bookmarks(bookmarks.songs);
+		if (bookmarks.next_page === null) {
+			break;
+		}
+	}
+
+	statustext.innerText = "Finished loading bookmarks";
+	button.firstChild.classList.remove("fa-spin");
+}
+
+function process_bookmarks(songs: beastsaber.IBeastSaberSongInfoArray): void {
+	for (const song of songs) {
+		if (!song.hash) {
+			continue;
+		}
+		if (!env.check_bsaber_bookmark(song.hash)) {
+			env.add_bsaber_bookmark(song.hash);
+		}
+	}
+}
+
 export function update_button_visibility() {
 	if (!env.is_user_page()) { return; }
 
@@ -237,4 +299,7 @@ export function update_button_visibility() {
 
 	table.querySelectorAll("th.oc_link").forEach(oc_link =>
 		oc_link.style.display = env.get_show_oc_link() ? "" : "none");
+
+	table.querySelectorAll("th.bb_link").forEach(bb_link =>
+		bb_link.style.display = env.get_show_bb_link() ? "" : "none");
 }

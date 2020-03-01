@@ -141,3 +141,28 @@ export function set_use_new_ss_api(value: boolean): void {
 export function get_use_new_ss_api(): boolean {
 	return (localStorage.getItem("use_new_api") || "true") === "true";
 }
+
+export function set_bsaber_username(value: string): void {
+	localStorage.setItem("bsaber_username", value);
+}
+export function get_bsaber_username(): string | undefined {
+	return (localStorage.getItem("bsaber_username") || undefined);
+}
+
+function get_bsaber_bookmarks(): any {
+	return JSON.parse(localStorage.getItem("bsaber_bookmarks")) || [];
+}
+
+export function add_bsaber_bookmark(song_hash: string): void {
+	let bookmarks = get_bsaber_bookmarks();
+	bookmarks.push(song_hash);
+	localStorage.setItem("bsaber_bookmarks", JSON.stringify(bookmarks));
+}
+export function check_bsaber_bookmark(song_hash: string): bool {
+	const bookmarks = get_bsaber_bookmarks();
+	return bookmarks.includes(song_hash.toLowerCase());
+}
+
+export function get_show_bb_link(): bool {
+	return (get_bsaber_bookmarks() != [] && get_bsaber_username());
+}

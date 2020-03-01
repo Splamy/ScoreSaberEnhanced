@@ -16,6 +16,7 @@ export function setup_dl_link_user_site(): void {
 	const table_tr = check(table.querySelector("thead tr"));
 	into(table_tr, create("th", { class: "compact bs_link" }, "BS"));
 	into(table_tr, create("th", { class: "compact oc_link" }, "OC"));
+	into(table_tr, create("th", { class: "compact bb_link" }, "BB"));
 
 	// add a link for each song
 	const table_row = table.querySelectorAll("tbody tr");
@@ -34,6 +35,13 @@ export function setup_dl_link_user_site(): void {
 		into(row,
 			create("th", { class: "compact oc_link" },
 				buttons.generate_oneclick(song_hash, "medium")
+			)
+		);
+
+		// beastsaber bookmark
+		into(row,
+			create("th", { class: "compact bb_link" },
+				buttons.generate_bsaber_bookmark(song_hash, "medium")
 			)
 		);
 	}

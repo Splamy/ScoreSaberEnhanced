@@ -4,6 +4,7 @@ import g from "../global";
 import { create } from "../util/dom";
 import { toggled_class } from "../util/format";
 import { oneclick_install } from "../util/song";
+import * as env from "../env";
 
 export function generate_beatsaver(song_hash: string | undefined, size: BulmaSize): HTMLElement {
 	return create("div", {
@@ -69,6 +70,28 @@ export function generate_bsaber(song_hash: string | undefined): HTMLElement {
 				borderRadius: "inherit",
 			}
 		}),
+	);
+}
+
+export function generate_bsaber_bookmark(song_hash: string | undefined, size: BulmaSize): HTMLElement {
+	const bookmarked = env.check_bsaber_bookmark(song_hash);
+	const color = bookmarked ? "is-success" : "is-danger";
+	const tooltip = bookmarked ? "Bookmarked on BeastSaber" : "Not Bookmarked on BeastSaber";
+	return create("div", {
+		class: `button icon is-${size} ${color} ${toggled_class(size !== "large", "has-tooltip-left")}`,
+		style: {
+			cursor: song_hash === undefined ? "default" : "pointer",
+			padding: "0",
+		},
+		disabled: song_hash === undefined,
+		data: { tooltip: tooltip },
+		onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => new_page(g.bsaber_songs_link + song_info.key))
+				.catch(() => failed_to_download(this as any));
+		},
+	},
+		create("i", { class: `fas fa-thumbtack` }),
 	);
 }
 
