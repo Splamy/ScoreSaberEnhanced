@@ -7,7 +7,7 @@ type AutoBuild<T extends keyof HTMLElementTagNameMap> = Partial<ElementBuilder<T
 	disabled: boolean,
 	data: { [att: string]: string }
 }>;
-type IntoElem = HTMLElement | string;
+export type IntoElem = HTMLElement | string;
 
 export function create<K extends keyof HTMLElementTagNameMap>(
 	tag: K,
@@ -65,15 +65,16 @@ export function clear_children(elem: HTMLElement): void {
 /**
  * Into, but replaces the content
  */
-export function intor(parent: HTMLElement, ...children: IntoElem[]): void {
+export function intor(parent: HTMLElement, ...children: IntoElem[]): HTMLElement {
 	clear_children(parent);
 	return into(parent, ...children);
 }
 
 /**
  * Appends the children to the parent
+ * @returns The parent itself. (Useful for fluent declaration.)
  */
-export function into(parent: HTMLElement, ...children: IntoElem[]): void {
+export function into(parent: HTMLElement, ...children: IntoElem[]): HTMLElement {
 	for (const child of children) {
 		if (typeof child === "string") {
 			if (children.length > 1) {
@@ -85,4 +86,5 @@ export function into(parent: HTMLElement, ...children: IntoElem[]): void {
 			parent.appendChild(child);
 		}
 	}
+	return parent;
 }

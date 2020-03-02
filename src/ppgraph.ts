@@ -142,7 +142,7 @@ export function update_pp_graph_buttons() {
 	// Check if the current user is in the database
 	const user = get_current_user();
 	if (g.user_list[user.id] === undefined) {
-		// He is now, we disable the feature
+		// When not, we disable the feature
 		chart_button.setAttribute("disabled", "");
 		chart_button.setAttribute("data-tooltip", "Add the user to your score cache for this feature");
 		chart_button.off();

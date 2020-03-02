@@ -84,7 +84,7 @@ export async function oneclick_install(song_key: string): Promise<void> {
 }
 
 export function song_equals(a?: ISong, b?: ISong): boolean {
-	if (a === undefined && b === undefined)
+	if (a === b) // Catches 'reference equal', and 'a = b = undefined'
 		return true;
 	if (a === undefined || b === undefined)
 		return false;
@@ -92,6 +92,19 @@ export function song_equals(a?: ISong, b?: ISong): boolean {
 		a.accuracy === b.accuracy &&
 		a.pp === b.pp &&
 		a.score === b.score &&
-		(a.mods ?? []) === (b.mods ?? []) &&
-		a.time === b.time);
+		a.time === b.time &&
+		array_equals(a.mods, b.mods));
+}
+
+function array_equals<T>(a: T[] | undefined, b: T[] | undefined): boolean {
+	if (a === b) // Catches 'reference equal', and 'a = b = undefined'
+		return true;
+	if (a === undefined || b === undefined)
+		return false;
+	if (a.length !== b.length)
+		return false;
+	for (let i = 0; i < a.length; i++) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
 }

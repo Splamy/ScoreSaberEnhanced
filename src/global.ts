@@ -2,7 +2,6 @@ import { IDbUser, IUser } from "./declarations/Types";
 
 export default class Global {
 	public static user_list: { [user_id: string]: IDbUser };
-	public static status_elem: HTMLElement;
 	public static users_elem: HTMLElement;
 	public static feature_list: HTMLElement | undefined;
 	public static feature_display_list: HTMLElement | undefined;

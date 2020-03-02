@@ -1,15 +1,16 @@
+import * as compare from "./compare";
 import SseEvent from "./components/events";
-import { create_modal, Modal } from "./components/modal";
+import * as modal from "./components/modal";
 import * as env from "./env";
 import g from "./global";
 import * as themes from "./themes";
-import { clear_children, create, into } from "./util/dom";
+import { clear_children, create, into, intor } from "./util/dom";
 import { check } from "./util/err";
 import { fetch2 } from "./util/net";
 import { SSE_addStyle } from "./util/userscript";
 
 let notify_box: HTMLElement | undefined;
-let settings_modal: Modal | undefined;
+let settings_modal: modal.Modal | undefined;
 
 export function setup(): void {
 	notify_box = create("div", { class: "field" });
@@ -54,6 +55,12 @@ function show_settings_lazy() {
 	}
 
 	const current_theme = localStorage.getItem("theme_name") ?? "Default";
+
+	const status_box = create("div", {
+		class: "notification is-info",
+		style: { display: "none" }
+	});
+	SseEvent.StatusInfo.register((status) => intor(status_box, status));
 
 	const set_div = create("div", {},
 		check(notify_box),
@@ -131,9 +138,47 @@ function show_settings_lazy() {
 			}),
 			create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api"),
 		),
+		create("div", { class: "field" },
+			create("label", { class: "label" }, "Tools"),
+		),
+		create("div", { class: "field" },
+			create("div", { class: "buttons" },
+				create("button", {
+					class: "button",
+					async onclick() {
+						status_box.style.display = "block";
+						await compare.fetch_all();
+						status_box.style.display = "none";
+					}
+				}, "Update All User"),
+				create("button", {
+					class: "button is-danger",
+					async onclick() {
+						const resp = await modal.show_modal({
+							text:
+								"Warning: This might take a long time, depending " +
+								"on how many users you have in your library list and " +
+								"how many songs they have on ScoreSaber.\n" +
+								"Use this only when all pp is fucked again.\n" +
+								"And have mercy on the ScoreSaber servers.",
+							buttons: {
+								ok: { text: "Continue", class: "is-success" },
+								x: { text: "Cancel", class: "is-danger" }
+							}
+						});
+						if (resp === "ok") {
+							status_box.style.display = "block";
+							await compare.fetch_all(true);
+						}
+						status_box.style.display = "none";
+					}
+				}, "Force Update All User"),
+			),
+			status_box,
+		),
 	);
 
-	settings_modal = create_modal({
+	settings_modal = modal.create_modal({
 		text: set_div,
 		default: true,
 	});

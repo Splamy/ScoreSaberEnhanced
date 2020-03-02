@@ -30,7 +30,7 @@ function set_state(elem: IButtonElement, state: boolean): void {
 
 export function button(opt: IButtonOptions): IButtonElement {
 	const btn = create("div", {
-		class: ["button"]
+		class: "button"
 	}, opt.text) as any as IButtonElement;
 	btn.view_class = `is-${opt.type ?? "primary"}`;
 

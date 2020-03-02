@@ -1,6 +1,6 @@
 {
 	"name": "scoresaberenhanced",
-	"version": "1.6.6",
+	"version": "1.7.0",
 	"description": "Adds links to beatsaver, player comparison and various other improvements",
 	"main": "src/main.ts",
 	"scripts": {},
@@ -27,9 +27,9 @@
 		"gulp": "^4.0.2",
 		"gulp-concat": "^2.6.1",
 		"gulp-replace": "^1.0.0",
-		"rollup": "^1.31.0",
+		"rollup": "^1.32.0",
 		"rollup-plugin-typescript": "^1.0.1",
-		"tslib": "^1.10.0",
-		"typescript": "^3.7.5"
+		"tslib": "^1.11.1",
+		"typescript": "^3.8.3"
 	}
 }

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.6.6
+// @version      1.7.0
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -109,6 +109,7 @@
 	            parent.appendChild(child);
 	        }
 	    }
+	    return parent;
 	}
 
 	function check(elem) {
@@ -158,7 +159,6 @@
 	    return Global._home_user;
 	}
 	function get_compare_user() {
-	    var _a;
 	    if (Global.last_selected) {
 	        return Global.last_selected;
 	    }
@@ -168,7 +168,7 @@
 	        return Global.last_selected;
 	    }
 	    const compare = document.getElementById("user_compare");
-	    if ((_a = compare) === null || _a === void 0 ? void 0 : _a.value) {
+	    if (compare === null || compare === void 0 ? void 0 : compare.value) {
 	        Global.last_selected = compare.value;
 	        return Global.last_selected;
 	    }
@@ -404,10 +404,10 @@
 	        this.eventName = eventName;
 	        this.callList = [];
 	    }
-	    invoke() {
+	    invoke(param) {
 	        logc("Event", this.eventName);
 	        for (const func of this.callList) {
-	            func();
+	            func(param);
 	        }
 	    }
 	    register(func) {
@@ -427,6 +427,7 @@
 	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
 	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
 	SseEvent.UserNotification = new SseEventHandler("UserNotification");
+	SseEvent.StatusInfo = new SseEventHandler("StatusInfo");
 	SseEvent.notificationList = [];
 
 	const CURRENT_DATA_VER = 1;
@@ -470,7 +471,7 @@
 	}
 	function get_data_ver() {
 	    var _a;
-	    return Number((_a = localStorage.getItem("users_data_ver"), (_a !== null && _a !== void 0 ? _a : "0")));
+	    return Number((_a = localStorage.getItem("users_data_ver")) !== null && _a !== void 0 ? _a : "0");
 	}
 	function update_data_ver() {
 	    localStorage.setItem("users_data_ver", String(CURRENT_DATA_VER));
@@ -560,7 +561,7 @@
 	    close(answer) {
 	        this.elem.classList.remove("is-active");
 	        if (this.after_close)
-	            this.after_close((answer !== null && answer !== void 0 ? answer : ""));
+	            this.after_close(answer !== null && answer !== void 0 ? answer : "");
 	    }
 	    dispose() {
 	        document.body.removeChild(this.elem);
@@ -586,7 +587,7 @@
 	        for (const btn_name of Object.keys(opt.buttons)) {
 	            const btn_data = opt.buttons[btn_name];
 	            into(buttons, create("button", {
-	                class: ["button", (_a = btn_data.class, (_a !== null && _a !== void 0 ? _a : ""))],
+	                class: ["button", (_a = btn_data.class) !== null && _a !== void 0 ? _a : ""],
 	                onclick() {
 	                    modal.close(btn_name);
 	                }
@@ -683,16 +684,28 @@
 	    window.location.assign(`beatsaver://${song_key}`);
 	}
 	function song_equals(a, b) {
-	    var _a, _b;
-	    if (a === undefined && b === undefined)
+	    if (a === b)
 	        return true;
 	    if (a === undefined || b === undefined)
 	        return false;
 	    return (a.accuracy === b.accuracy &&
 	        a.pp === b.pp &&
 	        a.score === b.score &&
-	        (_a = a.mods, (_a !== null && _a !== void 0 ? _a : [])) === (_b = b.mods, (_b !== null && _b !== void 0 ? _b : [])) &&
-	        a.time === b.time);
+	        a.time === b.time &&
+	        array_equals(a.mods, b.mods));
+	}
+	function array_equals(a, b) {
+	    if (a === b)
+	        return true;
+	    if (a === undefined || b === undefined)
+	        return false;
+	    if (a.length !== b.length)
+	        return false;
+	    for (let i = 0; i < a.length; i++) {
+	        if (a[i] !== b[i])
+	            return false;
+	    }
+	    return true;
 	}
 
 	function setup_user_compare() {
@@ -711,8 +724,9 @@
 	            await fetch_user(get_current_user().id);
 	        },
 	    }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] })));
-	    Global.status_elem = create("div");
-	    into(header, Global.status_elem);
+	    const status_elem = create("div");
+	    into(header, status_elem);
+	    SseEvent.StatusInfo.register((status) => intor(status_elem, status));
 	    Global.users_elem = create("div");
 	    insert_compare_feature(Global.users_elem);
 	    update_user_compare_dropdown();
@@ -807,9 +821,8 @@
 	        }
 	    }
 	}
-	async function fetch_user(user_id) {
+	async function fetch_user(user_id, force = false) {
 	    var _a, _b;
-	    intor(Global.status_elem, "Adding user to database...");
 	    let user = Global.user_list[user_id];
 	    if (!user) {
 	        user = {
@@ -819,46 +832,54 @@
 	        Global.user_list[user_id] = user;
 	    }
 	    let page_max = undefined;
-	    let user_name = undefined;
+	    let user_name = user.name;
 	    let updated = false;
-	    for (let page = 1;; page++) {
-	        intor(Global.status_elem, `Updating page ${page}/${((page_max !== null && page_max !== void 0 ? page_max : "?"))}`);
-	        const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
-	        const [has_old_entry, has_updated] = process_user_page(recent_songs.songs, user);
-	        updated = updated || has_updated;
-	        page_max = (_a = recent_songs.meta.max_pages, (_a !== null && _a !== void 0 ? _a : page_max));
-	        user_name = (_b = recent_songs.meta.user_name, (_b !== null && _b !== void 0 ? _b : user_name));
-	        if (has_old_entry || recent_songs.meta.was_last_page) {
-	            break;
-	        }
-	    }
-	    if (!user_name && get_use_new_ss_api()) {
+	    SseEvent.StatusInfo.invoke(`Fetching user ${user_name}`);
+	    if (get_use_new_ss_api()) {
 	        const user_data = await get_user_info_basic(user_id);
 	        user_name = user_data.playerInfo.name;
 	    }
-	    user.name = (user_name !== null && user_name !== void 0 ? user_name : user.name);
+	    for (let page = 1;; page++) {
+	        SseEvent.StatusInfo.invoke(`Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}`);
+	        const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
+	        const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
+	        updated = updated || has_updated;
+	        page_max = (_a = recent_songs.meta.max_pages) !== null && _a !== void 0 ? _a : page_max;
+	        user_name = (_b = recent_songs.meta.user_name) !== null && _b !== void 0 ? _b : user_name;
+	        if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
+	            break;
+	        }
+	    }
+	    user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
 	    if (updated) {
 	        save();
 	    }
-	    intor(Global.status_elem, "User updated");
+	    SseEvent.StatusInfo.invoke(`User ${user_name} updated`);
 	    SseEvent.UserCacheChanged.invoke();
+	}
+	async function fetch_all(force = false) {
+	    const users = Object.keys(Global.user_list);
+	    for (const user of users) {
+	        await fetch_user(user, force);
+	    }
+	    SseEvent.StatusInfo.invoke(`All users updated`);
 	}
 	function process_user_page(songs, user) {
 	    let has_old_entry = false;
 	    let has_updated = false;
 	    for (const [song_id, song] of songs) {
 	        const song_old = user.songs[song_id];
-	        if (song_old && song_old.time === song.time) {
+	        if (!song_old || !song_equals(song_old, song)) {
+	            logc("Updated: ", song_old, song);
+	            has_updated = true;
+	        }
+	        else {
 	            logc("Old found: ", song);
 	            has_old_entry = true;
 	        }
-	        else {
-	            logc("Updated: ", song_old, song);
-	            has_updated = has_updated || !song_equals(song_old, song);
-	        }
 	        user.songs[song_id] = song;
 	    }
-	    return [has_old_entry, has_updated];
+	    return { has_old_entry, has_updated };
 	}
 
 	function setup_self_pin_button() {
@@ -878,7 +899,7 @@
 	}
 	function setup_self_button() {
 	    var _a;
-	    const home_user = (_a = get_home_user(), (_a !== null && _a !== void 0 ? _a : { name: "<Pins>", id: "0" }));
+	    const home_user = (_a = get_home_user()) !== null && _a !== void 0 ? _a : { name: "<Pins>", id: "0" };
 	    into(get_navbar(), create("div", { class: "navbar-item has-dropdown is-hoverable" }, create("a", {
 	        id: "home_user",
 	        class: "navbar-item",
@@ -893,7 +914,7 @@
 	}
 	function update_self_button() {
 	    var _a;
-	    const home_user = (_a = get_home_user(), (_a !== null && _a !== void 0 ? _a : { name: "<Pins>", id: "0" }));
+	    const home_user = (_a = get_home_user()) !== null && _a !== void 0 ? _a : { name: "<Pins>", id: "0" };
 	    const home_elem = document.getElementById("home_user");
 	    if (home_elem) {
 	        home_elem.href = Global.scoresaber_link + "/u/" + home_user.id;
@@ -1248,9 +1269,9 @@
 	function button(opt) {
 	    var _a, _b;
 	    const btn = create("div", {
-	        class: ["button"]
+	        class: "button"
 	    }, opt.text);
-	    btn.view_class = `is-${_a = opt.type, (_a !== null && _a !== void 0 ? _a : "primary")}`;
+	    btn.view_class = `is-${(_a = opt.type) !== null && _a !== void 0 ? _a : "primary"}`;
 	    btn.on = () => {
 	        var _a;
 	        set_state(btn, true);
@@ -1272,7 +1293,7 @@
 	            btn.toggle();
 	        }
 	    };
-	    set_state(btn, (_b = opt.default, (_b !== null && _b !== void 0 ? _b : false)));
+	    set_state(btn, (_b = opt.default) !== null && _b !== void 0 ? _b : false);
 	    return btn;
 	}
 
@@ -1589,7 +1610,12 @@ h5 > * {
 	        settings_modal.show();
 	        return;
 	    }
-	    const current_theme = (_a = localStorage.getItem("theme_name"), (_a !== null && _a !== void 0 ? _a : "Default"));
+	    const current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0 ? _a : "Default";
+	    const status_box = create("div", {
+	        class: "notification is-info",
+	        style: { display: "none" }
+	    });
+	    SseEvent.StatusInfo.register((status) => intor(status_box, status));
 	    const set_div = create("div", {}, check(notify_box), create("div", { class: "field" }, create("label", { class: "label" }, "Theme"), create("div", { class: "control" }, create("div", { class: "select" }, create("select", {
 	        onchange() {
 	            settings_set_theme(this.value);
@@ -1629,7 +1655,34 @@ h5 > * {
 	        onchange() {
 	            set_use_new_ss_api(this.checked);
 	        }
-	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api")));
+	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api")), create("div", { class: "field" }, create("label", { class: "label" }, "Tools")), create("div", { class: "field" }, create("div", { class: "buttons" }, create("button", {
+	        class: "button",
+	        async onclick() {
+	            status_box.style.display = "block";
+	            await fetch_all();
+	            status_box.style.display = "none";
+	        }
+	    }, "Update All User"), create("button", {
+	        class: "button is-danger",
+	        async onclick() {
+	            const resp = await show_modal({
+	                text: "Warning: This might take a long time, depending " +
+	                    "on how many users you have in your library list and " +
+	                    "how many songs they have on ScoreSaber.\n" +
+	                    "Use this only when all pp is fucked again.\n" +
+	                    "And have mercy on the ScoreSaber servers.",
+	                buttons: {
+	                    ok: { text: "Continue", class: "is-success" },
+	                    x: { text: "Cancel", class: "is-danger" }
+	                }
+	            });
+	            if (resp === "ok") {
+	                status_box.style.display = "block";
+	                await fetch_all(true);
+	            }
+	            status_box.style.display = "none";
+	        }
+	    }, "Force Update All User")), status_box));
 	    settings_modal = create_modal({
 	        text: set_div,
 	        default: true,

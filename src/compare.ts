@@ -33,8 +33,9 @@ export function setup_user_compare(): void {
 		)
 	);
 
-	g.status_elem = create("div");
-	into(header, g.status_elem);
+	const status_elem = create("div");
+	into(header, status_elem);
+	SseEvent.StatusInfo.register((status) => intor(status_elem, status));
 
 	g.users_elem = create("div");
 	insert_compare_feature(g.users_elem);
@@ -155,9 +156,7 @@ export function update_user_compare_songtable(other_user?: string): void {
 	}
 }
 
-async function fetch_user(user_id: string): Promise<void> {
-	intor(g.status_elem, "Adding user to database...");
-
+async function fetch_user(user_id: string, force: boolean = false): Promise<void> {
 	let user = g.user_list[user_id];
 	if (!user) {
 		user = {
@@ -168,18 +167,26 @@ async function fetch_user(user_id: string): Promise<void> {
 	}
 
 	let page_max = undefined;
-	let user_name = undefined;
+	let user_name = user.name;
 	let updated = false;
+
+	SseEvent.StatusInfo.invoke(`Fetching user ${user_name}`);
+
+	if (get_use_new_ss_api()) {
+		const user_data = await scoresaber.get_user_info_basic(user_id);
+		user_name = user_data.playerInfo.name;
+	}
+
 	for (let page = 1; ; page++) {
-		intor(g.status_elem, `Updating page ${page}/${(page_max ?? "?")}`);
+		SseEvent.StatusInfo.invoke(`Updating user ${user_name} page ${page}/${(page_max ?? "?")}`);
 
 		const recent_songs = await scoresaber.get_user_recent_songs_dynamic(user_id, page);
 
-		const [has_old_entry, has_updated] = process_user_page(recent_songs.songs, user);
+		const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
 		updated = updated || has_updated;
 		page_max = recent_songs.meta.max_pages ?? page_max;
 		user_name = recent_songs.meta.user_name ?? user_name;
-		if (has_old_entry || recent_songs.meta.was_last_page) {
+		if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
 			break;
 		}
 	}
@@ -189,36 +196,44 @@ async function fetch_user(user_id: string): Promise<void> {
 	// const [, has_updated] = process_user_page(document, user);
 	// updated = updated || has_updated;
 
-	if (!user_name && get_use_new_ss_api()) {
-		const user_data = await scoresaber.get_user_info_basic(user_id);
-		user_name = user_data.playerInfo.name;
-	}
 	user.name = user_name ?? user.name;
 
 	if (updated) {
 		usercache.save();
 	}
 
-	intor(g.status_elem, "User updated");
-
+	SseEvent.StatusInfo.invoke(`User ${user_name} updated`);
 	SseEvent.UserCacheChanged.invoke();
 }
 
-function process_user_page(songs: scoresaber.ISongTuple[], user: IDbUser): [boolean, boolean] {
+export async function fetch_all(force: boolean = false): Promise<void> {
+	const users = Object.keys(g.user_list);
+	for (const user of users) {
+		await fetch_user(user, force);
+	}
+	SseEvent.StatusInfo.invoke(`All users updated`);
+}
+
+interface IProcessResult {
+	has_old_entry: boolean;
+	has_updated: boolean;
+}
+
+function process_user_page(songs: scoresaber.ISongTuple[], user: IDbUser): IProcessResult {
 	let has_old_entry = false;
 	let has_updated = false;
 
 	for (const [song_id, song] of songs) {
 		const song_old = user.songs[song_id];
-		if (song_old && song_old.time === song.time) {
+		if (!song_old || !song_equals(song_old, song)) {
+			logc("Updated: ", song_old, song);
+			has_updated = true;
+		} else {
 			logc("Old found: ", song);
 			has_old_entry = true;
-		} else {
-			logc("Updated: ", song_old, song);
-			has_updated = has_updated || !song_equals(song_old, song);
 		}
 		user.songs[song_id] = song;
 	}
 
-	return [has_old_entry, has_updated];
+	return { has_old_entry, has_updated };
 }

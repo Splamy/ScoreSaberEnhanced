@@ -4,6 +4,7 @@ import g from "../global";
 import { create } from "../util/dom";
 import { toggled_class } from "../util/format";
 import { oneclick_install } from "../util/song";
+
 export function generate_beatsaver(song_hash: string | undefined, size: BulmaSize): HTMLElement {
 	return create("div", {
 		class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
