@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.7.0
+// @version      1.7.1
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -778,27 +778,32 @@
 	        const other_song = other_data.songs[song_id];
 	        let other_score_content;
 	        if (other_song) {
-	            other_score_content = create("div", {}, create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp"), create("br"), (() => {
-	                let str;
-	                if (other_song.accuracy) {
-	                    str = `accuracy: ${format_en(other_song.accuracy)}%`;
-	                }
-	                else if (other_song.score) {
-	                    str = `score: ${format_en(other_song.score)}`;
-	                }
-	                else {
-	                    return "<No Data>";
-	                }
-	                if (other_song.mods) {
-	                    str += ` (${other_song.mods.join(",")})`;
-	                }
-	                return create("span", { class: "scoreBottom" }, str);
-	            })());
+	            other_score_content = [
+	                create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)),
+	                create("span", { class: "scoreTop ppLabel" }, "pp"),
+	                create("br"),
+	                (() => {
+	                    let str;
+	                    if (other_song.accuracy) {
+	                        str = `accuracy: ${format_en(other_song.accuracy)}%`;
+	                    }
+	                    else if (other_song.score) {
+	                        str = `score: ${format_en(other_song.score)}`;
+	                    }
+	                    else {
+	                        return "<No Data>";
+	                    }
+	                    if (other_song.mods) {
+	                        str += ` (${other_song.mods.join(",")})`;
+	                    }
+	                    return create("span", { class: "scoreBottom" }, str);
+	                })()
+	            ];
 	        }
 	        else {
-	            other_score_content = create("hr", {});
+	            other_score_content = [create("hr", {})];
 	        }
-	        check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_score_content));
+	        check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, ...other_score_content));
 	        if (!other_song) {
 	            logc("No match");
 	            continue;
@@ -1566,6 +1571,21 @@ h5 > * {
 .content li {
 	margin-top: 0;
 }
+
+/* Fix bulma+scoresable dark color */
+/* Theme CSS will be appended and can therefore
+ * conveniently overwrite those rules.
+ * This makes them effectively useful for the default
+ * Light/Dark Themes of ScoreSaber */
+
+.navbar-dropdown {
+	background-color: var(--background, white);
+	border-color: var(--foreground, #dbdbdb);
+}
+
+.box {
+	background-color: var(--background, white);
+}
 `;
 	    SSE_addStyle(style_data);
 	    into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
@@ -1689,7 +1709,10 @@ h5 > * {
 	    });
 	}
 	async function settings_set_theme(name) {
-	    const css = await fetch2(`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`);
+	    let css = "";
+	    if (name !== "Default") {
+	        css = await fetch2(`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`);
+	    }
 	    localStorage.setItem("theme_name", name);
 	    localStorage.setItem("theme_css", css);
 	    load_theme(name, css);
@@ -1721,10 +1744,7 @@ h5 > * {
 	    }
 	}
 	function get_scoresaber_darkmode() {
-	    const footer = document.querySelector("footer");
-	    if (!footer)
-	        return false;
-	    return footer.innerText.includes("light mode");
+	    return document.cookie.includes("dark=1");
 	}
 	function update_button_visibility() {
 	    if (!is_user_page()) {

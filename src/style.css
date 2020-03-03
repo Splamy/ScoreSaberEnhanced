@@ -97,3 +97,18 @@ h5 > * {
 .content li {
 	margin-top: 0;
 }
+
+/* Fix bulma+scoresable dark color */
+/* Theme CSS will be appended and can therefore
+ * conveniently overwrite those rules.
+ * This makes them effectively useful for the default
+ * Light/Dark Themes of ScoreSaber */
+
+.navbar-dropdown {
+	background-color: var(--background, white);
+	border-color: var(--foreground, #dbdbdb);
+}
+
+.box {
+	background-color: var(--background, white);
+}

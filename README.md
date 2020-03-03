@@ -49,9 +49,12 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.7.1
+ - Actually fixed colors for default dark theme (hopefully)
+
 1.7.0
- -  Added 'Update All' and 'Force Update All' for easier updating
-    (Especially since the recent pp rework this might be useful)
+ - Added 'Update All' and 'Force Update All' for easier updating
+   (Especially since the recent pp rework this might be useful)
 
 1.6.6
  - Fixed compatibility for GreaseMonkey (#10)

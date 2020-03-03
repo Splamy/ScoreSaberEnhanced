@@ -185,7 +185,10 @@ function show_settings_lazy() {
 }
 
 async function settings_set_theme(name: string): Promise<void> {
-	const css = await fetch2(`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`);
+	let css = "";
+	if (name !== "Default") {
+		css = await fetch2(`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`);
+	}
 	localStorage.setItem("theme_name", name);
 	localStorage.setItem("theme_css", css);
 	load_theme(name, css);
@@ -221,10 +224,7 @@ function load_theme(name: string, css: string): void {
 }
 
 function get_scoresaber_darkmode(): boolean {
-	const footer = document.querySelector("footer");
-	if (!footer)
-		return false;
-	return footer.innerText.includes("light mode");
+	return document.cookie.includes("dark=1");
 }
 
 export function update_button_visibility() {

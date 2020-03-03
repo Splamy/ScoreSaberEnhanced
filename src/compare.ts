@@ -4,7 +4,7 @@ import { IDbUser } from "./declarations/Types";
 import { get_compare_user, get_current_user, get_use_new_ss_api, get_user_header, insert_compare_feature, is_user_page, set_compare_user } from "./env";
 import g from "./global";
 import * as usercache from "./usercache";
-import { create, into, intor } from "./util/dom";
+import { create, into, IntoElem, intor } from "./util/dom";
 import { check } from "./util/err";
 import { format_en } from "./util/format";
 import { logc } from "./util/log";
@@ -104,9 +104,9 @@ export function update_user_compare_songtable(other_user?: string): void {
 		const other_song = other_data.songs[song_id];
 
 		// add score column
-		let other_score_content: string | HTMLElement;
+		let other_score_content: IntoElem[];
 		if (other_song) {
-			other_score_content = create("div", {},
+			other_score_content = [
 				create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)),
 				create("span", { class: "scoreTop ppLabel" }, "pp"),
 				create("br"),
@@ -125,11 +125,11 @@ export function update_user_compare_songtable(other_user?: string): void {
 					return create("span", { class: "scoreBottom" }, str);
 				})()
 				// create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
-			);
+			];
 		} else {
-			other_score_content = create("hr", {});
+			other_score_content = [ create("hr", {}) ];
 		}
-		check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_score_content));
+		check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, ...other_score_content));
 
 		if (!other_song) {
 			logc("No match");
