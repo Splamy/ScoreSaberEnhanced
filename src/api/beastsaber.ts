@@ -14,6 +14,14 @@ export async function get_data(song_key: string): Promise<IBeastSaberData | unde
 	} catch (e) { return undefined; }
 }
 
+export async function get_bookmarks(username: string, page: number, count: number): Promise<IBeastSaberBookmarks | undefined> {
+	try {
+		const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=`+username+`&page=`+page+`&count=`+count);
+		const data = JSON.parse(data_str);
+		return data;
+	} catch (e) { return undefined; }
+}
+
 export interface IBeastSaberData {
 	overall_rating: number;
 
@@ -25,4 +33,21 @@ export interface IBeastSaberData {
 		readability: number;
 		level_quality: number;
 	};
+}
+
+export interface IBeastSaberSongInfo {
+	title: string;
+	song_key: string;
+	hash: string;
+	level_author: string;
+}
+
+export interface IBeastSaberSongInfoArray {
+	[index: number]: IBeastSaberSongInfo;
+}
+
+
+export interface IBeastSaberBookmarks {
+	songs: IBeastSaberSongInfoArray;
+	next_page: number;
 }
