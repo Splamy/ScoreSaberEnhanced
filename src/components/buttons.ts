@@ -114,6 +114,39 @@ export function generate_preview(song_hash: string | undefined): HTMLElement {
 	);
 }
 
+export function generate_copy_bsr(song_hash: string | undefined): HTMLElement {
+	const txtDummyNode = create("input", {
+		style: {
+			position: "absolute",
+			top: "0px",
+			left: "-100000px",
+		}
+	});
+	return create("a", {
+		class: "button icon is-large",
+		style: {
+			cursor: song_hash === undefined ? "default" : "pointer",
+			padding: "0",
+		},
+		disabled: song_hash === undefined,
+		data: { tooltip: "Copy !bsr" },
+		onclick() {
+			checked_hash_to_song_info(this as any, song_hash)
+				.then(song_info => {
+					txtDummyNode.value = `!bsr ${song_info.key}`;
+					txtDummyNode.select();
+					txtDummyNode.setSelectionRange(0, 99999);
+					document.execCommand("copy");
+					ok_after_download(this as any);
+				})
+				.catch(() => failed_to_download(this as any));
+		},
+	},
+		txtDummyNode,
+		create("i", { class: "fas fa-exclamation" }),
+	);
+}
+
 async function checked_hash_to_song_info(ref: HTMLElement, song_hash: string | undefined): Promise<beatsaver.IBeatSaverData> {
 	reset_download_visual(ref);
 	if (!song_hash) { failed_to_download(ref); throw new Error("song_hash is undefined"); }

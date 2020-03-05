@@ -72,7 +72,8 @@ export function setup_dl_link_leaderboard(): void {
 			buttons.generate_beatsaver(song_hash, "large"),
 			buttons.generate_oneclick(song_hash, "large"),
 			buttons.generate_preview(song_hash),
-			buttons.generate_bsaber_bookmark(song_hash, "large")
+			buttons.generate_bsaber_bookmark(song_hash, "large"),
+			buttons.generate_copy_bsr(song_hash),
 		));
 
 	const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };

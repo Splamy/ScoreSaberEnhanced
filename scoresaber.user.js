@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.8.0
+// @version      1.8.1
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -274,10 +274,10 @@
 	    const MINUTES_IN_HOUR = 60;
 	    let str = "";
 	    let mod = (num % SECONDS_IN_MINUTE);
-	    str = mod.toFixed(0) + str;
+	    str = mod.toFixed(0).padStart(2, "0") + str;
 	    num = (num - mod) / SECONDS_IN_MINUTE;
 	    mod = (num % MINUTES_IN_HOUR);
-	    str = mod.toFixed(0) + ":" + str;
+	    str = mod.toFixed(0).padStart(2, "0") + ":" + str;
 	    num = (num - mod) / MINUTES_IN_HOUR;
 	    return str;
 	}
@@ -1127,6 +1127,35 @@
 	        },
 	    }, create("i", { class: "fas fa-glasses" }));
 	}
+	function generate_copy_bsr(song_hash) {
+	    const txtDummyNode = create("input", {
+	        style: {
+	            position: "absolute",
+	            top: "0px",
+	            left: "-100000px",
+	        }
+	    });
+	    return create("a", {
+	        class: "button icon is-large",
+	        style: {
+	            cursor: song_hash === undefined ? "default" : "pointer",
+	            padding: "0",
+	        },
+	        disabled: song_hash === undefined,
+	        data: { tooltip: "Copy !bsr" },
+	        onclick() {
+	            checked_hash_to_song_info(this, song_hash)
+	                .then(song_info => {
+	                txtDummyNode.value = `!bsr ${song_info.key}`;
+	                txtDummyNode.select();
+	                txtDummyNode.setSelectionRange(0, 99999);
+	                document.execCommand("copy");
+	                ok_after_download(this);
+	            })
+	                .catch(() => failed_to_download(this));
+	        },
+	    }, txtDummyNode, create("i", { class: "fas fa-exclamation" }));
+	}
 	async function checked_hash_to_song_info(ref, song_hash) {
 	    reset_download_visual(ref);
 	    if (!song_hash) {
@@ -1208,7 +1237,7 @@
 	        style: {
 	            marginTop: "1em"
 	        }
-	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash), generate_bsaber_bookmark(song_hash, "large")));
+	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash), generate_bsaber_bookmark(song_hash, "large"), generate_copy_bsr(song_hash)));
 	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
 	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
 	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));

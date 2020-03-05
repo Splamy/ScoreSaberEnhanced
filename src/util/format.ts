@@ -17,11 +17,11 @@ export function number_to_timespan(num: number): string {
 	let str = "";
 
 	let mod = (num % SECONDS_IN_MINUTE);
-	str = mod.toFixed(0) + str;
+	str = mod.toFixed(0).padStart(2, "0") + str;
 	num = (num - mod) / SECONDS_IN_MINUTE;
 
 	mod = (num % MINUTES_IN_HOUR);
-	str = mod.toFixed(0) + ":" + str;
+	str = mod.toFixed(0).padStart(2, "0") + ":" + str;
 	num = (num - mod) / MINUTES_IN_HOUR;
 
 	// optional hours

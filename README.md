@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.1
+ - Added !bsr button
+
 1.8.0
  - Added BeastSaber bookmarks loading ([#12](https://github.com/Splamy/ScoreSaberEnhanced/pull/12) Thanks [@sre](https://github.com/sre) for this PR)
  - Improved options modal
