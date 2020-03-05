@@ -16,7 +16,7 @@ export async function get_data(song_key: string): Promise<IBeastSaberData | unde
 
 export async function get_bookmarks(username: string, page: number, count: number): Promise<IBeastSaberBookmarks | undefined> {
 	try {
-		const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=`+username+`&page=`+page+`&count=`+count);
+		const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
 		const data = JSON.parse(data_str);
 		return data;
 	} catch (e) { return undefined; }
@@ -42,12 +42,7 @@ export interface IBeastSaberSongInfo {
 	level_author: string;
 }
 
-export interface IBeastSaberSongInfoArray {
-	[index: number]: IBeastSaberSongInfo;
-}
-
-
 export interface IBeastSaberBookmarks {
-	songs: IBeastSaberSongInfoArray;
+	songs: IBeastSaberSongInfo[];
 	next_page: number;
 }

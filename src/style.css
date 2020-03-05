@@ -104,11 +104,13 @@ h5 > * {
  * This makes them effectively useful for the default
  * Light/Dark Themes of ScoreSaber */
 
-.navbar-dropdown {
+.navbar-dropdown, .modal-card-head, .modal-card-foot {
+	color: var(--textColor, black);
 	background-color: var(--background, white);
 	border-color: var(--foreground, #dbdbdb);
 }
 
-.box {
+.box, .modal-card-body {
+	color: var(--textColor, black);
 	background-color: var(--background, white);
 }

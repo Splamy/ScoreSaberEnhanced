@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.7.1
+// @version      1.8.0
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -232,6 +232,30 @@
 	}
 	function get_use_new_ss_api() {
 	    return (localStorage.getItem("use_new_api") || "true") === "true";
+	}
+	function set_bsaber_username(value) {
+	    localStorage.setItem("bsaber_username", value);
+	}
+	function get_bsaber_username() {
+	    return (localStorage.getItem("bsaber_username") || undefined);
+	}
+	function get_bsaber_bookmarks() {
+	    const data = localStorage.getItem("bsaber_bookmarks");
+	    if (!data || data.length === 0)
+	        return [];
+	    return JSON.parse(data);
+	}
+	function add_bsaber_bookmark(song_hash) {
+	    const bookmarks = get_bsaber_bookmarks();
+	    bookmarks.push(song_hash);
+	    localStorage.setItem("bsaber_bookmarks", JSON.stringify(bookmarks));
+	}
+	function check_bsaber_bookmark(song_hash) {
+	    const bookmarks = get_bsaber_bookmarks();
+	    return bookmarks.includes(song_hash.toLowerCase());
+	}
+	function get_show_bb_link() {
+	    return (get_bsaber_bookmarks() !== [] && !!get_bsaber_username());
 	}
 
 	function format_en(num, digits) {
@@ -557,27 +581,41 @@
 	    }
 	    show() {
 	        this.elem.classList.add("is-active");
+	        document.documentElement.classList.add("is-clipped");
 	    }
 	    close(answer) {
 	        this.elem.classList.remove("is-active");
+	        if (!document.querySelector(".modal.is-active"))
+	            document.documentElement.classList.remove("is-clipped");
 	        if (this.after_close)
-	            this.after_close(answer !== null && answer !== void 0 ? answer : "");
+	            this.after_close(answer !== null && answer !== void 0 ? answer : "x");
 	    }
 	    dispose() {
 	        document.body.removeChild(this.elem);
 	    }
 	}
 	function create_modal(opt) {
-	    var _a;
+	    var _a, _b, _c, _d;
 	    const base_div = create("div", { class: "modal" });
 	    const modal = new Modal(base_div);
 	    const buttons = create("div", { class: "buttons" });
+	    let inner;
+	    switch ((_a = opt.type) !== null && _a !== void 0 ? _a : "content") {
+	        case "content":
+	            inner = create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), buttons));
+	            break;
+	        case "card":
+	            inner = create("div", { class: "modal-card" }, create("header", { class: "modal-card-head" }, (_b = opt.title) !== null && _b !== void 0 ? _b : ""), create("header", { class: "modal-card-body" }, opt.text), create("header", { class: "modal-card-foot" }, (_c = opt.footer) !== null && _c !== void 0 ? _c : buttons));
+	            break;
+	        default:
+	            throw new Error("invalid type");
+	    }
 	    into(base_div, create("div", {
 	        class: "modal-background",
 	        onclick() {
 	            modal.close("x");
 	        }
-	    }), create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), buttons)), create("button", {
+	    }), inner, create("button", {
 	        class: "modal-close is-large",
 	        onclick() {
 	            modal.close("x");
@@ -587,7 +625,7 @@
 	        for (const btn_name of Object.keys(opt.buttons)) {
 	            const btn_data = opt.buttons[btn_name];
 	            into(buttons, create("button", {
-	                class: ["button", (_a = btn_data.class) !== null && _a !== void 0 ? _a : ""],
+	                class: ["button", (_d = btn_data.class) !== null && _d !== void 0 ? _d : ""],
 	                onclick() {
 	                    modal.close(btn_name);
 	                }
@@ -609,6 +647,9 @@
 	        };
 	    });
 	}
+	const buttons = {
+	    OkOnly: { x: { text: "Ok", class: "is-primary" } },
+	};
 
 	function get_song_compare_value(song_a, song_b) {
 	    if (song_a.pp > 0 && song_b.pp) {
@@ -726,7 +767,7 @@
 	    }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] })));
 	    const status_elem = create("div");
 	    into(header, status_elem);
-	    SseEvent.StatusInfo.register((status) => intor(status_elem, status));
+	    SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
 	    Global.users_elem = create("div");
 	    insert_compare_feature(Global.users_elem);
 	    update_user_compare_dropdown();
@@ -839,13 +880,13 @@
 	    let page_max = undefined;
 	    let user_name = user.name;
 	    let updated = false;
-	    SseEvent.StatusInfo.invoke(`Fetching user ${user_name}`);
+	    SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
 	    if (get_use_new_ss_api()) {
 	        const user_data = await get_user_info_basic(user_id);
 	        user_name = user_data.playerInfo.name;
 	    }
 	    for (let page = 1;; page++) {
-	        SseEvent.StatusInfo.invoke(`Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}`);
+	        SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
 	        const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
 	        const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
 	        updated = updated || has_updated;
@@ -859,7 +900,7 @@
 	    if (updated) {
 	        save();
 	    }
-	    SseEvent.StatusInfo.invoke(`User ${user_name} updated`);
+	    SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
 	    SseEvent.UserCacheChanged.invoke();
 	}
 	async function fetch_all(force = false) {
@@ -867,7 +908,7 @@
 	    for (const user of users) {
 	        await fetch_user(user, force);
 	    }
-	    SseEvent.StatusInfo.invoke(`All users updated`);
+	    SseEvent.StatusInfo.invoke({ text: `All users updated` });
 	}
 	function process_user_page(songs, user) {
 	    let has_old_entry = false;
@@ -982,6 +1023,16 @@
 	        return undefined;
 	    }
 	}
+	async function get_bookmarks(username, page, count) {
+	    try {
+	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
+	        const data = JSON.parse(data_str);
+	        return data;
+	    }
+	    catch (e) {
+	        return undefined;
+	    }
+	}
 
 	function generate_beatsaver(song_hash, size) {
 	    return create("div", {
@@ -1040,6 +1091,25 @@
 	            borderRadius: "inherit",
 	        }
 	    }));
+	}
+	function generate_bsaber_bookmark(song_hash, size) {
+	    const bookmarked = song_hash === undefined ? false : check_bsaber_bookmark(song_hash);
+	    const color = bookmarked ? "is-success" : "is-danger";
+	    const tooltip = bookmarked ? "Bookmarked on BeastSaber" : "Not Bookmarked on BeastSaber";
+	    return create("div", {
+	        class: `button icon is-${size} ${color} ${toggled_class(size !== "large", "has-tooltip-left")}`,
+	        style: {
+	            cursor: song_hash === undefined ? "default" : "pointer",
+	            padding: "0",
+	        },
+	        disabled: song_hash === undefined,
+	        data: { tooltip: tooltip },
+	        onclick() {
+	            checked_hash_to_song_info(this, song_hash)
+	                .then(song_info => new_page(Global.bsaber_songs_link + song_info.key))
+	                .catch(() => failed_to_download(this));
+	        },
+	    }, create("i", { class: `fas fa-thumbtack` }));
 	}
 	function generate_preview(song_hash) {
 	    return create("div", {
@@ -1138,7 +1208,7 @@
 	        style: {
 	            marginTop: "1em"
 	        }
-	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash)));
+	    }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash), generate_bsaber_bookmark(song_hash, "large")));
 	    const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
 	    const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
 	    const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
@@ -1211,12 +1281,14 @@
 	    const table_tr = check(table.querySelector("thead tr"));
 	    into(table_tr, create("th", { class: "compact bs_link" }, "BS"));
 	    into(table_tr, create("th", { class: "compact oc_link" }, "OC"));
+	    into(table_tr, create("th", { class: "compact bb_link" }, "BB"));
 	    const table_row = table.querySelectorAll("tbody tr");
 	    for (const row of table_row) {
 	        const image_link = check(row.querySelector("th.song img")).src;
 	        const song_hash = get_song_hash_from_text(image_link);
 	        into(row, create("th", { class: "compact bs_link" }, generate_beatsaver(song_hash, "medium")));
 	        into(row, create("th", { class: "compact oc_link" }, generate_oneclick(song_hash, "medium")));
+	        into(row, create("th", { class: "compact bb_link" }, generate_bsaber_bookmark(song_hash, "medium")));
 	    }
 	}
 	function setup_wide_table_checkbox() {
@@ -1578,12 +1650,14 @@ h5 > * {
  * This makes them effectively useful for the default
  * Light/Dark Themes of ScoreSaber */
 
-.navbar-dropdown {
+.navbar-dropdown, .modal-card-head, .modal-card-foot {
+	color: var(--textColor, black);
 	background-color: var(--background, white);
 	border-color: var(--foreground, #dbdbdb);
 }
 
-.box {
+.box, .modal-card-body {
+	color: var(--textColor, black);
 	background-color: var(--background, white);
 }
 `;
@@ -1625,17 +1699,14 @@ h5 > * {
 	    });
 	}
 	function show_settings_lazy() {
-	    var _a;
+	    var _a, _b;
 	    if (settings_modal) {
 	        settings_modal.show();
 	        return;
 	    }
 	    const current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0 ? _a : "Default";
-	    const status_box = create("div", {
-	        class: "notification is-info",
-	        style: { display: "none" }
-	    });
-	    SseEvent.StatusInfo.register((status) => intor(status_box, status));
+	    const status_box = create("div", {});
+	    SseEvent.StatusInfo.register((status) => intor(status_box, status.text));
 	    const set_div = create("div", {}, check(notify_box), create("div", { class: "field" }, create("label", { class: "label" }, "Theme"), create("div", { class: "control" }, create("div", { class: "select" }, create("select", {
 	        onchange() {
 	            settings_set_theme(this.value);
@@ -1678,9 +1749,7 @@ h5 > * {
 	    }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api")), create("div", { class: "field" }, create("label", { class: "label" }, "Tools")), create("div", { class: "field" }, create("div", { class: "buttons" }, create("button", {
 	        class: "button",
 	        async onclick() {
-	            status_box.style.display = "block";
 	            await fetch_all();
-	            status_box.style.display = "none";
 	        }
 	    }, "Update All User"), create("button", {
 	        class: "button is-danger",
@@ -1697,14 +1766,36 @@ h5 > * {
 	                }
 	            });
 	            if (resp === "ok") {
-	                status_box.style.display = "block";
 	                await fetch_all(true);
 	            }
-	            status_box.style.display = "none";
 	        }
-	    }, "Force Update All User")), status_box));
+	    }, "Force Update All User"))), create("div", { class: "field" }, create("label", { class: "label" }, "Beastsaber Bookmarks")), create("div", { class: "field has-addons" }, create("div", { class: "control has-icons-left" }, create("input", {
+	        id: "bsaber_username",
+	        type: "text",
+	        class: "input",
+	        placeholder: "username",
+	        value: (_b = get_bsaber_username()) !== null && _b !== void 0 ? _b : "",
+	        onchange() {
+	            set_bsaber_username(this.value);
+	            update_button_visibility();
+	        }
+	    }), create("span", { class: "icon is-small is-left" }, create("i", { class: "fas fa-user fa-xs" }))), create("div", { class: "control" }, create("button", {
+	        class: "button bsaber_update_bookmarks",
+	        data: { tooltip: "Load Bookmarks" },
+	        async onclick() {
+	            const bsaber_username = get_bsaber_username();
+	            if (!bsaber_username) {
+	                await show_modal({ text: "Please enter a username first.", buttons: buttons.OkOnly });
+	                return;
+	            }
+	            await update_bsaber_bookmark_cache(this, bsaber_username);
+	        },
+	    }, create("i", { class: "fas fa-sync" })))), create("br"));
 	    settings_modal = create_modal({
+	        title: "Options",
 	        text: set_div,
+	        footer: status_box,
+	        type: "card",
 	        default: true,
 	    });
 	}
@@ -1746,13 +1837,42 @@ h5 > * {
 	function get_scoresaber_darkmode() {
 	    return document.cookie.includes("dark=1");
 	}
+	async function update_bsaber_bookmark_cache(button, username) {
+	    button.firstChild.classList.add("fa-spin");
+	    for (let page = 1;; page++) {
+	        SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
+	        const bookmarks = await get_bookmarks(username, page, 50);
+	        if (!bookmarks)
+	            break;
+	        process_bookmarks(bookmarks.songs);
+	        if (bookmarks.next_page === null) {
+	            break;
+	        }
+	    }
+	    SseEvent.StatusInfo.invoke({ text: "Finished loading BeastSaber bookmarks" });
+	    button.firstChild.classList.remove("fa-spin");
+	}
+	function process_bookmarks(songs) {
+	    for (const song of songs) {
+	        if (!song.hash) {
+	            continue;
+	        }
+	        if (!check_bsaber_bookmark(song.hash)) {
+	            add_bsaber_bookmark(song.hash);
+	        }
+	    }
+	}
 	function update_button_visibility() {
 	    if (!is_user_page()) {
 	        return;
 	    }
 	    const table = check(document.querySelector("table.ranking.songs"));
-	    table.querySelectorAll("th.bs_link").forEach(bs_link => bs_link.style.display = get_show_bs_link() ? "" : "none");
-	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = get_show_oc_link() ? "" : "none");
+	    const bs_view = get_show_bs_link() ? "" : "none";
+	    table.querySelectorAll("th.bs_link").forEach(bs_link => bs_link.style.display = bs_view);
+	    const oc_view = get_show_oc_link() ? "" : "none";
+	    table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = oc_view);
+	    const bb_view = get_show_bb_link() ? "" : "none";
+	    table.querySelectorAll("th.bb_link").forEach(bb_link => bb_link.style.display = bb_view);
 	}
 
 	async function check_for_updates() {

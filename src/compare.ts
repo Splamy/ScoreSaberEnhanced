@@ -35,7 +35,7 @@ export function setup_user_compare(): void {
 
 	const status_elem = create("div");
 	into(header, status_elem);
-	SseEvent.StatusInfo.register((status) => intor(status_elem, status));
+	SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
 
 	g.users_elem = create("div");
 	insert_compare_feature(g.users_elem);
@@ -127,7 +127,7 @@ export function update_user_compare_songtable(other_user?: string): void {
 				// create("span", { class: "songBottom time" }, other_song.time) // TODO: Date formatting
 			];
 		} else {
-			other_score_content = [ create("hr", {}) ];
+			other_score_content = [create("hr", {})];
 		}
 		check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, ...other_score_content));
 
@@ -170,7 +170,7 @@ async function fetch_user(user_id: string, force: boolean = false): Promise<void
 	let user_name = user.name;
 	let updated = false;
 
-	SseEvent.StatusInfo.invoke(`Fetching user ${user_name}`);
+	SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
 
 	if (get_use_new_ss_api()) {
 		const user_data = await scoresaber.get_user_info_basic(user_id);
@@ -178,7 +178,7 @@ async function fetch_user(user_id: string, force: boolean = false): Promise<void
 	}
 
 	for (let page = 1; ; page++) {
-		SseEvent.StatusInfo.invoke(`Updating user ${user_name} page ${page}/${(page_max ?? "?")}`);
+		SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max ?? "?")}` });
 
 		const recent_songs = await scoresaber.get_user_recent_songs_dynamic(user_id, page);
 
@@ -202,7 +202,7 @@ async function fetch_user(user_id: string, force: boolean = false): Promise<void
 		usercache.save();
 	}
 
-	SseEvent.StatusInfo.invoke(`User ${user_name} updated`);
+	SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
 	SseEvent.UserCacheChanged.invoke();
 }
 
@@ -211,7 +211,7 @@ export async function fetch_all(force: boolean = false): Promise<void> {
 	for (const user of users) {
 		await fetch_user(user, force);
 	}
-	SseEvent.StatusInfo.invoke(`All users updated`);
+	SseEvent.StatusInfo.invoke({ text: `All users updated` });
 }
 
 interface IProcessResult {

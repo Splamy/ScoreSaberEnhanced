@@ -1,3 +1,4 @@
+import * as beastsaber from "./api/beastsaber";
 import * as compare from "./compare";
 import SseEvent from "./components/events";
 import * as modal from "./components/modal";
@@ -8,10 +9,9 @@ import { clear_children, create, into, intor } from "./util/dom";
 import { check } from "./util/err";
 import { fetch2 } from "./util/net";
 import { SSE_addStyle } from "./util/userscript";
-import * as beastsaber from "./api/beastsaber";
 
 let notify_box: HTMLElement | undefined;
-let settings_modal: modal.Modal | undefined;
+let settings_modal: modal.Modal<any> | undefined;
 
 export function setup(): void {
 	notify_box = create("div", { class: "field" });
@@ -57,11 +57,8 @@ function show_settings_lazy() {
 
 	const current_theme = localStorage.getItem("theme_name") ?? "Default";
 
-	const status_box = create("div", {
-		class: "notification is-info",
-		style: { display: "none" }
-	});
-	SseEvent.StatusInfo.register((status) => intor(status_box, status));
+	const status_box = create("div", {});
+	SseEvent.StatusInfo.register((status) => intor(status_box, status.text));
 
 	const set_div = create("div", {},
 		check(notify_box),
@@ -147,9 +144,7 @@ function show_settings_lazy() {
 				create("button", {
 					class: "button",
 					async onclick() {
-						status_box.style.display = "block";
 						await compare.fetch_all();
-						status_box.style.display = "none";
 					}
 				}, "Update All User"),
 				create("button", {
@@ -168,14 +163,11 @@ function show_settings_lazy() {
 							}
 						});
 						if (resp === "ok") {
-							status_box.style.display = "block";
 							await compare.fetch_all(true);
 						}
-						status_box.style.display = "none";
 					}
 				}, "Force Update All User"),
 			),
-			status_box,
 		),
 		create("div", { class: "field" },
 			create("label", { class: "label" }, "Beastsaber Bookmarks"),
@@ -187,33 +179,42 @@ function show_settings_lazy() {
 					type: "text",
 					class: "input",
 					placeholder: "username",
-					value: env.get_bsaber_username(),
+					value: env.get_bsaber_username() ?? "",
 					onchange() {
 						env.set_bsaber_username((this as HTMLInputElement).value);
+						update_button_visibility();
 					}
 				}),
-				create("span", {class: "icon is-small is-left"},
-					create("i", {class: "fas fa-user fa-xs"})
+				create("span", { class: "icon is-small is-left" },
+					create("i", { class: "fas fa-user fa-xs" })
 				),
 			),
 			create("div", { class: "control" },
-				create("div",
+				create("button",
 					{
 						class: "button bsaber_update_bookmarks",
 						data: { tooltip: "Load Bookmarks" },
 						async onclick() {
-							await update_bsaber_bookmark_cache(this as any, env.get_bsaber_username())
+							const bsaber_username = env.get_bsaber_username();
+							if (!bsaber_username) {
+								await modal.show_modal({ text: "Please enter a username first.", buttons: modal.buttons.OkOnly });
+								return;
+							}
+							await update_bsaber_bookmark_cache(this as any, bsaber_username);
 						},
 					},
-					create("i", {class: "fas fa-sync"}),
+					create("i", { class: "fas fa-sync" }),
 				),
 			),
 		),
-		create("p", {class: "help bookmark-sync-status"}, "Update BeastSaber bookmark cache"),
+		create("br"),
 	);
 
 	settings_modal = modal.create_modal({
+		title: "Options",
 		text: set_div,
+		footer: status_box,
+		type: "card",
 		default: true,
 	});
 }
@@ -263,22 +264,23 @@ function get_scoresaber_darkmode(): boolean {
 
 async function update_bsaber_bookmark_cache(button: any, username: string): Promise<void> {
 	button.firstChild.classList.add("fa-spin");
-	let statustext = button.parentElement.parentElement.nextSibling;
 
 	for (let page = 1; ; page++) {
-		statustext.innerText = "Loading page " + page;
+		SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
 		const bookmarks = await beastsaber.get_bookmarks(username, page, 50);
+		if (!bookmarks)
+			break;
 		process_bookmarks(bookmarks.songs);
 		if (bookmarks.next_page === null) {
 			break;
 		}
 	}
 
-	statustext.innerText = "Finished loading bookmarks";
+	SseEvent.StatusInfo.invoke({ text: "Finished loading BeastSaber bookmarks" });
 	button.firstChild.classList.remove("fa-spin");
 }
 
-function process_bookmarks(songs: beastsaber.IBeastSaberSongInfoArray): void {
+function process_bookmarks(songs: beastsaber.IBeastSaberSongInfo[]): void {
 	for (const song of songs) {
 		if (!song.hash) {
 			continue;
@@ -294,12 +296,12 @@ export function update_button_visibility() {
 
 	const table = check(document.querySelector("table.ranking.songs"));
 
-	table.querySelectorAll("th.bs_link").forEach(bs_link =>
-		bs_link.style.display = env.get_show_bs_link() ? "" : "none");
+	const bs_view = env.get_show_bs_link() ? "" : "none";
+	table.querySelectorAll("th.bs_link").forEach(bs_link => bs_link.style.display = bs_view);
 
-	table.querySelectorAll("th.oc_link").forEach(oc_link =>
-		oc_link.style.display = env.get_show_oc_link() ? "" : "none");
+	const oc_view = env.get_show_oc_link() ? "" : "none";
+	table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = oc_view);
 
-	table.querySelectorAll("th.bb_link").forEach(bb_link =>
-		bb_link.style.display = env.get_show_bb_link() ? "" : "none");
+	const bb_view = env.get_show_bb_link() ? "" : "none";
+	table.querySelectorAll("th.bb_link").forEach(bb_link => bb_link.style.display = bb_view);
 }

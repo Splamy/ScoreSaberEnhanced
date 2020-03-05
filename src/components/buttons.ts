@@ -1,10 +1,10 @@
 import * as beatsaver from "../api/beatsaver";
 import { BulmaSize } from "../declarations/Types";
+import * as env from "../env";
 import g from "../global";
 import { create } from "../util/dom";
 import { toggled_class } from "../util/format";
 import { oneclick_install } from "../util/song";
-import * as env from "../env";
 
 export function generate_beatsaver(song_hash: string | undefined, size: BulmaSize): HTMLElement {
 	return create("div", {
@@ -74,7 +74,7 @@ export function generate_bsaber(song_hash: string | undefined): HTMLElement {
 }
 
 export function generate_bsaber_bookmark(song_hash: string | undefined, size: BulmaSize): HTMLElement {
-	const bookmarked = env.check_bsaber_bookmark(song_hash);
+	const bookmarked = song_hash === undefined ? false : env.check_bsaber_bookmark(song_hash);
 	const color = bookmarked ? "is-success" : "is-danger";
 	const tooltip = bookmarked ? "Bookmarked on BeastSaber" : "Not Bookmarked on BeastSaber";
 	return create("div", {

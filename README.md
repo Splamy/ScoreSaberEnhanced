@@ -49,6 +49,10 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.0
+ - Added BeastSaber bookmarks loading (#12 Thanks @sre for this PR)
+ - Improved options modal
+
 1.7.1
  - Actually fixed colors for default dark theme (hopefully)
 

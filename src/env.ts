@@ -149,20 +149,22 @@ export function get_bsaber_username(): string | undefined {
 	return (localStorage.getItem("bsaber_username") || undefined);
 }
 
-function get_bsaber_bookmarks(): any {
-	return JSON.parse(localStorage.getItem("bsaber_bookmarks")) || [];
+function get_bsaber_bookmarks(): string[] {
+	const data = localStorage.getItem("bsaber_bookmarks");
+	if (!data || data.length === 0) return [];
+	return JSON.parse(data);
 }
 
 export function add_bsaber_bookmark(song_hash: string): void {
-	let bookmarks = get_bsaber_bookmarks();
+	const bookmarks = get_bsaber_bookmarks();
 	bookmarks.push(song_hash);
 	localStorage.setItem("bsaber_bookmarks", JSON.stringify(bookmarks));
 }
-export function check_bsaber_bookmark(song_hash: string): bool {
+export function check_bsaber_bookmark(song_hash: string): boolean {
 	const bookmarks = get_bsaber_bookmarks();
 	return bookmarks.includes(song_hash.toLowerCase());
 }
 
-export function get_show_bb_link(): bool {
-	return (get_bsaber_bookmarks() != [] && get_bsaber_username());
+export function get_show_bb_link(): boolean {
+	return (get_bsaber_bookmarks() !== [] && !!get_bsaber_username());
 }

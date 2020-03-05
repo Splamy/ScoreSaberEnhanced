@@ -1,35 +1,72 @@
-import { create, into } from "../util/dom";
+import { create, into, IntoElem } from "../util/dom";
 
-interface IModalOptions {
-	text: string | HTMLElement;
-	buttons?: { [name: string]: { text: string, class?: string } };
+interface IModalOptions<T extends string> {
+	title?: IntoElem;
+	text: IntoElem;
+	footer?: IntoElem;
+	type?: "content" | "card";
+	buttons?: IModalButtonGroup<T>;
 	default?: boolean;
 }
 
-export class Modal {
-	public after_close?: (answer: string) => any;
+type IModalButtonGroup<T extends string> = { [K in T]: IModalButton; };
+type Answer<T extends string> = T | "x";
+
+interface IModalButton {
+	text: string;
+	class?: string;
+}
+
+export class Modal<T extends string> {
+	public after_close?: (answer: Answer<T>) => any;
 	private elem: HTMLElement;
 	constructor(elem: HTMLElement) {
 		this.elem = elem;
 	}
 	public show(): void {
 		this.elem.classList.add("is-active");
+		document.documentElement.classList.add("is-clipped");
 	}
-	public close(answer?: string): void {
+	public close(answer?: Answer<T>): void {
 		this.elem.classList.remove("is-active");
+		if (!document.querySelector(".modal.is-active"))
+			document.documentElement.classList.remove("is-clipped");
 		if (this.after_close)
-			this.after_close(answer ?? "");
+			this.after_close(answer ?? "x");
 	}
 	public dispose(): void {
 		document.body.removeChild(this.elem);
 	}
 }
 
-export function create_modal(opt: IModalOptions): Modal {
+export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> {
 	const base_div = create("div", { class: "modal" });
-	const modal = new Modal(base_div);
+	const modal = new Modal<T>(base_div);
 
 	const buttons = create("div", { class: "buttons" });
+
+	let inner;
+	switch (opt.type ?? "content") {
+		case "content":
+			inner = create("div", { class: "modal-content" },
+				create("div", { class: "box" },
+					opt.text,
+					create("br"),
+					buttons,
+				),
+			);
+			break;
+		case "card":
+			inner = create("div", { class: "modal-card" },
+				create("header", { class: "modal-card-head" }, opt.title ?? ""),
+				create("header", { class: "modal-card-body" }, opt.text),
+				create("header", { class: "modal-card-foot" }, opt.footer ?? buttons),
+			);
+			break;
+		default:
+			throw new Error("invalid type");
+	}
+
 	into(base_div,
 		create("div", {
 			class: "modal-background",
@@ -37,13 +74,7 @@ export function create_modal(opt: IModalOptions): Modal {
 				modal.close("x");
 			}
 		}),
-		create("div", { class: "modal-content" },
-			create("div", { class: "box" },
-				opt.text,
-				create("br"),
-				buttons,
-			),
-		),
+		inner,
 		create("button", {
 			class: "modal-close is-large",
 			/*aria-label="close"*/
@@ -54,7 +85,7 @@ export function create_modal(opt: IModalOptions): Modal {
 	);
 
 	if (opt.buttons) {
-		for (const btn_name of Object.keys(opt.buttons)) {
+		for (const btn_name of Object.keys(opt.buttons) as T[]) {
 			const btn_data = opt.buttons[btn_name];
 			into(buttons, create("button", {
 				class: ["button", btn_data.class ?? ""],
@@ -71,7 +102,7 @@ export function create_modal(opt: IModalOptions): Modal {
 	return modal;
 }
 
-export function show_modal(opt: IModalOptions): Promise<string> {
+export function show_modal<T extends string>(opt: IModalOptions<T>): Promise<Answer<T>> {
 	return new Promise((resolve, reject) => {
 		opt.default = true;
 		const modal = create_modal(opt);
@@ -80,5 +111,8 @@ export function show_modal(opt: IModalOptions): Promise<string> {
 			resolve(answer);
 		};
 	});
-
 }
+
+export const buttons = {
+	OkOnly: { x: { text: "Ok", class: "is-primary" } },
+};

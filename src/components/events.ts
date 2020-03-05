@@ -31,7 +31,7 @@ export default class SseEvent {
 	public static readonly CompareUserChanged = new SseEventHandler("CompareUserChanged");
 	public static readonly PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
 	public static readonly UserNotification = new SseEventHandler("UserNotification");
-	public static readonly StatusInfo = new SseEventHandler<string>("StatusInfo");
+	public static readonly StatusInfo = new SseEventHandler<{ text: string }>("StatusInfo");
 
 	public static addNotification(notify: IUserNotification): void {
 		this.notificationList.push(notify);
