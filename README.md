@@ -50,21 +50,21 @@ The generated output file is always `scoresaber.user.js`.
 # Changelog
 
 1.8.0
- - Added BeastSaber bookmarks loading (#12 Thanks @sre for this PR)
+ - Added BeastSaber bookmarks loading ([#12](https://github.com/Splamy/ScoreSaberEnhanced/pull/12) Thanks [@sre](https://github.com/sre) for this PR)
  - Improved options modal
 
 1.7.1
  - Actually fixed colors for default dark theme (hopefully)
 
 1.7.0
- - Added 'Update All' and 'Force Update All' for easier updating
+ - Added 'Update All' and 'Force Update All' for easier updating ([#11](https://github.com/Splamy/ScoreSaberEnhanced/issues/11))  
    (Especially since the recent pp rework this might be useful)
 
 1.6.6
- - Fixed compatibility for GreaseMonkey (#10)
+ - Fixed compatibility for GreaseMonkey ([#10](https://github.com/Splamy/ScoreSaberEnhanced/issues/10))
 
 1.6.5
- - Fixed typo (#9)
+ - Fixed typo ([#9](https://github.com/Splamy/ScoreSaberEnhanced/issues/9))
 
 1.6.4
  - Fixed wrong accuracy calculation with new ss api
