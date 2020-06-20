@@ -26,9 +26,9 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 			was_last_page: recent_songs.scores.length < 8
 		},
 		songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-			time: s.timeset,
+			time: s.timeSet,
 			pp: s.pp,
-			accuracy: s.maxScoreEx !== 0 ? round2((s.uScore / s.maxScoreEx) * 100) : undefined,
+			accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
 			score: s.score !== 0 ? s.score : undefined,
 			mods: s.mods ? s.mods.split(/,/g) : undefined
 		}])
@@ -60,7 +60,7 @@ export async function get_user_info_full(user_id: string): Promise<IScoresaberUs
 }
 
 function sanitize_player_ids<T extends IScoresaberUserBasic | IScoresaberUserFull>(data: T): T {
-	data.playerInfo.playerid = String(data.playerInfo.playerid);
+	data.playerInfo.playerId = String(data.playerInfo.playerId);
 	return data;
 }
 
@@ -184,24 +184,28 @@ interface IScoresaberSong {
 	leaderboardId: string; // SANITIZED
 	/** Final score (After applying all song modifier factors) */
 	score: number;
-	/** Unmultiplied score (Raw score before applying song modifier factors) */
-	uScore: number;
+	/**
+	 * unmodified score (Raw score before applying song modifier factors)
+	 * TODO: Will probably break again due to typo?
+	 */
+	unmodififiedScore: number;
 	mods: string; // comma separated number list
 	playerId: string; // SANITIZED
 	/** Time of score set. Format in ISO-8601 */
-	timeset: string;
+	timeSet: string;
 	pp: number;
 	/** Score weighting factor (Depends on the position in the top songs list of the user) */
 	weight: number; // factor
 	/** Song hash */
-	id: string;
-	name: string;
+	songHash: string;
+	songName: string;
 	songSubName: string;
 	songAuthorName: string;
 	levelAuthorName: string;
-	diff: string;
+	difficulty: number;
+	difficultyRaw: string
 	/** Max possible score (Without modifiers) */
-	maxScoreEx: number;
+	maxScore: number;
 	rank: number;
 }
 
@@ -219,11 +223,11 @@ export interface IScoresaberUserFull {
 }
 
 interface IScoresaberPlayerInfoBasic {
-	playerid: string; // SANITIZE
+	playerId: string; // SANITIZE
 	pp: number;
 	banned: number; // boolean?
 	inactive: number; // boolean?
-	name: string;
+	playerName: string;
 	country: string;
 	role: string;
 	badges: string; // comma separated number list

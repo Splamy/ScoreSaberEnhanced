@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.8.1
+// @version      1.8.2
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -314,9 +314,9 @@
 	            was_last_page: recent_songs.scores.length < 8
 	        },
 	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-	                time: s.timeset,
+	                time: s.timeSet,
 	                pp: s.pp,
-	                accuracy: s.maxScoreEx !== 0 ? round2((s.uScore / s.maxScoreEx) * 100) : undefined,
+	                accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
 	                score: s.score !== 0 ? s.score : undefined,
 	                mods: s.mods ? s.mods.split(/,/g) : undefined
 	            }])
@@ -333,7 +333,7 @@
 	    return sanitize_player_ids(data);
 	}
 	function sanitize_player_ids(data) {
-	    data.playerInfo.playerid = String(data.playerInfo.playerid);
+	    data.playerInfo.playerId = String(data.playerInfo.playerId);
 	    return data;
 	}
 	function sanitize_song_ids(data) {
@@ -883,7 +883,7 @@
 	    SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
 	    if (get_use_new_ss_api()) {
 	        const user_data = await get_user_info_basic(user_id);
-	        user_name = user_data.playerInfo.name;
+	        user_name = user_data.playerInfo.playerName;
 	    }
 	    for (let page = 1;; page++) {
 	        SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
