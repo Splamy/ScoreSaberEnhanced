@@ -174,7 +174,7 @@ async function fetch_user(user_id: string, force: boolean = false): Promise<void
 
 	if (get_use_new_ss_api()) {
 		const user_data = await scoresaber.get_user_info_basic(user_id);
-		user_name = user_data.playerInfo.name;
+		user_name = user_data.playerInfo.playerName;
 	}
 
 	for (let page = 1; ; page++) {
