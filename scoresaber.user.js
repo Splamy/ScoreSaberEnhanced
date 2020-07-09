@@ -895,6 +895,10 @@
 	        if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
 	            break;
 	        }
+		if (page % 40 === 0) {
+                    SseEvent.StatusInfo.invoke({ text: `too many pages, sleeping for 25 seconds...` });
+                    await sleep(25000);
+                }
 	    }
 	    user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
 	    if (updated) {
