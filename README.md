@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.1b
+ - Added workaround for issue with some users not being successfully added to dropdown list
+
 1.8.1
  - Added !bsr button
 
