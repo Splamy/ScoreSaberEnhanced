@@ -49,6 +49,12 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.3
+ - Added ratelimit detection for the scoresaber api
+
+1.8.2
+ - Fixed new.scoresaber api data contract ([#14](https://github.com/Splamy/ScoreSaberEnhanced/pull/14) Thanks [@ErisApps](https://github.com/ErisApps) for this PR)
+
 1.8.1
  - Added !bsr button
 

@@ -4,8 +4,10 @@ import g from "../global";
 import { check } from "../util/err";
 import { number_invariant, read_inline_date, round2 } from "../util/format";
 import { logc } from "../util/log";
+import { sleep, Limiter } from "../util/limiter";
 
 const SCORESABER_LINK = "https://new.scoresaber.com/api";
+const API_LIMITER = new Limiter();
 
 export async function get_user_recent_songs_dynamic(user_id: string, page: number): Promise<IUserPageData> {
 	logc(`Fetching user ${user_id} page ${page}`);
@@ -36,27 +38,49 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 }
 
 export async function get_user_recent_songs(user_id: string, page: number): Promise<IScoresaberSongList> {
-	const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
 	const data = await req.json() as IScoresaberSongList;
 	return sanitize_song_ids(data);
 }
 
 export async function get_user_top_songs(user_id: string, page: number): Promise<IScoresaberSongList> {
-	const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/scores/top/${page}`);
+	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/top/${page}`);
 	const data = await req.json() as IScoresaberSongList;
 	return sanitize_song_ids(data);
 }
 
 export async function get_user_info_basic(user_id: string): Promise<IScoresaberUserBasic> {
-	const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/full`);
+	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
 	const data = await req.json() as IScoresaberUserBasic;
 	return sanitize_player_ids(data);
 }
 
 export async function get_user_info_full(user_id: string): Promise<IScoresaberUserFull> {
-	const req = await fetch(`${SCORESABER_LINK}/player/${user_id}/full`);
+	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
 	const data = await req.json() as IScoresaberUserFull;
 	return sanitize_player_ids(data);
+}
+
+async function auto_fetch_retry(url: string) {
+	// 'MAX_RETRIES * SLEEP_WAIT' should be grater than the max time we are blocked
+	// when hitting the rate limit. Rate limit timeout is currently 60sec
+	const MAX_RETRIES = 20;
+	const SLEEP_WAIT = 5000;
+
+	for (let retries = MAX_RETRIES; retries >= 0; retries--) {
+		await API_LIMITER.wait();
+		const response = await fetch(url);
+		const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+		const reset = Number(response.headers.get("x-ratelimit-reset"));
+		const limit = Number(response.headers.get("x-ratelimit-limit"));
+		API_LIMITER.setLimitData(remaining, reset, limit);
+		if (response.status === 429) { // Too Many Requests
+			await sleep(SLEEP_WAIT);
+		} else {
+			return response;
+		}
+	}
+	throw new Error("Can't fetch data from new.scoresaber.");
 }
 
 function sanitize_player_ids<T extends IScoresaberUserBasic | IScoresaberUserFull>(data: T): T {
@@ -74,10 +98,6 @@ function sanitize_song_ids<T extends IScoresaberSongList>(data: T): T {
 }
 
 // OLD API ====================================================================
-
-async function sleep(timeout: number) {
-	return new Promise(resolve => setTimeout(resolve, timeout));
-}
 
 async function get_user_recent_songs_old_api_wrap(user_id: string, page: number): Promise<IUserPageData> {
 	let doc: Document | undefined;
