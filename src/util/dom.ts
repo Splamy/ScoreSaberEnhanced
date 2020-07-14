@@ -13,13 +13,13 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 	tag: K,
 	attrs?: AutoBuild<K>,
 	...children: IntoElem[]): HTMLElementTagNameMap[K] {
-	if (!tag) throw new SyntaxError("'tag' not defined");
+	if (tag === undefined) throw new Error("'tag' not defined");
 
 	const ele = document.createElement(tag);
 	if (attrs) {
-		for (const attrName in attrs) {
+		for (const [attrName, attrValue] of Object.entries(attrs)) {
 			if (attrName === "style") {
-				for (const styleName in attrs.style) { ele.style[styleName as any] = attrs.style[styleName as any]!; }
+				for (const [styleName, styleValue] of Object.entries(attrs.style!)) { ele.style[styleName as any] = styleValue; }
 			} else if (attrName === "class") {
 				if (typeof attrs.class === "string") {
 					const classes = attrs.class.split(/ /g).filter(c => c.trim().length > 0);
@@ -29,18 +29,18 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 				}
 			} else if (attrName === "for") {
 				// @ts-ignore
-				ele.htmlFor = attrs[attrName];
+				ele.htmlFor = attrValue;
 			} else if (attrName === "selected") {
 				// @ts-ignore
-				ele.selected = attrs[attrName] ? "selected" : undefined;
+				ele.selected = attrValue ? "selected" : undefined;
 			} else if (attrName === "disabled") {
 				// @ts-ignore
-				if (attrs[attrName]) ele.setAttribute("disabled", undefined);
+				if (attrValue) ele.setAttribute("disabled", undefined);
 			} else if (attrName === "data") {
 				// @ts-ignore
 				const data_dict: { [att: string]: string } = attrs[attrName];
-				for (const data_key in data_dict) {
-					ele.setAttribute(`data-${data_key}`, data_dict[data_key]);
+				for (const [data_key, data_value] of Object.entries(data_dict)) {
+					ele.dataset[data_key] = data_value;
 				}
 			} else {
 				// @ts-ignore

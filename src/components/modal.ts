@@ -43,7 +43,7 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 	const base_div = create("div", { class: "modal" });
 	const modal = new Modal<T>(base_div);
 
-	const buttons = create("div", { class: "buttons" });
+	const button_bar = create("div", { class: "buttons" });
 
 	let inner;
 	switch (opt.type ?? "content") {
@@ -52,7 +52,7 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 				create("div", { class: "box" },
 					opt.text,
 					create("br"),
-					buttons,
+					button_bar,
 				),
 			);
 			break;
@@ -60,7 +60,7 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 			inner = create("div", { class: "modal-card" },
 				create("header", { class: "modal-card-head" }, opt.title ?? ""),
 				create("header", { class: "modal-card-body" }, opt.text),
-				create("header", { class: "modal-card-foot" }, opt.footer ?? buttons),
+				create("header", { class: "modal-card-foot" }, opt.footer ?? button_bar),
 			);
 			break;
 		default:
@@ -87,7 +87,7 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 	if (opt.buttons) {
 		for (const btn_name of Object.keys(opt.buttons) as T[]) {
 			const btn_data = opt.buttons[btn_name];
-			into(buttons, create("button", {
+			into(button_bar, create("button", {
 				class: ["button", btn_data.class ?? ""],
 				onclick() {
 					modal.close(btn_name);

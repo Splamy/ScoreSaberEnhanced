@@ -29,7 +29,7 @@ export function setup(): void {
 
 	SseEvent.UserNotification.register(() => {
 		const ntfys = SseEvent.getNotifications();
-		if (ntfys.length) {
+		if (ntfys.length > 0) {
 			cog.classList.remove("fa-cog");
 			cog.classList.add("fa-bell");
 			cog.style.color = "yellow";

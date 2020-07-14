@@ -18,20 +18,18 @@ export function load(): void {
 		return;
 	}
 
-	const users_data_ver = get_data_ver();
+	let users_data_ver = get_data_ver();
 	if (users_data_ver !== CURRENT_DATA_VER) {
 		logc("Updating usercache format");
 
 		if (users_data_ver <= 0) {
-			for (const user_id of Object.keys(g.user_list)) {
-				const user = g.user_list[user_id];
-				for (const song_id of Object.keys(user.songs)) {
-					const song = user.songs[song_id];
-
+			for (const user of Object.values(g.user_list)) {
+				for (const song of Object.values(user.songs)) {
 					const time = read_inline_date(song.time);
 					song.time = time.toISOString();
 				}
 			}
+			users_data_ver = 1;
 		}
 
 		update_data_ver();

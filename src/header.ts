@@ -60,8 +60,7 @@ function update_self_button(): void {
 function update_self_user_list(): void {
 	const home_user_list_elem = check(document.getElementById("home_user_list"));
 	intor(home_user_list_elem,
-		...Object.keys(g.user_list).map(id => {
-			const user = g.user_list[id];
+		...Object.entries(g.user_list).map(([id, user]) => {
 			return create("a", {
 				class: "navbar-item",
 				style: {

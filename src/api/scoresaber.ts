@@ -3,8 +3,8 @@ import { get_document_user, get_use_new_ss_api } from "../env";
 import g from "../global";
 import { check } from "../util/err";
 import { number_invariant, read_inline_date, round2 } from "../util/format";
+import { Limiter, sleep } from "../util/limiter";
 import { logc } from "../util/log";
-import { sleep, Limiter } from "../util/limiter";
 
 const SCORESABER_LINK = "https://new.scoresaber.com/api";
 const API_LIMITER = new Limiter();
@@ -223,7 +223,7 @@ interface IScoresaberSong {
 	songAuthorName: string;
 	levelAuthorName: string;
 	difficulty: number;
-	difficultyRaw: string
+	difficultyRaw: string;
 	/** Max possible score (Without modifiers) */
 	maxScore: number;
 	rank: number;

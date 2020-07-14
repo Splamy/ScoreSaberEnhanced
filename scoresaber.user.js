@@ -43,14 +43,14 @@
 	Global.pp_weighting_factor = 0.965;
 
 	function create(tag, attrs, ...children) {
-	    if (!tag)
-	        throw new SyntaxError("'tag' not defined");
+	    if (tag === undefined)
+	        throw new Error("'tag' not defined");
 	    const ele = document.createElement(tag);
 	    if (attrs) {
-	        for (const attrName in attrs) {
+	        for (const [attrName, attrValue] of Object.entries(attrs)) {
 	            if (attrName === "style") {
-	                for (const styleName in attrs.style) {
-	                    ele.style[styleName] = attrs.style[styleName];
+	                for (const [styleName, styleValue] of Object.entries(attrs.style)) {
+	                    ele.style[styleName] = styleValue;
 	                }
 	            }
 	            else if (attrName === "class") {
@@ -63,19 +63,19 @@
 	                }
 	            }
 	            else if (attrName === "for") {
-	                ele.htmlFor = attrs[attrName];
+	                ele.htmlFor = attrValue;
 	            }
 	            else if (attrName === "selected") {
-	                ele.selected = attrs[attrName] ? "selected" : undefined;
+	                ele.selected = attrValue ? "selected" : undefined;
 	            }
 	            else if (attrName === "disabled") {
-	                if (attrs[attrName])
+	                if (attrValue)
 	                    ele.setAttribute("disabled", undefined);
 	            }
 	            else if (attrName === "data") {
 	                const data_dict = attrs[attrName];
-	                for (const data_key in data_dict) {
-	                    ele.setAttribute(`data-${data_key}`, data_dict[data_key]);
+	                for (const [data_key, data_value] of Object.entries(data_dict)) {
+	                    ele.dataset[data_key] = data_value;
 	                }
 	            }
 	            else {
@@ -241,7 +241,7 @@
 	}
 	function get_bsaber_bookmarks() {
 	    const data = localStorage.getItem("bsaber_bookmarks");
-	    if (!data || data.length === 0)
+	    if (!data)
 	        return [];
 	    return JSON.parse(data);
 	}
@@ -288,15 +288,6 @@
 	    return moment.utc(date, "YYYY-MM-DD HH:mm:ss UTC");
 	}
 
-	function setup() {
-	    Global.debug = localStorage.getItem("debug") === "true";
-	}
-	function logc(message, ...optionalParams) {
-	    if (Global.debug) {
-	        console.log("DBG", message, ...optionalParams);
-	    }
-	}
-
 	class Limiter {
 	    constructor() {
 	        this.ratelimit_reset = undefined;
@@ -328,6 +319,15 @@
 	}
 	function unix_timestamp() {
 	    return Math.round((new Date()).getTime() / 1000);
+	}
+
+	function setup() {
+	    Global.debug = localStorage.getItem("debug") === "true";
+	}
+	function logc(message, ...optionalParams) {
+	    if (Global.debug) {
+	        console.log("DBG", message, ...optionalParams);
+	    }
 	}
 
 	const SCORESABER_LINK = "https://new.scoresaber.com/api";
@@ -519,18 +519,17 @@
 	        reset_data();
 	        return;
 	    }
-	    const users_data_ver = get_data_ver();
+	    let users_data_ver = get_data_ver();
 	    if (users_data_ver !== CURRENT_DATA_VER) {
 	        logc("Updating usercache format");
 	        if (users_data_ver <= 0) {
-	            for (const user_id of Object.keys(Global.user_list)) {
-	                const user = Global.user_list[user_id];
-	                for (const song_id of Object.keys(user.songs)) {
-	                    const song = user.songs[song_id];
+	            for (const user of Object.values(Global.user_list)) {
+	                for (const song of Object.values(user.songs)) {
 	                    const time = read_inline_date(song.time);
 	                    song.time = time.toISOString();
 	                }
 	            }
+	            users_data_ver = 1;
 	        }
 	        update_data_ver();
 	        save();
@@ -648,14 +647,14 @@
 	    var _a, _b, _c, _d;
 	    const base_div = create("div", { class: "modal" });
 	    const modal = new Modal(base_div);
-	    const buttons = create("div", { class: "buttons" });
+	    const button_bar = create("div", { class: "buttons" });
 	    let inner;
 	    switch ((_a = opt.type) !== null && _a !== void 0 ? _a : "content") {
 	        case "content":
-	            inner = create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), buttons));
+	            inner = create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), button_bar));
 	            break;
 	        case "card":
-	            inner = create("div", { class: "modal-card" }, create("header", { class: "modal-card-head" }, (_b = opt.title) !== null && _b !== void 0 ? _b : ""), create("header", { class: "modal-card-body" }, opt.text), create("header", { class: "modal-card-foot" }, (_c = opt.footer) !== null && _c !== void 0 ? _c : buttons));
+	            inner = create("div", { class: "modal-card" }, create("header", { class: "modal-card-head" }, (_b = opt.title) !== null && _b !== void 0 ? _b : ""), create("header", { class: "modal-card-body" }, opt.text), create("header", { class: "modal-card-foot" }, (_c = opt.footer) !== null && _c !== void 0 ? _c : button_bar));
 	            break;
 	        default:
 	            throw new Error("invalid type");
@@ -674,7 +673,7 @@
 	    if (opt.buttons) {
 	        for (const btn_name of Object.keys(opt.buttons)) {
 	            const btn_data = opt.buttons[btn_name];
-	            into(buttons, create("button", {
+	            into(button_bar, create("button", {
 	                class: ["button", (_d = btn_data.class) !== null && _d !== void 0 ? _d : ""],
 	                onclick() {
 	                    modal.close(btn_name);
@@ -702,17 +701,17 @@
 	};
 
 	function get_song_compare_value(song_a, song_b) {
-	    if (song_a.pp > 0 && song_b.pp) {
+	    if (song_a.pp > 0 || song_b.pp > 0) {
 	        return [song_a.pp, song_b.pp];
 	    }
-	    else if (song_a.score !== undefined && song_b.score !== undefined && song_a.score > 0) {
+	    else if (song_a.score !== undefined && song_b.score !== undefined) {
 	        return [song_a.score, song_b.score];
 	    }
-	    else if (song_a.accuracy !== undefined && song_b.accuracy !== undefined && song_a.accuracy > 0) {
+	    else if (song_a.accuracy !== undefined && song_b.accuracy !== undefined) {
 	        return [song_a.accuracy * get_song_mod_multiplier(song_a), song_b.accuracy * get_song_mod_multiplier(song_b)];
 	    }
 	    else {
-	        return [0, 0];
+	        return [-1, -1];
 	    }
 	}
 	function get_song_mod_multiplier(song) {
@@ -838,8 +837,7 @@
 	            set_compare_user(user);
 	            SseEvent.CompareUserChanged.invoke();
 	        }
-	    }, ...Object.keys(Global.user_list).map(id => {
-	        const user = Global.user_list[id];
+	    }, ...Object.entries(Global.user_list).map(([id, user]) => {
 	        return create("option", { value: id, selected: id === compare }, user.name);
 	    }))));
 	}
@@ -875,16 +873,16 @@
 	                create("br"),
 	                (() => {
 	                    let str;
-	                    if (other_song.accuracy) {
+	                    if (other_song.accuracy !== undefined) {
 	                        str = `accuracy: ${format_en(other_song.accuracy)}%`;
 	                    }
-	                    else if (other_song.score) {
+	                    else if (other_song.score !== undefined) {
 	                        str = `score: ${format_en(other_song.score)}`;
 	                    }
 	                    else {
 	                        return "<No Data>";
 	                    }
-	                    if (other_song.mods) {
+	                    if (other_song.mods !== undefined) {
 	                        str += ` (${other_song.mods.join(",")})`;
 	                    }
 	                    return create("span", { class: "scoreBottom" }, str);
@@ -900,7 +898,7 @@
 	            continue;
 	        }
 	        const [value1, value2] = get_song_compare_value(song, other_song);
-	        if (value1 === 0 && value2 === 0) {
+	        if (value1 === -1 && value2 === -1) {
 	            logc("No score");
 	            continue;
 	        }
@@ -909,6 +907,7 @@
 	        if (better) {
 	            value = 100 - value;
 	        }
+	        value = round2(value);
 	        if (better) {
 	            row.style.backgroundImage = `linear-gradient(75deg, var(--color-ahead) ${value}%, rgba(0,0,0,0) ${value}%)`;
 	        }
@@ -1019,8 +1018,7 @@
 	}
 	function update_self_user_list() {
 	    const home_user_list_elem = check(document.getElementById("home_user_list"));
-	    intor(home_user_list_elem, ...Object.keys(Global.user_list).map(id => {
-	        const user = Global.user_list[id];
+	    intor(home_user_list_elem, ...Object.entries(Global.user_list).map(([id, user]) => {
 	        return create("a", {
 	            class: "navbar-item",
 	            style: {
@@ -1208,12 +1206,12 @@
 	}
 	async function checked_hash_to_song_info(ref, song_hash) {
 	    reset_download_visual(ref);
-	    if (!song_hash) {
+	    if (song_hash === undefined) {
 	        failed_to_download(ref);
 	        throw new Error("song_hash is undefined");
 	    }
 	    const song_info = await get_data_by_hash(song_hash);
-	    if (!song_info) {
+	    if (song_info === undefined) {
 	        failed_to_download(ref);
 	        throw new Error("song_info is undefined");
 	    }
@@ -1252,8 +1250,7 @@
 	        score_table = table.appendChild(create("tbody"));
 	        const song_id = Global.leaderboard_reg.exec(window.location.pathname)[1];
 	        const elements = [];
-	        for (const user_id in Global.user_list) {
-	            const user = Global.user_list[user_id];
+	        for (const [user_id, user] of Object.entries(Global.user_list)) {
 	            const song = user.songs[song_id];
 	            if (!song)
 	                continue;
@@ -1321,7 +1318,7 @@
 	}
 	function generate_song_table_row(user_id, user, song_id) {
 	    const song = user.songs[song_id];
-	    return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
+	    return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
 	}
 	function generate_song_table_player(user_id, user) {
 	    return create("a", { href: `${Global.scoresaber_link}/u/${user_id}` }, user.name);
@@ -1527,11 +1524,11 @@
 	        return [];
 	    const data = [];
 	    const data_scaled = [];
-	    Object.keys(user.songs)
-	        .filter(sid => user.songs[sid].pp > 0)
-	        .sort((a, b) => user.songs[b].pp - user.songs[a].pp)
-	        .forEach((songId, index) => {
-	        const pp = user.songs[songId].pp;
+	    Object.values(user.songs)
+	        .filter((song) => song.pp > 0)
+	        .sort((a, b) => b.pp - a.pp)
+	        .forEach((song, index) => {
+	        const pp = song.pp;
 	        data.push(pp);
 	        data_scaled.push(+(pp * Math.pow(Global.pp_weighting_factor, index)).toFixed(2));
 	    });
@@ -1759,7 +1756,7 @@ h5 > * {
 	    }, cog));
 	    SseEvent.UserNotification.register(() => {
 	        const ntfys = SseEvent.getNotifications();
-	        if (ntfys.length) {
+	        if (ntfys.length > 0) {
 	            cog.classList.remove("fa-cog");
 	            cog.classList.add("fa-bell");
 	            cog.style.color = "yellow";

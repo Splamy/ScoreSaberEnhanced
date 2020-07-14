@@ -149,28 +149,28 @@ export function generate_copy_bsr(song_hash: string | undefined): HTMLElement {
 
 async function checked_hash_to_song_info(ref: HTMLElement, song_hash: string | undefined): Promise<beatsaver.IBeatSaverData> {
 	reset_download_visual(ref);
-	if (!song_hash) { failed_to_download(ref); throw new Error("song_hash is undefined"); }
+	if (song_hash === undefined) { failed_to_download(ref); throw new Error("song_hash is undefined"); }
 	const song_info = await beatsaver.get_data_by_hash(song_hash);
-	if (!song_info) { failed_to_download(ref); throw new Error("song_info is undefined"); }
+	if (song_info === undefined) { failed_to_download(ref); throw new Error("song_info is undefined"); }
 	return song_info;
 }
 
 // *** Utility ***
 
-function reset_download_visual(ref: HTMLElement) {
+function reset_download_visual(ref: HTMLElement | undefined) {
 	if (ref) {
 		ref.classList.remove("button_success");
 		ref.classList.remove("button_error");
 	}
 }
 
-function failed_to_download(ref?: HTMLElement) {
+function failed_to_download(ref: HTMLElement | undefined) {
 	if (ref) {
 		ref.classList.add("button_error");
 	}
 }
 
-function ok_after_download(ref: HTMLElement) {
+function ok_after_download(ref: HTMLElement | undefined) {
 	if (ref) {
 		ref.classList.add("button_success");
 	}

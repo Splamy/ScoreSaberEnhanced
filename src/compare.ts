@@ -6,7 +6,7 @@ import g from "./global";
 import * as usercache from "./usercache";
 import { create, into, IntoElem, intor } from "./util/dom";
 import { check } from "./util/err";
-import { format_en } from "./util/format";
+import { format_en, round2 } from "./util/format";
 import { logc } from "./util/log";
 import { get_song_compare_value, song_equals } from "./util/song";
 
@@ -62,8 +62,7 @@ export function update_user_compare_dropdown(): void {
 					set_compare_user(user);
 					SseEvent.CompareUserChanged.invoke();
 				}
-			}, ...Object.keys(g.user_list).map(id => {
-				const user = g.user_list[id];
+			}, ...Object.entries(g.user_list).map(([id, user]) => {
 				return create("option", { value: id, selected: id === compare }, user.name);
 			}))
 		)
@@ -112,14 +111,14 @@ export function update_user_compare_songtable(other_user?: string): void {
 				create("br"),
 				(() => {
 					let str;
-					if (other_song.accuracy) {
+					if (other_song.accuracy !== undefined) {
 						str = `accuracy: ${format_en(other_song.accuracy)}%`;
-					} else if (other_song.score) {
+					} else if (other_song.score !== undefined) {
 						str = `score: ${format_en(other_song.score)}`;
 					} else {
 						return "<No Data>";
 					}
-					if (other_song.mods) {
+					if (other_song.mods !== undefined) {
 						str += ` (${other_song.mods.join(",")})`;
 					}
 					return create("span", { class: "scoreBottom" }, str);
@@ -137,7 +136,7 @@ export function update_user_compare_songtable(other_user?: string): void {
 		}
 
 		const [value1, value2] = get_song_compare_value(song, other_song);
-		if (value1 === 0 && value2 === 0) {
+		if (value1 === -1 && value2 === -1) {
 			logc("No score");
 			continue;
 		}
@@ -147,6 +146,7 @@ export function update_user_compare_songtable(other_user?: string): void {
 		if (better) {
 			value = 100 - value;
 		}
+		value = round2(value); // Issue #17: post '##.##???' decimal digits can affect display
 
 		if (better) {
 			row.style.backgroundImage = `linear-gradient(75deg, var(--color-ahead) ${value}%, rgba(0,0,0,0) ${value}%)`;

@@ -16,6 +16,7 @@ usercache.load();
 
 let has_loaded_head = false;
 function on_load_head() {
+	// tslint:disable-next-line
 	if (!document.head) { log.logc("Head not ready"); return; }
 	if (has_loaded_head) { log.logc("Already loaded head"); return; }
 	has_loaded_head = true;

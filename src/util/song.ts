@@ -4,14 +4,14 @@ import { ISong } from "../declarations/Types";
 import g from "../global";
 
 export function get_song_compare_value(song_a: ISong, song_b: ISong): [number, number] {
-	if (song_a.pp > 0 && song_b.pp) {
+	if (song_a.pp > 0 || song_b.pp > 0) {
 		return [song_a.pp, song_b.pp];
-	} else if (song_a.score !== undefined && song_b.score !== undefined && song_a.score > 0) {
+	} else if (song_a.score !== undefined && song_b.score !== undefined) {
 		return [song_a.score, song_b.score];
-	} else if (song_a.accuracy !== undefined && song_b.accuracy !== undefined && song_a.accuracy > 0) {
+	} else if (song_a.accuracy !== undefined && song_b.accuracy !== undefined) {
 		return [song_a.accuracy * get_song_mod_multiplier(song_a), song_b.accuracy * get_song_mod_multiplier(song_b)];
 	} else {
-		return [0, 0];
+		return [-1, -1];
 	}
 }
 

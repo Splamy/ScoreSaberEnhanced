@@ -23,8 +23,7 @@ export function setup_song_filter_tabs(): void {
 		const song_id = g.leaderboard_reg.exec(window.location.pathname)![1];
 
 		const elements: [ISong, HTMLElement][] = [];
-		for (const user_id in g.user_list) {
-			const user = g.user_list[user_id];
+		for (const [user_id, user] of Object.entries(g.user_list)) {
 			const song = user.songs[song_id];
 			// Check if the user has a score on this song
 			if (!song)
@@ -142,9 +141,9 @@ function generate_song_table_row(user_id: string, user: IDbUser, song_id: string
 		create("td", { class: "picture" }),
 		create("td", { class: "rank" }, "-"),
 		create("td", { class: "player" }, generate_song_table_player(user_id, user)),
-		create("td", { class: "score" }, song.score ? format_en(song.score, 0) : "-"),
+		create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"),
 		create("td", { class: "timeset" }, moment(song.time).fromNow()),
-		create("td", { class: "mods" }, song.mods ? song.mods.toString() : "-"),
+		create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"),
 		create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"),
 		create("td", { class: "pp" },
 			create("span", { class: "scoreTop ppValue" }, format_en(song.pp)),

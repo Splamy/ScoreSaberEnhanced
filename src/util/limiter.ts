@@ -1,8 +1,8 @@
 export class Limiter {
-	public ratelimit_reset: number| undefined;
+	public ratelimit_reset: number | undefined;
 	public ratelimit_remaining: number | undefined;
 	public ratelimit_limit: number | undefined;
-	
+
 	constructor() {
 		this.ratelimit_reset = undefined;
 		this.ratelimit_remaining = undefined;
@@ -18,7 +18,7 @@ export class Limiter {
 
 		if (this.ratelimit_remaining === 0) {
 			const sleepTime = (this.ratelimit_reset - now);
-			console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec` );
+			console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
 			await sleep(sleepTime * 1000);
 			this.ratelimit_remaining = this.ratelimit_limit;
 			this.ratelimit_reset = undefined;

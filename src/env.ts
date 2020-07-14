@@ -151,7 +151,7 @@ export function get_bsaber_username(): string | undefined {
 
 function get_bsaber_bookmarks(): string[] {
 	const data = localStorage.getItem("bsaber_bookmarks");
-	if (!data || data.length === 0) return [];
+	if (!data) return [];
 	return JSON.parse(data);
 }
 

@@ -39,7 +39,7 @@ export function setup_pp_graph(): void {
 	SseEvent.CompareUserChanged.register(update_pp_graph);
 }
 
-function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: Array<string | string[]>): void {
+function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: (string | string[])[]): void {
 	if (chart !== undefined) {
 		chart.data = {
 			labels,
@@ -86,12 +86,12 @@ function get_graph_data(user_id: string) {
 
 	const data: number[] = [];
 	const data_scaled: number[] = [];
-	Object.keys(user.songs)
-		.filter(sid => user.songs[sid].pp > 0)
-		.sort((a, b) => user.songs[b].pp - user.songs[a].pp)
-		.forEach((songId, index) => {
+	Object.values(user.songs)
+		.filter((song) => song.pp > 0)
+		.sort((a, b) => b.pp - a.pp)
+		.forEach((song, index) => {
 			// labels.push("lul");
-			const pp = user.songs[songId].pp;
+			const pp = song.pp;
 			data.push(pp);
 			data_scaled.push(+(pp * Math.pow(g.pp_weighting_factor, index)).toFixed(2));
 		});
