@@ -108,3 +108,10 @@ function array_equals<T>(a: T[] | undefined, b: T[] | undefined): boolean {
 	}
 	return true;
 }
+
+export function parse_mods(mods: string): string[] | undefined {
+	if (!mods) return undefined;
+	const modarr = mods.split(/,/g);
+	if (modarr.length === 0) return undefined;
+	return modarr;
+}

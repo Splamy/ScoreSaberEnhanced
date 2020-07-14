@@ -5,6 +5,7 @@ import { check } from "../util/err";
 import { number_invariant, read_inline_date, round2 } from "../util/format";
 import { Limiter, sleep } from "../util/limiter";
 import { logc } from "../util/log";
+import { parse_mods } from "../util/song";
 
 const SCORESABER_LINK = "https://new.scoresaber.com/api";
 const API_LIMITER = new Limiter();
@@ -31,8 +32,8 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 			time: s.timeSet,
 			pp: s.pp,
 			accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
-			score: s.score !== 0 ? s.score : undefined,
-			mods: s.mods ? s.mods.split(/,/g) : undefined
+			score: s.score,
+			mods: parse_mods(s.mods)
 		}])
 	};
 }
@@ -171,7 +172,7 @@ export function get_row_data(row: Element): ISongTuple {
 		accuracy = Number(score_res[2]);
 	}
 	if (score_res[4]) {
-		mods = score_res[4].split(/,/g);
+		mods = parse_mods(score_res[4]);
 	}
 
 	const song = {

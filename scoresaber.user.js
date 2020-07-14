@@ -330,229 +330,6 @@
 	    }
 	}
 
-	const SCORESABER_LINK = "https://new.scoresaber.com/api";
-	const API_LIMITER = new Limiter();
-	async function get_user_recent_songs_dynamic(user_id, page) {
-	    logc(`Fetching user ${user_id} page ${page}`);
-	    if (get_use_new_ss_api()) {
-	        return get_user_recent_songs_new_api_wrap(user_id, page);
-	    }
-	    else {
-	        return get_user_recent_songs_old_api_wrap(user_id, page);
-	    }
-	}
-	async function get_user_recent_songs_new_api_wrap(user_id, page) {
-	    const recent_songs = await get_user_recent_songs(user_id, page);
-	    return {
-	        meta: {
-	            was_last_page: recent_songs.scores.length < 8
-	        },
-	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-	                time: s.timeSet,
-	                pp: s.pp,
-	                accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
-	                score: s.score !== 0 ? s.score : undefined,
-	                mods: s.mods ? s.mods.split(/,/g) : undefined
-	            }])
-	    };
-	}
-	async function get_user_recent_songs(user_id, page) {
-	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
-	    const data = await req.json();
-	    return sanitize_song_ids(data);
-	}
-	async function get_user_info_basic(user_id) {
-	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
-	    const data = await req.json();
-	    return sanitize_player_ids(data);
-	}
-	async function auto_fetch_retry(url) {
-	    const MAX_RETRIES = 20;
-	    const SLEEP_WAIT = 5000;
-	    for (let retries = MAX_RETRIES; retries >= 0; retries--) {
-	        await API_LIMITER.wait();
-	        const response = await fetch(url);
-	        const remaining = Number(response.headers.get("x-ratelimit-remaining"));
-	        const reset = Number(response.headers.get("x-ratelimit-reset"));
-	        const limit = Number(response.headers.get("x-ratelimit-limit"));
-	        API_LIMITER.setLimitData(remaining, reset, limit);
-	        if (response.status === 429) {
-	            await sleep(SLEEP_WAIT);
-	        }
-	        else {
-	            return response;
-	        }
-	    }
-	    throw new Error("Can't fetch data from new.scoresaber.");
-	}
-	function sanitize_player_ids(data) {
-	    data.playerInfo.playerId = String(data.playerInfo.playerId);
-	    return data;
-	}
-	function sanitize_song_ids(data) {
-	    for (const s of data.scores) {
-	        s.scoreId = String(s.scoreId);
-	        s.leaderboardId = String(s.leaderboardId);
-	        s.playerId = String(s.playerId);
-	    }
-	    return data;
-	}
-	async function get_user_recent_songs_old_api_wrap(user_id, page) {
-	    let doc;
-	    let tries = 5;
-	    while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
-	        await sleep(500);
-	        doc = await fetch_user_page(user_id, page);
-	        tries--;
-	    }
-	    if (doc === undefined) {
-	        throw Error("Error fetching user page");
-	    }
-	    const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
-	    const max_pages = Number(last_page_elem.innerText) + 1;
-	    const data = {
-	        meta: {
-	            max_pages,
-	            user_name: get_document_user(doc).name,
-	            was_last_page: page === max_pages,
-	        },
-	        songs: [],
-	    };
-	    const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
-	    for (const row of table_row) {
-	        const song_data = get_row_data(row);
-	        data.songs.push(song_data);
-	    }
-	    return data;
-	}
-	async function fetch_user_page(user_id, page) {
-	    const link = Global.scoresaber_link + `/u/${user_id}&page=${page}&sort=2`;
-	    if (window.location.href.toLowerCase() === link) {
-	        logc("Efficient get :P");
-	        return document;
-	    }
-	    const init_fetch = await (await fetch(link)).text();
-	    const parser = new DOMParser();
-	    return parser.parseFromString(init_fetch, "text/html");
-	}
-	function get_row_data(row) {
-	    const rowc = row;
-	    if (rowc.cache) {
-	        return rowc.cache;
-	    }
-	    const leaderboard_elem = check(row.querySelector("th.song a"));
-	    const pp_elem = check(row.querySelector("th.score .ppValue"));
-	    const score_elem = check(row.querySelector("th.score .scoreBottom"));
-	    const time_elem = check(row.querySelector("th.song .time"));
-	    const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
-	    const pp = Number(pp_elem.innerText);
-	    const time = read_inline_date(time_elem.title).toISOString();
-	    let score = undefined;
-	    let accuracy = undefined;
-	    let mods = undefined;
-	    const score_res = check(Global.score_reg.exec(score_elem.innerText));
-	    logc(score_res);
-	    if (score_res[1] === "score") {
-	        score = number_invariant(score_res[2]);
-	    }
-	    else if (score_res[1] === "accuracy") {
-	        accuracy = Number(score_res[2]);
-	    }
-	    if (score_res[4]) {
-	        mods = score_res[4].split(/,/g);
-	    }
-	    const song = {
-	        pp,
-	        time,
-	        score,
-	        accuracy,
-	        mods,
-	    };
-	    const data = [song_id, song];
-	    rowc.cache = data;
-	    return data;
-	}
-
-	class SseEventHandler {
-	    constructor(eventName) {
-	        this.eventName = eventName;
-	        this.callList = [];
-	    }
-	    invoke(param) {
-	        logc("Event", this.eventName);
-	        for (const func of this.callList) {
-	            func(param);
-	        }
-	    }
-	    register(func) {
-	        this.callList.push(func);
-	    }
-	}
-	class SseEvent {
-	    static addNotification(notify) {
-	        this.notificationList.push(notify);
-	        SseEvent.UserNotification.invoke();
-	    }
-	    static getNotifications() {
-	        return this.notificationList;
-	    }
-	}
-	SseEvent.UserCacheChanged = new SseEventHandler("UserCacheChanged");
-	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
-	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
-	SseEvent.UserNotification = new SseEventHandler("UserNotification");
-	SseEvent.StatusInfo = new SseEventHandler("StatusInfo");
-	SseEvent.notificationList = [];
-
-	const CURRENT_DATA_VER = 1;
-	function load() {
-	    const json = localStorage.getItem("users");
-	    if (!json) {
-	        reset_data();
-	        return;
-	    }
-	    try {
-	        Global.user_list = JSON.parse(json);
-	    }
-	    catch (ex) {
-	        console.error("Failed to read user cache, resetting!");
-	        reset_data();
-	        return;
-	    }
-	    let users_data_ver = get_data_ver();
-	    if (users_data_ver !== CURRENT_DATA_VER) {
-	        logc("Updating usercache format");
-	        if (users_data_ver <= 0) {
-	            for (const user of Object.values(Global.user_list)) {
-	                for (const song of Object.values(user.songs)) {
-	                    const time = read_inline_date(song.time);
-	                    song.time = time.toISOString();
-	                }
-	            }
-	            users_data_ver = 1;
-	        }
-	        update_data_ver();
-	        save();
-	        logc("Update successful");
-	    }
-	    logc("Loaded usercache", Global.user_list);
-	}
-	function reset_data() {
-	    Global.user_list = {};
-	    localStorage.setItem("users", "{}");
-	    update_data_ver();
-	}
-	function get_data_ver() {
-	    var _a;
-	    return Number((_a = localStorage.getItem("users_data_ver")) !== null && _a !== void 0 ? _a : "0");
-	}
-	function update_data_ver() {
-	    localStorage.setItem("users_data_ver", String(CURRENT_DATA_VER));
-	}
-	function save() {
-	    localStorage.setItem("users", JSON.stringify(Global.user_list));
-	}
-
 	let SSE_addStyle;
 	let SSE_xmlhttpRequest;
 	let SSE_info;
@@ -796,6 +573,237 @@
 	            return false;
 	    }
 	    return true;
+	}
+	function parse_mods(mods) {
+	    if (!mods)
+	        return undefined;
+	    const modarr = mods.split(/,/g);
+	    if (modarr.length === 0)
+	        return undefined;
+	    return modarr;
+	}
+
+	const SCORESABER_LINK = "https://new.scoresaber.com/api";
+	const API_LIMITER = new Limiter();
+	async function get_user_recent_songs_dynamic(user_id, page) {
+	    logc(`Fetching user ${user_id} page ${page}`);
+	    if (get_use_new_ss_api()) {
+	        return get_user_recent_songs_new_api_wrap(user_id, page);
+	    }
+	    else {
+	        return get_user_recent_songs_old_api_wrap(user_id, page);
+	    }
+	}
+	async function get_user_recent_songs_new_api_wrap(user_id, page) {
+	    const recent_songs = await get_user_recent_songs(user_id, page);
+	    return {
+	        meta: {
+	            was_last_page: recent_songs.scores.length < 8
+	        },
+	        songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
+	                time: s.timeSet,
+	                pp: s.pp,
+	                accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
+	                score: s.score,
+	                mods: parse_mods(s.mods)
+	            }])
+	    };
+	}
+	async function get_user_recent_songs(user_id, page) {
+	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+	    const data = await req.json();
+	    return sanitize_song_ids(data);
+	}
+	async function get_user_info_basic(user_id) {
+	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
+	    const data = await req.json();
+	    return sanitize_player_ids(data);
+	}
+	async function auto_fetch_retry(url) {
+	    const MAX_RETRIES = 20;
+	    const SLEEP_WAIT = 5000;
+	    for (let retries = MAX_RETRIES; retries >= 0; retries--) {
+	        await API_LIMITER.wait();
+	        const response = await fetch(url);
+	        const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+	        const reset = Number(response.headers.get("x-ratelimit-reset"));
+	        const limit = Number(response.headers.get("x-ratelimit-limit"));
+	        API_LIMITER.setLimitData(remaining, reset, limit);
+	        if (response.status === 429) {
+	            await sleep(SLEEP_WAIT);
+	        }
+	        else {
+	            return response;
+	        }
+	    }
+	    throw new Error("Can't fetch data from new.scoresaber.");
+	}
+	function sanitize_player_ids(data) {
+	    data.playerInfo.playerId = String(data.playerInfo.playerId);
+	    return data;
+	}
+	function sanitize_song_ids(data) {
+	    for (const s of data.scores) {
+	        s.scoreId = String(s.scoreId);
+	        s.leaderboardId = String(s.leaderboardId);
+	        s.playerId = String(s.playerId);
+	    }
+	    return data;
+	}
+	async function get_user_recent_songs_old_api_wrap(user_id, page) {
+	    let doc;
+	    let tries = 5;
+	    while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
+	        await sleep(500);
+	        doc = await fetch_user_page(user_id, page);
+	        tries--;
+	    }
+	    if (doc === undefined) {
+	        throw Error("Error fetching user page");
+	    }
+	    const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
+	    const max_pages = Number(last_page_elem.innerText) + 1;
+	    const data = {
+	        meta: {
+	            max_pages,
+	            user_name: get_document_user(doc).name,
+	            was_last_page: page === max_pages,
+	        },
+	        songs: [],
+	    };
+	    const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
+	    for (const row of table_row) {
+	        const song_data = get_row_data(row);
+	        data.songs.push(song_data);
+	    }
+	    return data;
+	}
+	async function fetch_user_page(user_id, page) {
+	    const link = Global.scoresaber_link + `/u/${user_id}&page=${page}&sort=2`;
+	    if (window.location.href.toLowerCase() === link) {
+	        logc("Efficient get :P");
+	        return document;
+	    }
+	    const init_fetch = await (await fetch(link)).text();
+	    const parser = new DOMParser();
+	    return parser.parseFromString(init_fetch, "text/html");
+	}
+	function get_row_data(row) {
+	    const rowc = row;
+	    if (rowc.cache) {
+	        return rowc.cache;
+	    }
+	    const leaderboard_elem = check(row.querySelector("th.song a"));
+	    const pp_elem = check(row.querySelector("th.score .ppValue"));
+	    const score_elem = check(row.querySelector("th.score .scoreBottom"));
+	    const time_elem = check(row.querySelector("th.song .time"));
+	    const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
+	    const pp = Number(pp_elem.innerText);
+	    const time = read_inline_date(time_elem.title).toISOString();
+	    let score = undefined;
+	    let accuracy = undefined;
+	    let mods = undefined;
+	    const score_res = check(Global.score_reg.exec(score_elem.innerText));
+	    logc(score_res);
+	    if (score_res[1] === "score") {
+	        score = number_invariant(score_res[2]);
+	    }
+	    else if (score_res[1] === "accuracy") {
+	        accuracy = Number(score_res[2]);
+	    }
+	    if (score_res[4]) {
+	        mods = parse_mods(score_res[4]);
+	    }
+	    const song = {
+	        pp,
+	        time,
+	        score,
+	        accuracy,
+	        mods,
+	    };
+	    const data = [song_id, song];
+	    rowc.cache = data;
+	    return data;
+	}
+
+	class SseEventHandler {
+	    constructor(eventName) {
+	        this.eventName = eventName;
+	        this.callList = [];
+	    }
+	    invoke(param) {
+	        logc("Event", this.eventName);
+	        for (const func of this.callList) {
+	            func(param);
+	        }
+	    }
+	    register(func) {
+	        this.callList.push(func);
+	    }
+	}
+	class SseEvent {
+	    static addNotification(notify) {
+	        this.notificationList.push(notify);
+	        SseEvent.UserNotification.invoke();
+	    }
+	    static getNotifications() {
+	        return this.notificationList;
+	    }
+	}
+	SseEvent.UserCacheChanged = new SseEventHandler("UserCacheChanged");
+	SseEvent.CompareUserChanged = new SseEventHandler("CompareUserChanged");
+	SseEvent.PinnedUserChanged = new SseEventHandler("PinnedUserChanged");
+	SseEvent.UserNotification = new SseEventHandler("UserNotification");
+	SseEvent.StatusInfo = new SseEventHandler("StatusInfo");
+	SseEvent.notificationList = [];
+
+	const CURRENT_DATA_VER = 1;
+	function load() {
+	    const json = localStorage.getItem("users");
+	    if (!json) {
+	        reset_data();
+	        return;
+	    }
+	    try {
+	        Global.user_list = JSON.parse(json);
+	    }
+	    catch (ex) {
+	        console.error("Failed to read user cache, resetting!");
+	        reset_data();
+	        return;
+	    }
+	    let users_data_ver = get_data_ver();
+	    if (users_data_ver !== CURRENT_DATA_VER) {
+	        logc("Updating usercache format");
+	        if (users_data_ver <= 0) {
+	            for (const user of Object.values(Global.user_list)) {
+	                for (const song of Object.values(user.songs)) {
+	                    const time = read_inline_date(song.time);
+	                    song.time = time.toISOString();
+	                }
+	            }
+	            users_data_ver = 1;
+	        }
+	        update_data_ver();
+	        save();
+	        logc("Update successful");
+	    }
+	    logc("Loaded usercache", Global.user_list);
+	}
+	function reset_data() {
+	    Global.user_list = {};
+	    localStorage.setItem("users", "{}");
+	    update_data_ver();
+	}
+	function get_data_ver() {
+	    var _a;
+	    return Number((_a = localStorage.getItem("users_data_ver")) !== null && _a !== void 0 ? _a : "0");
+	}
+	function update_data_ver() {
+	    localStorage.setItem("users_data_ver", String(CURRENT_DATA_VER));
+	}
+	function save() {
+	    localStorage.setItem("users", JSON.stringify(Global.user_list));
 	}
 
 	function setup_user_compare() {
