@@ -10,6 +10,7 @@
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @require      https://cdn.jsdelivr.net/npm/moment@2.24.0/moment.js
+// @require      https://scoresaber.com/imports/js/chart.js
 // @run-at       document-start
 // for Tampermonkey
 // @grant        GM_xmlhttpRequest
