@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.5
+ - Using sessionStore to cache some data.
+
 1.8.4
  - Explicitely import graphjs to make ppgraph loading more consistent ([#18](https://github.com/Splamy/ScoreSaberEnhanced/pull/18) Thanks [@trgwii](https://github.com/trgwii) for this PR)
 

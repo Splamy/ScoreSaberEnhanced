@@ -1,10 +1,11 @@
 import { fetch2 } from "../util/net";
+import { SessionCache } from "../util/sessioncache";
 
-const api_cache = new Map<string, IBeastSaberData>();
+const api_cache = new SessionCache<IBeastSaberData>("beast");
 
 export async function get_data(song_key: string): Promise<IBeastSaberData | undefined> {
 	const cached_data = api_cache.get(song_key);
-	if (cached_data)
+	if (cached_data !== undefined)
 		return cached_data;
 	try {
 		const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);

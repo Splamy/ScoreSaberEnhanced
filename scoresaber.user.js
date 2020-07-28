@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.8.4
+// @version      1.8.5
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -386,10 +386,27 @@
 	    }
 	}
 
-	const api_cache = new Map();
+	class SessionCache {
+	    constructor(prefix) {
+	        this.prefix = prefix;
+	        if (prefix === undefined)
+	            throw Error("Prefix must be set. If you don't want a prefix, explicitely pass ''.");
+	    }
+	    get(key) {
+	        const item = sessionStorage.getItem(this.prefix + key);
+	        if (item === null)
+	            return undefined;
+	        return JSON.parse(item);
+	    }
+	    set(key, value) {
+	        sessionStorage.setItem(this.prefix + key, JSON.stringify(value));
+	    }
+	}
+
+	const api_cache = new SessionCache("saver");
 	async function get_data_by_hash(song_hash) {
 	    const cached_data = api_cache.get(song_hash);
-	    if (cached_data)
+	    if (cached_data !== undefined)
 	        return cached_data;
 	    try {
 	        const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
@@ -616,7 +633,7 @@
 	    return sanitize_song_ids(data);
 	}
 	async function get_user_info_basic(user_id) {
-	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
+	    const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
 	    const data = await req.json();
 	    return sanitize_player_ids(data);
 	}
@@ -1065,10 +1082,10 @@
 	    }
 	}
 
-	const api_cache$1 = new Map();
+	const api_cache$1 = new SessionCache("beast");
 	async function get_data(song_key) {
 	    const cached_data = api_cache$1.get(song_key);
-	    if (cached_data)
+	    if (cached_data !== undefined)
 	        return cached_data;
 	    try {
 	        const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);

@@ -51,7 +51,7 @@ export async function get_user_top_songs(user_id: string, page: number): Promise
 }
 
 export async function get_user_info_basic(user_id: string): Promise<IScoresaberUserBasic> {
-	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/full`);
+	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
 	const data = await req.json() as IScoresaberUserBasic;
 	return sanitize_player_ids(data);
 }
