@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.8.5
+// @version      1.8.6
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -349,7 +349,8 @@
 	    }
 	}
 	function GM_addStyle_custom(css) {
-	    const style = create("style", {}, css);
+	    const style = create("style");
+	    style.innerHTML = css;
 	    into(document.head, style);
 	    return style;
 	}

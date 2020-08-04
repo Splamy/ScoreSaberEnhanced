@@ -41,7 +41,8 @@ export function setup() {
 }
 
 function GM_addStyle_custom(css: string): HTMLStyleElement {
-	const style = create("style", {}, css);
+	const style = create("style");
+	style.innerHTML = css;
 	into(document.head, style);
 	return style;
 }

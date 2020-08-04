@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.6
+ - Fixed [#19](https://github.com/Splamy/ScoreSaberEnhanced/issues/19) incorrectly loading css.
+
 1.8.5
  - Using sessionStore to cache some data.
 
