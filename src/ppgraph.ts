@@ -4,6 +4,7 @@ import { get_compare_user, get_current_user, insert_compare_display, insert_comp
 import g from "./global";
 import { create } from "./util/dom";
 import { check } from "./util/err";
+import { load_chart_lib } from "./util/userscript";
 
 let chart: Chart | undefined;
 let chart_elem: HTMLCanvasElement | undefined;
@@ -39,7 +40,7 @@ export function setup_pp_graph(): void {
 	SseEvent.CompareUserChanged.register(update_pp_graph);
 }
 
-function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: (string | string[])[]): void {
+async function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.ChartDataSets[], labels: (string | string[])[]): Promise<void> {
 	if (chart !== undefined) {
 		chart.data = {
 			labels,
@@ -49,7 +50,9 @@ function chartUserData(canvasContext: CanvasRenderingContext2D, datasets: Chart.
 		return;
 	}
 
-	// @ts-ignore
+	if (!await load_chart_lib())
+		return;
+
 	chart = new Chart(canvasContext, {
 		type: "line",
 		data: {

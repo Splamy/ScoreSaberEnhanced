@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.8.6
+// @version      1.8.7
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -10,7 +10,6 @@
 // @updateURL    https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @downloadURL  https://github.com/Splamy/ScoreSaberEnhanced/raw/master/scoresaber.user.js
 // @require      https://cdn.jsdelivr.net/npm/moment@2.24.0/moment.js
-// @require      https://scoresaber.com/imports/js/chart.js
 // @run-at       document-start
 // for Tampermonkey
 // @grant        GM_xmlhttpRequest
@@ -353,6 +352,20 @@
 	    style.innerHTML = css;
 	    into(document.head, style);
 	    return style;
+	}
+	async function load_chart_lib() {
+	    if (typeof Chart !== "function") {
+	        try {
+	            const resp = await fetch("https://scoresaber.com/imports/js/chart.js");
+	            const js = await resp.text();
+	            new Function(js)();
+	        }
+	        catch (err) {
+	            console.warn("Failed to fetch chartjs. Charts might not work", err);
+	            return false;
+	        }
+	    }
+	    return true;
 	}
 
 	function fetch2(url) {
@@ -1508,7 +1521,7 @@
 	    SseEvent.UserCacheChanged.register(update_pp_graph_buttons);
 	    SseEvent.CompareUserChanged.register(update_pp_graph);
 	}
-	function chartUserData(canvasContext, datasets, labels) {
+	async function chartUserData(canvasContext, datasets, labels) {
 	    if (chart !== undefined) {
 	        chart.data = {
 	            labels,
@@ -1517,6 +1530,8 @@
 	        chart.update();
 	        return;
 	    }
+	    if (!await load_chart_lib())
+	        return;
 	    chart = new Chart(canvasContext, {
 	        type: "line",
 	        data: {

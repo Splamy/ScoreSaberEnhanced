@@ -1,7 +1,7 @@
 import { create, into } from "./dom";
 import { logc } from "./log";
 
-declare var GM: any;
+declare const GM: any;
 declare function GM_addStyle(css: string): HTMLStyleElement;
 type GM_XHR_Options = Partial<Request> & { onload?: (req: XMLHttpRequest) => any, onerror?: () => any } | { headers: any };
 declare function GM_xmlhttpRequest(info: GM_XHR_Options): void;
@@ -45,4 +45,18 @@ function GM_addStyle_custom(css: string): HTMLStyleElement {
 	style.innerHTML = css;
 	into(document.head, style);
 	return style;
+}
+
+export async function load_chart_lib(): Promise<boolean> {
+	if (typeof Chart !== "function") {
+		try {
+			const resp = await fetch("https://scoresaber.com/imports/js/chart.js");
+			const js = await resp.text();
+			new Function(js)();
+		} catch (err) {
+			console.warn("Failed to fetch chartjs. Charts might not work", err);
+			return false;
+		}
+	}
+	return true;
 }
