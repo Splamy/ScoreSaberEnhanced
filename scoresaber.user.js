@@ -614,6 +614,45 @@
 	        return undefined;
 	    return modarr;
 	}
+	function get_notes_count(diff_name, characteristic) {
+	    switch (diff_name) {
+	        case "Easy":
+	            return characteristic.difficulties.easy.notes;
+	        case "Normal":
+	            return characteristic.difficulties.normal.notes;
+	        case "Hard":
+	            return characteristic.difficulties.hard.notes;
+	        case "Expert":
+	            return characteristic.difficulties.expert.notes;
+	        case "Expert+":
+	            return characteristic.difficulties.expertPlus.notes;
+	    }
+	    return -1;
+	}
+	function calculate_max_score(notes) {
+	    const note_score = 115;
+	    let max_score = 0;
+	    let counter = 1;
+	    while (notes > 0 && counter > 0) {
+	        notes--;
+	        counter--;
+	        max_score += note_score;
+	    }
+	    counter = 4;
+	    while (notes > 0 && counter > 0) {
+	        notes--;
+	        counter--;
+	        max_score += note_score * 2;
+	    }
+	    counter = 8;
+	    while (notes > 0 && counter > 0) {
+	        notes--;
+	        counter--;
+	        max_score += note_score * 4;
+	    }
+	    max_score += notes * note_score * 8;
+	    return max_score;
+	}
 
 	const SCORESABER_LINK = "https://new.scoresaber.com/api";
 	const API_LIMITER = new Limiter();
@@ -1388,6 +1427,45 @@
 	        element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
 	    }
 	}
+	function add_percentage() {
+	    if (!is_song_leaderboard_page()) {
+	        return;
+	    }
+	    let details_box = check(document.querySelector(".content .title.is-5"));
+	    details_box = check(details_box.parentElement);
+	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	    if (!song_hash) {
+	        return;
+	    }
+	    get_data_by_hash(song_hash)
+	        .then(data => {
+	        if (data) {
+	            const active_tab = check(document.querySelector(`div.tabs`)).querySelector(`li.is-active`);
+	            const diff_name = check(check(active_tab).querySelector("span")).innerText;
+	            const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+	            if (diff_name && standard_characteristic) {
+	                const notes = get_notes_count(diff_name, standard_characteristic);
+	                if (notes > 0) {
+	                    const max_score = calculate_max_score(notes);
+	                    const ranking_table = check(document.querySelector("table.ranking.global"));
+	                    const user_scores = ranking_table.querySelectorAll("tbody > tr");
+	                    for (const score_row of user_scores) {
+	                        const percentage_column = check(score_row.querySelector("td.percentage"));
+	                        const percentage_value = percentage_column.innerText;
+	                        if (percentage_value && percentage_value === "-") {
+	                            const score = check(score_row.querySelector("td.score")).innerText;
+	                            if (score) {
+	                                const score_num = +(score.replace(/\D/g, ""));
+	                                const calculated_percentage = (score_num * 100. / max_score).toFixed(2);
+	                                percentage_column.innerText = calculated_percentage + "%";
+	                            }
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	    });
+	}
 
 	function setup_dl_link_user_site() {
 	    if (!is_user_page()) {
@@ -1446,6 +1524,44 @@
 	}
 	function rank_to_page(rank, ranks_per_page) {
 	    return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
+	}
+	function add_percentage$1() {
+	    if (!is_user_page()) {
+	        return;
+	    }
+	    const table = check(document.querySelector("table.ranking.songs"));
+	    const table_row = table.querySelectorAll("tbody tr");
+	    for (const row of table_row) {
+	        const image_link = check(row.querySelector("th.song img")).src;
+	        const song_hash = get_song_hash_from_text(image_link);
+	        if (!song_hash) {
+	            return;
+	        }
+	        const score_column = check(row.querySelector(`th.score`));
+	        if (!score_column.innerText || score_column.innerText.includes("%")) {
+	            continue;
+	        }
+	        get_data_by_hash(song_hash)
+	            .then(data => {
+	            if (data) {
+	                const song_column = check(row.querySelector(`th.song`));
+	                const diff_name = check(song_column.querySelector(`span > span`)).innerText;
+	                const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+	                if (diff_name && standard_characteristic) {
+	                    const notes = get_notes_count(diff_name, standard_characteristic);
+	                    if (notes > 0) {
+	                        const max_score = calculate_max_score(notes);
+	                        const user_score = check(score_column.querySelector(".scoreBottom"));
+	                        if (user_score.innerText) {
+	                            const user_score_num = +(user_score.innerHTML.replace(/\D/g, "")) / 100;
+	                            const calculated_percentage = (user_score_num * 100. / max_score).toFixed(2);
+	                            check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
+	                        }
+	                    }
+	                }
+	            }
+	        });
+	    }
 	}
 
 	function get_state(elem) {
@@ -2042,12 +2158,14 @@ h5 > * {
 	    has_loaded_body = true;
 	    logc("Loading body");
 	    setup_dl_link_user_site();
+	    add_percentage$1();
 	    setup_user_rank_link_swap();
 	    setup_song_rank_link_swap();
 	    setup_wide_table_checkbox();
 	    setup_dl_link_leaderboard();
 	    setup_song_filter_tabs();
 	    highlight_user();
+	    add_percentage();
 	    setup_self_pin_button();
 	    setup_self_button();
 	    setup_user_compare();

@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.8.8
+ - Added percentage info on Leaderboard and Profile pages
+
 1.8.7
  - Fixed graphjs throwing when loading in background tab.
 

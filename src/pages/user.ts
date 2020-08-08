@@ -1,10 +1,11 @@
+import * as beatsaver from "../api/beatsaver";
 import * as buttons from "../components/buttons";
 import { get_wide_table, is_user_page } from "../env";
 import g from "../global";
 import { create, into } from "../util/dom";
 import { check } from "../util/err";
 import { number_invariant } from "../util/format";
-import { get_song_hash_from_text } from "../util/song";
+import {calculate_max_score, get_notes_count, get_song_hash_from_text} from "../util/song";
 
 export function setup_dl_link_user_site(): void {
 	if (!is_user_page()) { return; }
@@ -94,4 +95,47 @@ export function setup_song_rank_link_swap(): void {
 
 function rank_to_page(rank: number, ranks_per_page: number): number {
 	return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
+}
+
+export function add_percentage() {
+	if (!is_user_page()) { return; }
+
+	// find the table we want to modify
+	const table = check(document.querySelector("table.ranking.songs"));
+	const table_row = table.querySelectorAll("tbody tr");
+	for (const row of table_row) {
+		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
+		const song_hash = get_song_hash_from_text(image_link);
+
+		if (!song_hash) {
+			return;
+		}
+
+		const score_column = check(row.querySelector(`th.score`));
+		// skip rows with percentage from ScoreSaber
+		if (!score_column.innerText || score_column.innerText.includes("%")) { continue; }
+
+		beatsaver.get_data_by_hash(song_hash)
+			.then(data => {
+				if (data) {
+					const song_column = check(row.querySelector(`th.song`));
+					const diff_name = check(song_column.querySelector(`span > span`)).innerText;
+					const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+					if (diff_name && standard_characteristic) {
+						const notes = get_notes_count(diff_name, standard_characteristic);
+						if (notes > 0) {
+							const max_score = calculate_max_score(notes);
+							const user_score = check(score_column.querySelector(".scoreBottom"));
+
+							if (user_score.innerText) {
+								// remove all non digit character, also remove two zero from fractional part
+								const user_score_num = +(user_score.innerHTML.replace(/\D/g, "")) / 100;
+								const calculated_percentage = (user_score_num * 100. / max_score).toFixed(2);
+								check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
+							}
+						}
+					}
+				}
+			});
+	}
 }

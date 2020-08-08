@@ -115,3 +115,49 @@ export function parse_mods(mods: string): string[] | undefined {
 	if (modarr.length === 0) return undefined;
 	return modarr;
 }
+
+export function get_notes_count(diff_name: string, characteristic: beatsaver.IBeatSaverSongCharacteristic): number {
+	switch (diff_name) {
+		case "Easy":
+			return characteristic.difficulties.easy.notes;
+		case "Normal":
+			return characteristic.difficulties.normal.notes;
+		case "Hard":
+			return characteristic.difficulties.hard.notes;
+		case"Expert":
+			return characteristic.difficulties.expert.notes;
+		case"Expert+":
+			return characteristic.difficulties.expertPlus.notes;
+	}
+	return -1;
+}
+
+export function calculate_max_score(notes: number): number {
+	const note_score = 115;
+	let max_score = 0;
+	let counter = 1;
+	// first note, multiplier x1, check if notes still present
+	while (notes > 0 && counter > 0) {
+		notes--;
+		counter--;
+		max_score += note_score;
+	}
+	// four notes, multiplier x2
+	counter = 4;
+	while (notes > 0 && counter > 0) {
+		notes--;
+		counter--;
+		max_score += note_score * 2;
+	}
+	// eight notes, multiplier x4
+	counter = 8;
+	while (notes > 0 && counter > 0) {
+		notes--;
+		counter--;
+		max_score += note_score * 4;
+	}
+	// all other notes with multiplier x8
+	max_score += notes * note_score * 8;
+
+	return max_score;
+}

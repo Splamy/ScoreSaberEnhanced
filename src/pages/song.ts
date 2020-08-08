@@ -7,7 +7,7 @@ import g from "../global";
 import { create, intor } from "../util/dom";
 import { check } from "../util/err";
 import { format_en, number_to_timespan, toggled_class } from "../util/format";
-import { get_song_compare_value, get_song_hash_from_text } from "../util/song";
+import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text} from "../util/song";
 
 export function setup_song_filter_tabs(): void {
 	if (!is_song_leaderboard_page()) { return; }
@@ -191,4 +191,50 @@ export function highlight_user(): void {
 	if (element != null) {
 		element.parentElement!.parentElement!.style.backgroundColor = "var(--color-highlight)";
 	}
+}
+
+export function add_percentage(): void {
+	if (!is_song_leaderboard_page()) {
+		return;
+	}
+
+	// find the element we want to modify
+	let details_box = check(document.querySelector(".content .title.is-5"));
+	details_box = check(details_box.parentElement);
+
+	const song_hash = get_song_hash_from_text(details_box.innerHTML);
+
+	if (!song_hash) {
+		return;
+	}
+
+	beatsaver.get_data_by_hash(song_hash)
+		.then(data => {
+			if (data) {
+				const active_tab = check(document.querySelector(`div.tabs`)).querySelector(`li.is-active`);
+				const diff_name = check(check(active_tab).querySelector("span")).innerText;
+				const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+				if (diff_name && standard_characteristic) {
+					const notes = get_notes_count(diff_name, standard_characteristic);
+					if (notes > 0) {
+						const max_score = calculate_max_score(notes);
+						const ranking_table = check(document.querySelector("table.ranking.global"));
+						const user_scores = ranking_table.querySelectorAll("tbody > tr");
+						for (const score_row of user_scores) {
+							const percentage_column = check(score_row.querySelector("td.percentage"));
+							const percentage_value = percentage_column.innerText;
+							if (percentage_value && percentage_value === "-") {
+								const score = check(score_row.querySelector("td.score")).innerText;
+								if (score) {
+									// remove any non digit characters
+									const score_num = +(score.replace(/\D/g, ""));
+									const calculated_percentage = (score_num * 100. / max_score).toFixed(2);
+									percentage_column.innerText = calculated_percentage + "%";
+								}
+							}
+						}
+					}
+				}
+			}
+		});
 }
