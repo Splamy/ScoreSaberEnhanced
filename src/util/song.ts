@@ -2,6 +2,8 @@ import * as beatsaver from "../api/beatsaver";
 import * as modal from "../components/modal";
 import { ISong } from "../declarations/Types";
 import g from "../global";
+import { check } from "./err";
+import { number_invariant } from "./format";
 
 export function get_song_compare_value(song_a: ISong, song_b: ISong): [number, number] {
 	if (song_a.pp > 0 || song_b.pp > 0) {
@@ -114,4 +116,45 @@ export function parse_mods(mods: string): string[] | undefined {
 	const modarr = mods.split(/,/g);
 	if (modarr.length === 0) return undefined;
 	return modarr;
+}
+
+export function parse_score_bottom(text: string) {
+	let score = undefined;
+	let accuracy = undefined;
+	let mods = undefined;
+	const score_res = check(g.score_reg.exec(text));
+	if (score_res[1] === "score") {
+		score = number_invariant(score_res[2]);
+	} else if (score_res[1] === "accuracy") {
+		accuracy = Number(score_res[2]);
+	}
+	if (score_res[4]) {
+		mods = parse_mods(score_res[4]);
+	}
+	return { score, accuracy, mods };
+}
+
+export function get_notes_count(diff_name: string, characteristic: beatsaver.IBeatSaverSongCharacteristic): number {
+	let diff;
+	switch (diff_name) {
+		case "Easy": diff = characteristic.difficulties.easy; break;
+		case "Normal": diff = characteristic.difficulties.normal; break;
+		case "Hard": diff = characteristic.difficulties.hard; break;
+		case "Expert": diff = characteristic.difficulties.expert; break;
+		case "Expert+": diff = characteristic.difficulties.expertPlus; break;
+	}
+	return diff?.notes ?? -1;
+}
+
+export function calculate_max_score(notes: number): number {
+	const note_score = 115;
+
+	if (notes <= 1) // x1 (+1 note)
+		return note_score * (0 + (notes - 0) * 1);
+	if (notes <= 5) // x2 (+4 notes)
+		return note_score * (1 + (notes - 1) * 2);
+	if (notes <= 13) // x4 (+8 notes)
+		return note_score * (9 + (notes - 5) * 4);
+	// x8
+	return note_score * (41 + (notes - 13) * 8);
 }

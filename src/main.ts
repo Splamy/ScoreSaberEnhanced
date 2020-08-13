@@ -37,12 +37,14 @@ function on_load_body(): void {
 	log.logc("Loading body");
 
 	page_user.setup_dl_link_user_site();
+	page_user.add_percentage();
 	page_user.setup_user_rank_link_swap();
 	page_user.setup_song_rank_link_swap();
 	page_user.setup_wide_table_checkbox();
 	page_song.setup_dl_link_leaderboard();
 	page_song.setup_song_filter_tabs();
 	page_song.highlight_user();
+	page_song.add_percentage();
 	header.setup_self_pin_button();
 	header.setup_self_button();
 	compare.setup_user_compare();

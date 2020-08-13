@@ -2,10 +2,10 @@ import { ISong } from "../declarations/Types";
 import { get_document_user, get_use_new_ss_api } from "../env";
 import g from "../global";
 import { check } from "../util/err";
-import { number_invariant, read_inline_date, round2 } from "../util/format";
+import { read_inline_date, round2 } from "../util/format";
 import { Limiter, sleep } from "../util/limiter";
 import { logc } from "../util/log";
-import { parse_mods } from "../util/song";
+import { parse_mods, parse_score_bottom } from "../util/song";
 
 const SCORESABER_LINK = "https://new.scoresaber.com/api";
 const API_LIMITER = new Limiter();
@@ -161,19 +161,7 @@ export function get_row_data(row: Element): ISongTuple {
 	const song_id = g.leaderboard_reg.exec(leaderboard_elem.href)![1];
 	const pp = Number(pp_elem.innerText);
 	const time = read_inline_date(time_elem.title).toISOString();
-	let score = undefined;
-	let accuracy = undefined;
-	let mods = undefined;
-	const score_res = check(g.score_reg.exec(score_elem.innerText));
-	logc(score_res);
-	if (score_res[1] === "score") {
-		score = number_invariant(score_res[2]);
-	} else if (score_res[1] === "accuracy") {
-		accuracy = Number(score_res[2]);
-	}
-	if (score_res[4]) {
-		mods = parse_mods(score_res[4]);
-	}
+	const { score, accuracy, mods } = parse_score_bottom(score_elem.innerText);
 
 	const song = {
 		pp,

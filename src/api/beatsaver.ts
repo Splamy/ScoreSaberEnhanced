@@ -30,5 +30,21 @@ export interface IBeatSaverData {
 	};
 	metadata: {
 		duration: number;
+		characteristics: IBeatSaverSongCharacteristic[];
 	};
+}
+
+export interface IBeatSaverSongCharacteristic {
+	name: string;
+	difficulties: {
+		easy: IBeatSaverSongDifficulty | null,
+		normal: IBeatSaverSongDifficulty | null,
+		hard: IBeatSaverSongDifficulty | null,
+		expert: IBeatSaverSongDifficulty | null,
+		expertPlus: IBeatSaverSongDifficulty | null,
+	};
+}
+
+interface IBeatSaverSongDifficulty {
+	notes: number;
 }
