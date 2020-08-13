@@ -39,7 +39,7 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 # Development
 
-Setup everything with `npm install`
+Setup everything with `yarn` / `npm install`
 
 Run `gulp` to build the project.
 
@@ -49,31 +49,31 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
-1.8.8
- - Added percentage info on Leaderboard and Profile pages
+1.9.0 | 2020-08-13
+ - Added percentage info on Leaderboard and Profile pages ([#20](https://github.com/Splamy/ScoreSaberEnhanced/pull/20) Thanks [@karghoff](https://github.com/karghoff) for this PR)
 
-1.8.7
+1.8.7 | 2020-08-05
  - Fixed graphjs throwing when loading in background tab.
 
-1.8.6
+1.8.6 | 2020-08-04
  - Fixed [#19](https://github.com/Splamy/ScoreSaberEnhanced/issues/19) incorrectly loading css.
 
-1.8.5
+1.8.5 | 2020-07-28
  - Using sessionStore to cache some data.
 
-1.8.4
+1.8.4 | 2020-07-27
  - Explicitely import graphjs to make ppgraph loading more consistent ([#18](https://github.com/Splamy/ScoreSaberEnhanced/pull/18) Thanks [@trgwii](https://github.com/trgwii) for this PR)
 
-1.8.3
+1.8.3 | 2020-07-13
  - Added ratelimit detection for the scoresaber api
 
-1.8.2
+1.8.2 | 2020-06-20
  - Fixed new.scoresaber api data contract ([#14](https://github.com/Splamy/ScoreSaberEnhanced/pull/14) Thanks [@ErisApps](https://github.com/ErisApps) for this PR)
 
-1.8.1
+1.8.1 | 2020-05-05
  - Added !bsr button
 
-1.8.0
+1.8.0 | 2020-05-05
  - Added BeastSaber bookmarks loading ([#12](https://github.com/Splamy/ScoreSaberEnhanced/pull/12) Thanks [@sre](https://github.com/sre) for this PR)
  - Improved options modal
 
