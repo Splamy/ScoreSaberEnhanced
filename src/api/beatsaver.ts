@@ -37,20 +37,14 @@ export interface IBeatSaverData {
 export interface IBeatSaverSongCharacteristic {
 	name: string;
 	difficulties: {
-		easy: {
-			notes: number;
-		},
-		normal: {
-			notes: number;
-		},
-		hard: {
-			notes: number;
-		},
-		expert: {
-			notes: number;
-		},
-		expertPlus: {
-			notes: number;
-		}
+		easy: IBeatSaverSongDifficulty | null,
+		normal: IBeatSaverSongDifficulty | null,
+		hard: IBeatSaverSongDifficulty | null,
+		expert: IBeatSaverSongDifficulty | null,
+		expertPlus: IBeatSaverSongDifficulty | null,
 	};
+}
+
+interface IBeatSaverSongDifficulty {
+	notes: number;
 }

@@ -7,7 +7,7 @@ type AutoBuild<T extends keyof HTMLElementTagNameMap> = Partial<ElementBuilder<T
 	disabled: boolean,
 	data: { [att: string]: string }
 }>;
-export type IntoElem = HTMLElement | string;
+export type IntoElem = HTMLElement | string | Promise<HTMLElement | string>;
 
 export function create<K extends keyof HTMLElementTagNameMap>(
 	tag: K,
@@ -78,13 +78,29 @@ export function into(parent: HTMLElement, ...children: IntoElem[]): HTMLElement 
 	for (const child of children) {
 		if (typeof child === "string") {
 			if (children.length > 1) {
-				parent.appendChild(create("div", {}, child));
+				parent.appendChild(to_node(child));
 			} else {
-				parent.innerText = child;
+				parent.textContent = child;
 			}
+		} else if ("then" in child) {
+			const dummy = document.createElement("DIV");
+			parent.appendChild(dummy);
+			(async () => {
+				const node = await child;
+				parent.replaceChild(to_node(node), dummy);
+			})();
 		} else {
 			parent.appendChild(child);
 		}
 	}
 	return parent;
+}
+
+function to_node(elem: HTMLElement | string): HTMLElement {
+	if (typeof elem === "string") {
+		const text_div = document.createElement("DIV");
+		text_div.textContent = elem;
+		return text_div;
+	}
+	return elem;
 }

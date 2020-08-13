@@ -99,17 +99,33 @@
 	    for (const child of children) {
 	        if (typeof child === "string") {
 	            if (children.length > 1) {
-	                parent.appendChild(create("div", {}, child));
+	                parent.appendChild(to_node(child));
 	            }
 	            else {
-	                parent.innerText = child;
+	                parent.textContent = child;
 	            }
+	        }
+	        else if ("then" in child) {
+	            const dummy = document.createElement("DIV");
+	            parent.appendChild(dummy);
+	            (async () => {
+	                const node = await child;
+	                parent.replaceChild(to_node(node), dummy);
+	            })();
 	        }
 	        else {
 	            parent.appendChild(child);
 	        }
 	    }
 	    return parent;
+	}
+	function to_node(elem) {
+	    if (typeof elem === "string") {
+	        const text_div = document.createElement("DIV");
+	        text_div.textContent = elem;
+	        return text_div;
+	    }
+	    return elem;
 	}
 
 	function check(elem) {
@@ -614,44 +630,53 @@
 	        return undefined;
 	    return modarr;
 	}
+	function parse_score_bottom(text) {
+	    let score = undefined;
+	    let accuracy = undefined;
+	    let mods = undefined;
+	    const score_res = check(Global.score_reg.exec(text));
+	    if (score_res[1] === "score") {
+	        score = number_invariant(score_res[2]);
+	    }
+	    else if (score_res[1] === "accuracy") {
+	        accuracy = Number(score_res[2]);
+	    }
+	    if (score_res[4]) {
+	        mods = parse_mods(score_res[4]);
+	    }
+	    return { score, accuracy, mods };
+	}
 	function get_notes_count(diff_name, characteristic) {
+	    var _a;
+	    let diff;
 	    switch (diff_name) {
 	        case "Easy":
-	            return characteristic.difficulties.easy.notes;
+	            diff = characteristic.difficulties.easy;
+	            break;
 	        case "Normal":
-	            return characteristic.difficulties.normal.notes;
+	            diff = characteristic.difficulties.normal;
+	            break;
 	        case "Hard":
-	            return characteristic.difficulties.hard.notes;
+	            diff = characteristic.difficulties.hard;
+	            break;
 	        case "Expert":
-	            return characteristic.difficulties.expert.notes;
+	            diff = characteristic.difficulties.expert;
+	            break;
 	        case "Expert+":
-	            return characteristic.difficulties.expertPlus.notes;
+	            diff = characteristic.difficulties.expertPlus;
+	            break;
 	    }
-	    return -1;
+	    return (_a = diff === null || diff === void 0 ? void 0 : diff.notes) !== null && _a !== void 0 ? _a : -1;
 	}
 	function calculate_max_score(notes) {
 	    const note_score = 115;
-	    let max_score = 0;
-	    let counter = 1;
-	    while (notes > 0 && counter > 0) {
-	        notes--;
-	        counter--;
-	        max_score += note_score;
-	    }
-	    counter = 4;
-	    while (notes > 0 && counter > 0) {
-	        notes--;
-	        counter--;
-	        max_score += note_score * 2;
-	    }
-	    counter = 8;
-	    while (notes > 0 && counter > 0) {
-	        notes--;
-	        counter--;
-	        max_score += note_score * 4;
-	    }
-	    max_score += notes * note_score * 8;
-	    return max_score;
+	    if (notes <= 1)
+	        return note_score * (0 + (notes - 0) * 1);
+	    if (notes <= 5)
+	        return note_score * (1 + (notes - 1) * 2);
+	    if (notes <= 13)
+	        return note_score * (9 + (notes - 5) * 4);
+	    return note_score * (41 + (notes - 13) * 8);
 	}
 
 	const SCORESABER_LINK = "https://new.scoresaber.com/api";
@@ -771,20 +796,7 @@
 	    const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
 	    const pp = Number(pp_elem.innerText);
 	    const time = read_inline_date(time_elem.title).toISOString();
-	    let score = undefined;
-	    let accuracy = undefined;
-	    let mods = undefined;
-	    const score_res = check(Global.score_reg.exec(score_elem.innerText));
-	    logc(score_res);
-	    if (score_res[1] === "score") {
-	        score = number_invariant(score_res[2]);
-	    }
-	    else if (score_res[1] === "accuracy") {
-	        accuracy = Number(score_res[2]);
-	    }
-	    if (score_res[4]) {
-	        mods = parse_mods(score_res[4]);
-	    }
+	    const { score, accuracy, mods } = parse_score_bottom(score_elem.innerText);
 	    const song = {
 	        pp,
 	        time,
@@ -1316,6 +1328,25 @@
 	    window.open(link, "_blank");
 	}
 
+	class Lazy {
+	    constructor(generator) {
+	        this.generator = generator;
+	    }
+	    get() {
+	        if (this.generator !== undefined) {
+	            this.value = this.generator();
+	            this.generator = undefined;
+	        }
+	        return this.value;
+	    }
+	}
+
+	const shared = new Lazy(() => {
+	    let details_box = check(document.querySelector(".content .title.is-5"));
+	    details_box = check(details_box.parentElement);
+	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	    return { song_hash, details_box };
+	});
 	function setup_song_filter_tabs() {
 	    if (!is_song_leaderboard_page()) {
 	        return;
@@ -1333,10 +1364,11 @@
 	            const song = user.songs[song_id];
 	            if (!song)
 	                continue;
-	            elements.push([song, generate_song_table_row(user_id, user, song_id)]);
+	            elements.push([song, generate_song_table_row(user_id, user, song)]);
 	        }
 	        elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
 	        elements.forEach(x => score_table.appendChild(x[1]));
+	        add_percentage();
 	    }
 	    function load_all() {
 	        if (!Global.song_table_backup) {
@@ -1347,6 +1379,7 @@
 	        table.removeChild(score_table);
 	        score_table = table.appendChild(Global.song_table_backup);
 	        Global.song_table_backup = undefined;
+	        add_percentage();
 	    }
 	    tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
 	    tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
@@ -1355,9 +1388,7 @@
 	    if (!is_song_leaderboard_page()) {
 	        return;
 	    }
-	    let details_box = check(document.querySelector(".content .title.is-5"));
-	    details_box = check(details_box.parentElement);
-	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	    const { song_hash, details_box } = shared.get();
 	    details_box.appendChild(create("div", {
 	        id: "leaderboard_tool_strip",
 	        style: {
@@ -1376,18 +1407,16 @@
 	    }, create("div", column_style, beatsaver_box), create("div", column_style, beastsaber_box)));
 	    if (!song_hash)
 	        return;
-	    get_data_by_hash(song_hash)
-	        .then(data => {
-	        if (data) {
-	            show_beatsaver_song_data(beatsaver_box, data);
-	            get_data(data.key)
-	                .then(data2 => {
-	                if (data2) {
-	                    show_beastsaber_song_data(beastsaber_box, data2);
-	                }
-	            });
-	        }
-	    });
+	    (async () => {
+	        const data = await get_data_by_hash(song_hash);
+	        if (!data)
+	            return;
+	        show_beatsaver_song_data(beatsaver_box, data);
+	        const data2 = await get_data(data.key);
+	        if (!data2)
+	            return;
+	        show_beastsaber_song_data(beastsaber_box, data2);
+	    })();
 	}
 	function show_beatsaver_song_data(elem, data) {
 	    intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
@@ -1395,8 +1424,7 @@
 	function show_beastsaber_song_data(elem, data) {
 	    intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
 	}
-	function generate_song_table_row(user_id, user, song_id) {
-	    const song = user.songs[song_id];
+	function generate_song_table_row(user_id, user, song) {
 	    return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
 	}
 	function generate_song_table_player(user_id, user) {
@@ -1431,40 +1459,34 @@
 	    if (!is_song_leaderboard_page()) {
 	        return;
 	    }
-	    let details_box = check(document.querySelector(".content .title.is-5"));
-	    details_box = check(details_box.parentElement);
-	    const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	    const { song_hash } = shared.get();
 	    if (!song_hash) {
 	        return;
 	    }
-	    get_data_by_hash(song_hash)
-	        .then(data => {
-	        if (data) {
-	            const active_tab = check(document.querySelector(`div.tabs`)).querySelector(`li.is-active`);
-	            const diff_name = check(check(active_tab).querySelector("span")).innerText;
-	            const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-	            if (diff_name && standard_characteristic) {
-	                const notes = get_notes_count(diff_name, standard_characteristic);
-	                if (notes > 0) {
-	                    const max_score = calculate_max_score(notes);
-	                    const ranking_table = check(document.querySelector("table.ranking.global"));
-	                    const user_scores = ranking_table.querySelectorAll("tbody > tr");
-	                    for (const score_row of user_scores) {
-	                        const percentage_column = check(score_row.querySelector("td.percentage"));
-	                        const percentage_value = percentage_column.innerText;
-	                        if (percentage_value && percentage_value === "-") {
-	                            const score = check(score_row.querySelector("td.score")).innerText;
-	                            if (score) {
-	                                const score_num = +(score.replace(/\D/g, ""));
-	                                const calculated_percentage = (score_num * 100. / max_score).toFixed(2);
-	                                percentage_column.innerText = calculated_percentage + "%";
-	                            }
-	                        }
-	                    }
-	                }
+	    (async () => {
+	        const data = await get_data_by_hash(song_hash);
+	        if (!data)
+	            return;
+	        const diff_name = check(document.querySelector(`div.tabs li.is-active span`)).innerText;
+	        const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+	        if (!diff_name || !standard_characteristic)
+	            return;
+	        const notes = get_notes_count(diff_name, standard_characteristic);
+	        if (notes < 0)
+	            return;
+	        const max_score = calculate_max_score(notes);
+	        const user_scores = document.querySelectorAll("table.ranking.global tbody > tr");
+	        for (const score_row of user_scores) {
+	            const percentage_column = check(score_row.querySelector("td.percentage"));
+	            const percentage_value = percentage_column.innerText;
+	            if (percentage_value === "-") {
+	                const score = check(score_row.querySelector("td.score")).innerText;
+	                const score_num = number_invariant(score);
+	                const calculated_percentage = (100 * score_num / max_score).toFixed(2);
+	                percentage_column.innerText = calculated_percentage + "%";
 	            }
 	        }
-	    });
+	    })();
 	}
 
 	function setup_dl_link_user_site() {
@@ -1541,26 +1563,26 @@
 	        if (!score_column.innerText || score_column.innerText.includes("%")) {
 	            continue;
 	        }
-	        get_data_by_hash(song_hash)
-	            .then(data => {
-	            if (data) {
-	                const song_column = check(row.querySelector(`th.song`));
-	                const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-	                const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-	                if (diff_name && standard_characteristic) {
-	                    const notes = get_notes_count(diff_name, standard_characteristic);
-	                    if (notes > 0) {
-	                        const max_score = calculate_max_score(notes);
-	                        const user_score = check(score_column.querySelector(".scoreBottom"));
-	                        if (user_score.innerText) {
-	                            const user_score_num = +(user_score.innerHTML.replace(/\D/g, "")) / 100;
-	                            const calculated_percentage = (user_score_num * 100. / max_score).toFixed(2);
-	                            check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
-	                        }
-	                    }
-	                }
+	        (async () => {
+	            const data = await get_data_by_hash(song_hash);
+	            if (!data)
+	                return;
+	            const song_column = check(row.querySelector(`th.song`));
+	            const diff_name = check(song_column.querySelector(`span > span`)).innerText;
+	            const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+	            if (!diff_name || !standard_characteristic)
+	                return;
+	            const notes = get_notes_count(diff_name, standard_characteristic);
+	            if (notes < 0)
+	                return;
+	            const max_score = calculate_max_score(notes);
+	            const user_score = check(score_column.querySelector(".scoreBottom")).innerText;
+	            const { score } = parse_score_bottom(user_score);
+	            if (score !== undefined) {
+	                const calculated_percentage = (100 * score / max_score).toFixed(2);
+	                check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
 	            }
-	        });
+	        })();
 	    }
 	}
 

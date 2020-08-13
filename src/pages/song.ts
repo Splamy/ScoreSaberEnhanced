@@ -6,8 +6,18 @@ import { get_home_user, is_song_leaderboard_page } from "../env";
 import g from "../global";
 import { create, intor } from "../util/dom";
 import { check } from "../util/err";
-import { format_en, number_to_timespan, toggled_class } from "../util/format";
-import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text} from "../util/song";
+import { format_en, number_invariant, number_to_timespan, toggled_class } from "../util/format";
+import { Lazy } from "../util/lazy";
+import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text } from "../util/song";
+
+const shared = new Lazy(() => {
+	// find the element we want to modify
+	let details_box = check(document.querySelector(".content .title.is-5"));
+	details_box = check(details_box.parentElement);
+
+	const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	return { song_hash, details_box };
+});
 
 export function setup_song_filter_tabs(): void {
 	if (!is_song_leaderboard_page()) { return; }
@@ -28,10 +38,11 @@ export function setup_song_filter_tabs(): void {
 			// Check if the user has a score on this song
 			if (!song)
 				continue;
-			elements.push([song, generate_song_table_row(user_id, user, song_id)]);
+			elements.push([song, generate_song_table_row(user_id, user, song)]);
 		}
 		elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
 		elements.forEach(x => score_table.appendChild(x[1]));
+		add_percentage();
 	}
 
 	function load_all() {
@@ -44,6 +55,7 @@ export function setup_song_filter_tabs(): void {
 		table.removeChild(score_table);
 		score_table = table.appendChild(g.song_table_backup);
 		g.song_table_backup = undefined;
+		add_percentage();
 	}
 
 	tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
@@ -54,11 +66,7 @@ export function setup_song_filter_tabs(): void {
 export function setup_dl_link_leaderboard(): void {
 	if (!is_song_leaderboard_page()) { return; }
 
-	// find the element we want to modify
-	let details_box = check(document.querySelector(".content .title.is-5"));
-	details_box = check(details_box.parentElement);
-
-	const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	const { song_hash, details_box } = shared.get();
 
 	details_box.appendChild(
 		create("div", {
@@ -100,18 +108,16 @@ export function setup_dl_link_leaderboard(): void {
 	if (!song_hash)
 		return;
 
-	beatsaver.get_data_by_hash(song_hash)
-		.then(data => {
-			if (data) {
-				show_beatsaver_song_data(beatsaver_box, data);
-				beastsaber.get_data(data.key)
-					.then(data2 => {
-						if (data2) {
-							show_beastsaber_song_data(beastsaber_box, data2);
-						}
-					});
-			}
-		});
+	(async () => {
+		const data = await beatsaver.get_data_by_hash(song_hash);
+		if (!data)
+			return;
+		show_beatsaver_song_data(beatsaver_box, data);
+		const data2 = await beastsaber.get_data(data.key);
+		if (!data2)
+			return;
+		show_beastsaber_song_data(beastsaber_box, data2);
+	})();
 }
 
 function show_beatsaver_song_data(elem: HTMLElement, data: beatsaver.IBeatSaverData) {
@@ -135,8 +141,7 @@ function show_beastsaber_song_data(elem: HTMLElement, data: beastsaber.IBeastSab
 	);
 }
 
-function generate_song_table_row(user_id: string, user: IDbUser, song_id: string): HTMLElement {
-	const song = user.songs[song_id];
+function generate_song_table_row(user_id: string, user: IDbUser, song: ISong): HTMLElement {
 	return create("tr", {}, // style: { backgroundColor: ":var(--color-highlight);" }
 		create("td", { class: "picture" }),
 		create("td", { class: "rank" }, "-"),
@@ -198,43 +203,34 @@ export function add_percentage(): void {
 		return;
 	}
 
-	// find the element we want to modify
-	let details_box = check(document.querySelector(".content .title.is-5"));
-	details_box = check(details_box.parentElement);
-
-	const song_hash = get_song_hash_from_text(details_box.innerHTML);
+	const { song_hash } = shared.get();
 
 	if (!song_hash) {
 		return;
 	}
 
-	beatsaver.get_data_by_hash(song_hash)
-		.then(data => {
-			if (data) {
-				const active_tab = check(document.querySelector(`div.tabs`)).querySelector(`li.is-active`);
-				const diff_name = check(check(active_tab).querySelector("span")).innerText;
-				const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-				if (diff_name && standard_characteristic) {
-					const notes = get_notes_count(diff_name, standard_characteristic);
-					if (notes > 0) {
-						const max_score = calculate_max_score(notes);
-						const ranking_table = check(document.querySelector("table.ranking.global"));
-						const user_scores = ranking_table.querySelectorAll("tbody > tr");
-						for (const score_row of user_scores) {
-							const percentage_column = check(score_row.querySelector("td.percentage"));
-							const percentage_value = percentage_column.innerText;
-							if (percentage_value && percentage_value === "-") {
-								const score = check(score_row.querySelector("td.score")).innerText;
-								if (score) {
-									// remove any non digit characters
-									const score_num = +(score.replace(/\D/g, ""));
-									const calculated_percentage = (score_num * 100. / max_score).toFixed(2);
-									percentage_column.innerText = calculated_percentage + "%";
-								}
-							}
-						}
-					}
-				}
+	(async () => {
+		const data = await beatsaver.get_data_by_hash(song_hash);
+		if (!data)
+			return;
+		const diff_name = check(document.querySelector(`div.tabs li.is-active span`)).innerText;
+		const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+		if (!diff_name || !standard_characteristic)
+			return;
+		const notes = get_notes_count(diff_name, standard_characteristic);
+		if (notes < 0)
+			return;
+		const max_score = calculate_max_score(notes);
+		const user_scores = document.querySelectorAll("table.ranking.global tbody > tr");
+		for (const score_row of user_scores) {
+			const percentage_column = check(score_row.querySelector("td.percentage"));
+			const percentage_value = percentage_column.innerText;
+			if (percentage_value === "-") {
+				const score = check(score_row.querySelector("td.score")).innerText;
+				const score_num = number_invariant(score);
+				const calculated_percentage = (100 * score_num / max_score).toFixed(2);
+				percentage_column.innerText = calculated_percentage + "%";
 			}
-		});
+		}
+	})();
 }

@@ -5,7 +5,7 @@ import g from "../global";
 import { create, into } from "../util/dom";
 import { check } from "../util/err";
 import { number_invariant } from "../util/format";
-import {calculate_max_score, get_notes_count, get_song_hash_from_text} from "../util/song";
+import { calculate_max_score, get_notes_count, get_song_hash_from_text, parse_score_bottom } from "../util/song";
 
 export function setup_dl_link_user_site(): void {
 	if (!is_user_page()) { return; }
@@ -115,27 +115,25 @@ export function add_percentage() {
 		// skip rows with percentage from ScoreSaber
 		if (!score_column.innerText || score_column.innerText.includes("%")) { continue; }
 
-		beatsaver.get_data_by_hash(song_hash)
-			.then(data => {
-				if (data) {
-					const song_column = check(row.querySelector(`th.song`));
-					const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-					const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-					if (diff_name && standard_characteristic) {
-						const notes = get_notes_count(diff_name, standard_characteristic);
-						if (notes > 0) {
-							const max_score = calculate_max_score(notes);
-							const user_score = check(score_column.querySelector(".scoreBottom"));
-
-							if (user_score.innerText) {
-								// remove all non digit character, also remove two zero from fractional part
-								const user_score_num = +(user_score.innerHTML.replace(/\D/g, "")) / 100;
-								const calculated_percentage = (user_score_num * 100. / max_score).toFixed(2);
-								check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
-							}
-						}
-					}
-				}
-			});
+		(async () => {
+			const data = await beatsaver.get_data_by_hash(song_hash);
+			if (!data)
+				return;
+			const song_column = check(row.querySelector(`th.song`));
+			const diff_name = check(song_column.querySelector(`span > span`)).innerText;
+			const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
+			if (!diff_name || !standard_characteristic)
+				return;
+			const notes = get_notes_count(diff_name, standard_characteristic);
+			if (notes < 0)
+				return;
+			const max_score = calculate_max_score(notes);
+			const user_score = check(score_column.querySelector(".scoreBottom")).innerText;
+			const { score } = parse_score_bottom(user_score);
+			if (score !== undefined) {
+				const calculated_percentage = (100 * score / max_score).toFixed(2);
+				check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
+			}
+		})();
 	}
 }
