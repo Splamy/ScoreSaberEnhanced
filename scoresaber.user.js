@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.9.0
+// @version      1.9.1
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -36,6 +36,7 @@
 	Global.score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 	Global.leaderboard_reg = /leaderboard\/(\d+)/;
 	Global.leaderboard_rank_reg = /#([\d,]+)/;
+	Global.leaderboard_country_reg = /(\?|&)country=(\w+)$/;
 	Global.user_reg = /u\/(\d+)/;
 	Global.script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 	Global.user_per_page_global_leaderboard = 50;
@@ -1523,10 +1524,19 @@
 	    if (!is_user_page()) {
 	        return;
 	    }
-	    const elem_global = check(document.querySelector(".content div.columns ul li a"));
+	    const elem_ranking_links = document.querySelectorAll(".content div.columns ul > li > a");
+	    console.assert(elem_ranking_links.length >= 2, elem_ranking_links);
+	    const elem_global = elem_ranking_links[0];
 	    const res_global = check(Global.leaderboard_rank_reg.exec(elem_global.innerText));
-	    const number_global = number_invariant(res_global[1]);
-	    elem_global.href = Global.scoresaber_link + "/global/" + rank_to_page(number_global, Global.user_per_page_global_leaderboard);
+	    const rank_global = number_invariant(res_global[1]);
+	    elem_global.href = Global.scoresaber_link + "/global/" + rank_to_page(rank_global, Global.user_per_page_global_leaderboard);
+	    const elem_country = elem_ranking_links[1];
+	    const res_country = check(Global.leaderboard_rank_reg.exec(elem_country.innerText));
+	    const country_str = check(Global.leaderboard_country_reg.exec(elem_country.href));
+	    const number_country = number_invariant(res_country[1]);
+	    elem_country.href = Global.scoresaber_link +
+	        "/global/" + rank_to_page(number_country, Global.user_per_page_global_leaderboard) +
+	        "?country=" + country_str[2];
 	}
 	function setup_song_rank_link_swap() {
 	    if (!is_user_page()) {

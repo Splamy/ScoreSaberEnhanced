@@ -21,6 +21,7 @@ export default class Global {
 	public static readonly score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
 	public static readonly leaderboard_reg = /leaderboard\/(\d+)/;
 	public static readonly leaderboard_rank_reg = /#([\d,]+)/;
+	public static readonly leaderboard_country_reg = /(\?|&)country=(\w+)$/;
 	public static readonly user_reg = /u\/(\d+)/;
 	public static readonly script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
 	public static readonly user_per_page_global_leaderboard = 50;

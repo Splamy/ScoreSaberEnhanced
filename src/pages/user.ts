@@ -68,10 +68,21 @@ export function setup_wide_table_checkbox(): void {
 export function setup_user_rank_link_swap(): void {
 	if (!is_user_page()) { return; }
 
-	const elem_global = check(document.querySelector<HTMLAnchorElement>(".content div.columns ul li a"));
+	const elem_ranking_links = document.querySelectorAll<HTMLAnchorElement>(".content div.columns ul > li > a");
+	console.assert(elem_ranking_links.length >= 2, elem_ranking_links);
+	// Global rank
+	const elem_global = elem_ranking_links[0];
 	const res_global = check(g.leaderboard_rank_reg.exec(elem_global.innerText));
-	const number_global = number_invariant(res_global[1]);
-	elem_global.href = g.scoresaber_link + "/global/" + rank_to_page(number_global, g.user_per_page_global_leaderboard);
+	const rank_global = number_invariant(res_global[1]);
+	elem_global.href = g.scoresaber_link + "/global/" + rank_to_page(rank_global, g.user_per_page_global_leaderboard);
+	// Country rank
+	const elem_country = elem_ranking_links[1];
+	const res_country = check(g.leaderboard_rank_reg.exec(elem_country.innerText));
+	const country_str = check(g.leaderboard_country_reg.exec(elem_country.href));
+	const number_country = number_invariant(res_country[1]);
+	elem_country.href = g.scoresaber_link +
+		"/global/" + rank_to_page(number_country, g.user_per_page_global_leaderboard) +
+		"?country=" + country_str[2];
 }
 
 export function setup_song_rank_link_swap(): void {

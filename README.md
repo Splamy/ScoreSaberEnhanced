@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.9.1 | 2021-02-25
+ - Also change country rank link to jump to correct page.
+
 1.9.0 | 2020-08-13
  - Added percentage info on Leaderboard and Profile pages ([#20](https://github.com/Splamy/ScoreSaberEnhanced/pull/20) Thanks [@karghoff](https://github.com/karghoff) for this PR)
 
