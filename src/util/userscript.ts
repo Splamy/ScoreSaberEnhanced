@@ -3,7 +3,7 @@ import { logc } from "./log";
 
 declare const GM: any;
 declare function GM_addStyle(css: string): HTMLStyleElement;
-type GM_XHR_Options = Partial<Request> & { onload?: (req: XMLHttpRequest) => any, onerror?: () => any } | { headers: any };
+type GM_XHR_Options = Partial<Request> & { onload?: (req: XMLHttpRequest) => void, onerror?: () => void } | { headers: any };
 declare function GM_xmlhttpRequest(info: GM_XHR_Options): void;
 interface IInfo {
 	/** An object containing data about the currently running script. */
@@ -19,14 +19,14 @@ interface IInfo {
 	/** The version of Greasemonkey, a string e.g. `4.0`. */
 	version: string;
 }
-declare var GM_info: IInfo;
+declare const GM_info: IInfo;
 
 // tslint:disable: variable-name
 export let SSE_addStyle: (css: string) => HTMLStyleElement;
 export let SSE_xmlhttpRequest: (info: GM_XHR_Options) => void;
 export let SSE_info: IInfo;
 
-export function setup() {
+export function setup(): void {
 	if (typeof (GM) !== "undefined") {
 		logc("Using GM.* extenstions", GM);
 		SSE_addStyle = GM_addStyle_custom;

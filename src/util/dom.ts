@@ -28,23 +28,18 @@ export function create<K extends keyof HTMLElementTagNameMap>(
 					ele.classList.add(...attrs.class!);
 				}
 			} else if (attrName === "for") {
-				// @ts-ignore
-				ele.htmlFor = attrValue;
+				(ele as HTMLLabelElement).htmlFor = attrValue;
 			} else if (attrName === "selected") {
-				// @ts-ignore
-				ele.selected = attrValue ? "selected" : undefined;
+				(ele as HTMLOptionElement).selected = (attrValue ? "selected" : undefined) as any;
 			} else if (attrName === "disabled") {
-				// @ts-ignore
-				if (attrValue) ele.setAttribute("disabled", undefined);
+				if (attrValue) ele.setAttribute("disabled", undefined!);
 			} else if (attrName === "data") {
-				// @ts-ignore
-				const data_dict: { [att: string]: string } = attrs[attrName];
+				const data_dict: { [att: string]: string } = attrs[attrName] as any;
 				for (const [data_key, data_value] of Object.entries(data_dict)) {
 					ele.dataset[data_key] = data_value;
 				}
 			} else {
-				// @ts-ignore
-				ele[attrName] = attrs[attrName];
+				(ele as any)[attrName] = (attrs as any)[attrName];
 			}
 		}
 	}

@@ -139,7 +139,7 @@ function update_pp_graph(): void {
 	chartUserData(check(chart_elem.getContext("2d")), dataSets, labels);
 }
 
-export function update_pp_graph_buttons() {
+export function update_pp_graph_buttons(): void {
 	if (!chart_button) { return; }
 
 	// Check if the current user is in the database

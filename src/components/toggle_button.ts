@@ -1,9 +1,9 @@
 import { create } from "../util/dom";
 
 export type IButtonElement = HTMLElement & {
-	on: () => any,
-	off: () => any,
-	toggle: () => any,
+	on: () => void,
+	off: () => void,
+	toggle: () => void,
 	view_class: string,
 };
 
@@ -12,7 +12,7 @@ type ButtonType = "primary" | "link" | "info" | "success" | "danger";
 interface IButtonOptions {
 	text: string;
 	type?: ButtonType;
-	onclick?: (this: IButtonElement, state: boolean) => any;
+	onclick?: (this: IButtonElement, state: boolean) => void;
 	default?: boolean;
 }
 

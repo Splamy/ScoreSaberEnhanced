@@ -200,7 +200,7 @@ function show_settings_lazy() {
 								await modal.show_modal({ text: "Please enter a username first.", buttons: modal.buttons.OkOnly });
 								return;
 							}
-							await update_bsaber_bookmark_cache(this as any, bsaber_username);
+							await update_bsaber_bookmark_cache((this as HTMLElement).firstElementChild!, bsaber_username);
 						},
 					},
 					create("i", { class: "fas fa-sync" }),
@@ -262,8 +262,8 @@ function get_scoresaber_darkmode(): boolean {
 	return document.cookie.includes("dark=1");
 }
 
-async function update_bsaber_bookmark_cache(button: any, username: string): Promise<void> {
-	button.firstChild.classList.add("fa-spin");
+async function update_bsaber_bookmark_cache(button: Element, username: string): Promise<void> {
+	button.classList.add("fa-spin");
 
 	for (let page = 1; ; page++) {
 		SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
@@ -277,7 +277,7 @@ async function update_bsaber_bookmark_cache(button: any, username: string): Prom
 	}
 
 	SseEvent.StatusInfo.invoke({ text: "Finished loading BeastSaber bookmarks" });
-	button.firstChild.classList.remove("fa-spin");
+	button.classList.remove("fa-spin");
 }
 
 function process_bookmarks(songs: beastsaber.IBeastSaberSongInfo[]): void {
@@ -291,7 +291,7 @@ function process_bookmarks(songs: beastsaber.IBeastSaberSongInfo[]): void {
 	}
 }
 
-export function update_button_visibility() {
+export function update_button_visibility(): void {
 	if (!env.is_user_page()) { return; }
 
 	const table = check(document.querySelector("table.ranking.songs"));

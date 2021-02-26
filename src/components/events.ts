@@ -1,7 +1,7 @@
 import { BulmaColor } from "../declarations/Types";
 import { logc } from "../util/log";
 
-type FuncTyp<T> = T extends void ? () => any : (param: T) => any;
+type FuncTyp<T> = T extends void ? () => void : (param: T) => void;
 
 class SseEventHandler<T = void> {
 	private eventName: string;

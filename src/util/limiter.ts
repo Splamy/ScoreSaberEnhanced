@@ -8,7 +8,7 @@ export class Limiter {
 		this.ratelimit_remaining = undefined;
 	}
 
-	public async wait() {
+	public async wait(): Promise<void> {
 		const now = unix_timestamp();
 		if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
 			this.ratelimit_reset = undefined;
@@ -25,18 +25,18 @@ export class Limiter {
 		}
 	}
 
-	public setLimitData(remaining: number, reset: number, limit: number) {
+	public setLimitData(remaining: number, reset: number, limit: number): void {
 		this.ratelimit_remaining = remaining;
 		this.ratelimit_reset = reset;
 		this.ratelimit_limit = limit;
 	}
 }
 
-export async function sleep(timeout: number) {
+export async function sleep(timeout: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, timeout));
 }
 
-export function unix_timestamp() {
+export function unix_timestamp(): number {
 	return Math.round((new Date()).getTime() / 1000);
 }
 

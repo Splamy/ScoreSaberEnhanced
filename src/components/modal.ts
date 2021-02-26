@@ -18,7 +18,7 @@ interface IModalButton {
 }
 
 export class Modal<T extends string> {
-	public after_close?: (answer: Answer<T>) => any;
+	public after_close?: (answer: Answer<T>) => void;
 	private elem: HTMLElement;
 	constructor(elem: HTMLElement) {
 		this.elem = elem;
@@ -103,7 +103,7 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 }
 
 export function show_modal<T extends string>(opt: IModalOptions<T>): Promise<Answer<T>> {
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve) => {
 		opt.default = true;
 		const modal = create_modal(opt);
 		modal.after_close = (answer) => {

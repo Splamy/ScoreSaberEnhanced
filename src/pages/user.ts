@@ -108,7 +108,7 @@ function rank_to_page(rank: number, ranks_per_page: number): number {
 	return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
 }
 
-export function add_percentage() {
+export function add_percentage(): void {
 	if (!is_user_page()) { return; }
 
 	// find the table we want to modify

@@ -118,7 +118,7 @@ export function parse_mods(mods: string): string[] | undefined {
 	return modarr;
 }
 
-export function parse_score_bottom(text: string) {
+export function parse_score_bottom(text: string): { score?: number, accuracy?: number, mods?: string[] } {
 	let score = undefined;
 	let accuracy = undefined;
 	let mods = undefined;

@@ -164,7 +164,7 @@ function generate_song_table_player(user_id: string, user: IDbUser): HTMLElement
 function generate_tab(
 	title: string | HTMLElement,
 	css_id: string,
-	action: (() => any) | undefined,
+	action: (() => void) | undefined,
 	is_active: boolean,
 	has_offset: boolean
 ): HTMLElement {

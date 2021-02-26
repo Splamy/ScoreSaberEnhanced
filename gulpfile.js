@@ -1,16 +1,16 @@
 const { series, src, dest, task, watch } = require("gulp");
-const rollupTypescript = require("rollup-plugin-typescript");
+const rollupTypescript = require("@rollup/plugin-typescript");
 const rollup = require("rollup");
 const concat = require("gulp-concat");
 const replace = require("gulp-replace");
 const fs = require('fs');
-const tslint = require("rollup-plugin-tslint");
+const eslint = require("@rbnlffl/rollup-plugin-eslint");
 
 task("build", async () => {
 	const bundle = await rollup.rollup({
 		input: "./src/main.ts",
 		plugins: [
-			tslint(),
+			eslint(),
 			rollupTypescript()
 		]
 	});

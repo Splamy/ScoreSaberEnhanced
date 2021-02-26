@@ -18,12 +18,12 @@ export default class Global {
 	public static readonly beatsaver_link = "https://beatsaver.com/beatmap/";
 	public static readonly bsaber_songs_link = "https://bsaber.com/songs/";
 	public static readonly song_hash_reg = /\/([\da-zA-Z]{40})\.png/;
-	public static readonly score_reg = /(score|accuracy):\s*([\d\.,]+)%?\s*(\(([\w,]*)\))?/;
+	public static readonly score_reg = /(score|accuracy):\s*([\d.,]+)%?\s*(\(([\w,]*)\))?/;
 	public static readonly leaderboard_reg = /leaderboard\/(\d+)/;
 	public static readonly leaderboard_rank_reg = /#([\d,]+)/;
 	public static readonly leaderboard_country_reg = /(\?|&)country=(\w+)$/;
 	public static readonly user_reg = /u\/(\d+)/;
-	public static readonly script_version_reg = /\/\/\s*@version\s+([\d\.]+)/;
+	public static readonly script_version_reg = /\/\/\s*@version\s+([\d.]+)/;
 	public static readonly user_per_page_global_leaderboard = 50;
 	public static readonly user_per_page_song_leaderboard = 12;
 	/**
