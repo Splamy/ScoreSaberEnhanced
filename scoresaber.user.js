@@ -693,6 +693,12 @@
     }
     async function get_user_recent_songs_new_api_wrap(user_id, page) {
         const recent_songs = await get_user_recent_songs(user_id, page);
+        if (!recent_songs) {
+            return {
+                meta: { was_last_page: true },
+                songs: []
+            };
+        }
         return {
             meta: {
                 was_last_page: recent_songs.scores.length < 8
@@ -708,6 +714,9 @@
     }
     async function get_user_recent_songs(user_id, page) {
         const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+        if (req.status === 404) {
+            return null;
+        }
         const data = await req.json();
         return sanitize_song_ids(data);
     }

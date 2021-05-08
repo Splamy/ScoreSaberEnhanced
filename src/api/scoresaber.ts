@@ -23,6 +23,13 @@ export async function get_user_recent_songs_dynamic(user_id: string, page: numbe
 
 async function get_user_recent_songs_new_api_wrap(user_id: string, page: number): Promise<IUserPageData> {
 	const recent_songs = await get_user_recent_songs(user_id, page);
+	if (!recent_songs) {
+		// We reached the end of pagination unexpectedly (multiple of 8 scores)
+		return {
+			meta: { was_last_page: true },
+			songs: []
+		};
+	}
 
 	return {
 		meta: {
@@ -38,8 +45,15 @@ async function get_user_recent_songs_new_api_wrap(user_id: string, page: number)
 	};
 }
 
-export async function get_user_recent_songs(user_id: string, page: number): Promise<IScoresaberSongList> {
+export async function get_user_recent_songs(user_id: string, page: number): Promise<IScoresaberSongList | null> {
 	const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+
+	// If the user has a multiple of 8 scores, there's no way to know we've
+	// reached the end of the results until hitting a 404. 
+	if (req.status === 404) {
+		return null; // End of pagination.
+	}
+
 	const data = await req.json() as IScoresaberSongList;
 	return sanitize_song_ids(data);
 }
