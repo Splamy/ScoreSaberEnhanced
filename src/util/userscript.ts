@@ -21,7 +21,6 @@ interface IInfo {
 }
 declare const GM_info: IInfo;
 
-// tslint:disable: variable-name
 export let SSE_addStyle: (css: string) => HTMLStyleElement;
 export let SSE_xmlhttpRequest: (info: GM_XHR_Options) => void;
 export let SSE_info: IInfo;

@@ -41,13 +41,16 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 Setup everything with `yarn` / `npm install`
 
-Run `gulp` to build the project.
+Run `yarn build` to build the project.
 
-Run `gulp watch` to run the watcher which will continuously build the project.
+Run `yarn dev` to run the watcher which will continuously build the project.
 
 The generated output file is always `scoresaber.user.js`.
 
 # Changelog
+
+1.9.2 | 2021-05-10
+ - Fixed [#21](https://github.com/Splamy/ScoreSaberEnhanced/issues/21) sometimes failing to update users. ([#23](https://github.com/Splamy/ScoreSaberEnhanced/pull/23) Thanks [@Lemmmy](https://github.com/Lemmmy) for this PR)
 
 1.9.1 | 2021-02-25
  - Also change country rank link to jump to correct page.

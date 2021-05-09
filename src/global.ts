@@ -7,9 +7,7 @@ export default class Global {
 	public static feature_display_list: HTMLElement | undefined;
 	public static last_selected: string;
 	public static debug = false;
-	// tslint:disable-next-line: variable-name
 	public static _current_user: IUser | undefined;
-	// tslint:disable-next-line: variable-name
 	public static _home_user: IUser | undefined;
 	public static style_themed_elem: HTMLStyleElement;
 	public static song_table_backup: HTMLElement | undefined;

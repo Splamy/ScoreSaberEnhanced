@@ -24,9 +24,7 @@ class SseEventHandler<T = void> {
 	}
 }
 
-// tslint:disable-next-line: max-classes-per-file
 export default class SseEvent {
-	// tslint:disable: variable-name
 	public static readonly UserCacheChanged = new SseEventHandler("UserCacheChanged");
 	public static readonly CompareUserChanged = new SseEventHandler("CompareUserChanged");
 	public static readonly PinnedUserChanged = new SseEventHandler("PinnedUserChanged");

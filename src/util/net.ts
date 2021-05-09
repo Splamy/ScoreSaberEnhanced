@@ -22,9 +22,9 @@ export function fetch2(url: string): Promise<string> {
 	});
 }
 
-export function get_hostname(url: string): string | undefined {
+function get_hostname(url: string): string | undefined {
 	const match = url.match(/:\/\/([^/:]+)/i);
-	if (match && match.length > 1 && typeof match[1] === "string" && match[1].length > 0) {
+	if (match !== null) {
 		return match[1];
 	} else {
 		return undefined;

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.9.1
+// @version      1.9.2
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -338,7 +338,7 @@
         return Math.round((new Date()).getTime() / 1000);
     }
 
-    function setup() {
+    function setup$3() {
         Global.debug = localStorage.getItem("debug") === "true";
     }
     function logc(message, ...optionalParams) {
@@ -350,7 +350,7 @@
     let SSE_addStyle;
     let SSE_xmlhttpRequest;
     let SSE_info;
-    function setup$1() {
+    function setup$2() {
         if (typeof (GM) !== "undefined") {
             logc("Using GM.* extenstions", GM);
             SSE_addStyle = GM_addStyle_custom;
@@ -409,7 +409,7 @@
     }
     function get_hostname(url) {
         const match = url.match(/:\/\/([^/:]+)/i);
-        if (match && match.length > 1 && typeof match[1] === "string" && match[1].length > 0) {
+        if (match !== null) {
             return match[1];
         }
         else {
@@ -434,15 +434,15 @@
         }
     }
 
-    const api_cache = new SessionCache("saver");
+    const api_cache$1 = new SessionCache("saver");
     async function get_data_by_hash(song_hash) {
-        const cached_data = api_cache.get(song_hash);
+        const cached_data = api_cache$1.get(song_hash);
         if (cached_data !== undefined)
             return cached_data;
         try {
             const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
             const data = JSON.parse(data_str);
-            api_cache.set(song_hash, data);
+            api_cache$1.set(song_hash, data);
             return data;
         }
         catch (e) {
@@ -1157,15 +1157,15 @@
         }
     }
 
-    const api_cache$1 = new SessionCache("beast");
+    const api_cache = new SessionCache("beast");
     async function get_data(song_key) {
-        const cached_data = api_cache$1.get(song_key);
+        const cached_data = api_cache.get(song_key);
         if (cached_data !== undefined)
             return cached_data;
         try {
             const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
             const data = JSON.parse(data_str);
-            api_cache$1.set(song_key, data);
+            api_cache.set(song_key, data);
             return data;
         }
         catch (e) {
@@ -1378,7 +1378,7 @@
             }
             elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
             elements.forEach(x => score_table.appendChild(x[1]));
-            add_percentage();
+            add_percentage$1();
         }
         function load_all() {
             if (!Global.song_table_backup) {
@@ -1389,7 +1389,7 @@
             table.removeChild(score_table);
             score_table = table.appendChild(Global.song_table_backup);
             Global.song_table_backup = undefined;
-            add_percentage();
+            add_percentage$1();
         }
         tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
         tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
@@ -1465,7 +1465,7 @@
             element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
         }
     }
-    function add_percentage() {
+    function add_percentage$1() {
         if (!is_song_leaderboard_page()) {
             return;
         }
@@ -1566,7 +1566,7 @@
     function rank_to_page(rank, ranks_per_page) {
         return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
     }
-    function add_percentage$1() {
+    function add_percentage() {
         if (!is_user_page()) {
             return;
         }
@@ -1818,7 +1818,7 @@ span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
 span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapper {
 	text-shadow: 1px 1px 2px #000;
 }`;
-    function setup$2() {
+    function setup$1() {
         const style_data = `.compact {
 	padding-right: 0 !important;
 	padding-left: 0 !important;
@@ -1942,7 +1942,7 @@ h5 > * {
 
     let notify_box;
     let settings_modal;
-    function setup$3() {
+    function setup() {
         notify_box = create("div", { class: "field" });
         const cog = create("i", { class: "fas fa-cog" });
         into(get_navbar(), create("a", {
@@ -2168,8 +2168,8 @@ h5 > * {
         }
     }
 
-    setup();
-    setup$1();
+    setup$3();
+    setup$2();
     load();
     let has_loaded_head = false;
     function on_load_head() {
@@ -2183,7 +2183,7 @@ h5 > * {
         }
         has_loaded_head = true;
         logc("Loading head");
-        setup$2();
+        setup$1();
         load_last_theme();
     }
     let has_loaded_body = false;
@@ -2199,18 +2199,18 @@ h5 > * {
         has_loaded_body = true;
         logc("Loading body");
         setup_dl_link_user_site();
-        add_percentage$1();
+        add_percentage();
         setup_user_rank_link_swap();
         setup_song_rank_link_swap();
         setup_wide_table_checkbox();
         setup_dl_link_leaderboard();
         setup_song_filter_tabs();
         highlight_user();
-        add_percentage();
+        add_percentage$1();
         setup_self_pin_button();
         setup_self_button();
         setup_user_compare();
-        setup$3();
+        setup();
         update_button_visibility();
         setup_pp_graph();
         check_for_updates();

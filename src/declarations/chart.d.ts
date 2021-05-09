@@ -522,7 +522,6 @@ declare namespace Chart {
         suggestedMax?: number;
     }
 
-    // tslint:disable-next-line no-empty-interface
     interface LogarithmicTickOptions extends TickOptions {
     }
 
@@ -626,7 +625,6 @@ declare namespace Chart {
         distribution?: 'linear' | 'series';
     }
 
-    // tslint:disable-next-line no-empty-interface
     interface ChartYAxe extends CommonAxe {
     }
 
