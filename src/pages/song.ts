@@ -213,7 +213,12 @@ export function add_percentage(): void {
 		const data = await beatsaver.get_data_by_hash(song_hash);
 		if (!data)
 			return;
-		const diff_name = check(document.querySelector(`div.tabs li.is-active span`)).innerText;
+		const diff_name = document.querySelector(`div.tabs li.is-active span`)?.innerText;
+		// Scoresaber fails to display the difficlulty tab for some categories (e.g. Lawless), ex:
+		// - none at all: https://scoresaber.com/leaderboard/307121
+		// - only expert+ shown, but actual diff is missing: https://scoresaber.com/leaderboard/314128
+		if (!diff_name)
+			return;
 		const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
 		if (!diff_name || !standard_characteristic)
 			return;

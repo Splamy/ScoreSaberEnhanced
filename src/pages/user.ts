@@ -105,7 +105,7 @@ export function setup_song_rank_link_swap(): void {
 }
 
 function rank_to_page(rank: number, ranks_per_page: number): number {
-	return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
+	return Math.max(Math.floor((rank + ranks_per_page - 1) / ranks_per_page), 1);
 }
 
 export function add_percentage(): void {

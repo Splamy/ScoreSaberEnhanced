@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.9.3 | 2021-08-03
+ - Minor Bugfixes
+
 1.9.2 | 2021-05-10
  - Fixed [#21](https://github.com/Splamy/ScoreSaberEnhanced/issues/21) sometimes failing to update users. ([#23](https://github.com/Splamy/ScoreSaberEnhanced/pull/23) Thanks [@Lemmmy](https://github.com/Lemmmy) for this PR)
 
