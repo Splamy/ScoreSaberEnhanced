@@ -1157,32 +1157,6 @@
         }
     }
 
-    const api_cache = new SessionCache("beast");
-    async function get_data(song_key) {
-        const cached_data = api_cache.get(song_key);
-        if (cached_data !== undefined)
-            return cached_data;
-        try {
-            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
-            const data = JSON.parse(data_str);
-            api_cache.set(song_key, data);
-            return data;
-        }
-        catch (e) {
-            return undefined;
-        }
-    }
-    async function get_bookmarks(username, page, count) {
-        try {
-            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
-            const data = JSON.parse(data_str);
-            return data;
-        }
-        catch (e) {
-            return undefined;
-        }
-    }
-
     function generate_beatsaver(song_hash, size) {
         return create("div", {
             class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
@@ -1336,6 +1310,105 @@
     }
     function new_page(link) {
         window.open(link, "_blank");
+    }
+
+    function setup_links_songlist() {
+        if (!is_songlist_page()) {
+            return;
+        }
+        const song_table = check(document.querySelector("table.ranking.songs"));
+        const song_table_header = check(song_table.querySelector("thead tr"));
+        into(song_table_header, create("th", { class: "compact bs_link" }, "BS"));
+        into(song_table_header, create("th", { class: "compact oc_link" }, "OC"));
+        const song_rows = song_table.querySelectorAll("tbody tr");
+        for (const row of song_rows) {
+            const song_hash = get_song_hash_from_row(row);
+            into(row, create("th", { class: "compact bs_link" }, generate_beatsaver(song_hash, "medium")));
+            into(row, create("th", { class: "compact oc_link" }, generate_oneclick(song_hash, "medium")));
+        }
+    }
+    function get_song_hash_from_row(row) {
+        const image_link = check(row.querySelector("td.song img")).src;
+        return get_song_hash_from_text(image_link);
+    }
+    function setup_extra_filter_checkboxes() {
+        if (!is_songlist_page()) {
+            return;
+        }
+        setup_duplicates_filter_checkbox();
+    }
+    function setup_duplicates_filter_checkbox() {
+        var _a, _b;
+        const checked = should_hide_duplicate_songs();
+        const duplicates_filter = create("label", { class: "checkbox" }, create("input", {
+            id: "duplicates",
+            type: "checkbox",
+            checked: checked,
+            onclick() {
+                set_hide_duplicate_songs_filter(!checked);
+                window.location.reload();
+            }
+        }));
+        duplicates_filter.appendChild(document.createTextNode(" Hide duplicate songs "));
+        const ranked_filter = check((_a = document.querySelector("input#ranked")) === null || _a === void 0 ? void 0 : _a.parentElement);
+        (_b = ranked_filter.parentNode) === null || _b === void 0 ? void 0 : _b.insertBefore(duplicates_filter, ranked_filter.nextSibling);
+    }
+    function apply_extra_filters() {
+        if (!is_songlist_page()) {
+            return;
+        }
+        if (should_hide_duplicate_songs()) {
+            hide_duplicate_songs();
+        }
+    }
+    function hide_duplicate_songs() {
+        const song_table = check(document.querySelector("table.ranking.songs tbody"));
+        const song_rows = check(song_table.querySelectorAll("tr"));
+        const hashes = new Set();
+        for (const row of song_rows) {
+            const song_hash = check(get_song_hash_from_row(row));
+            if (hashes.has(song_hash)) {
+                song_table.removeChild(row);
+            }
+            else {
+                hashes.add(song_hash);
+            }
+        }
+    }
+    function should_hide_duplicate_songs() {
+        return localStorage.getItem("hide_songlist_duplicates") == "true";
+    }
+    function set_hide_duplicate_songs_filter(filter) {
+        localStorage.setItem("hide_songlist_duplicates", JSON.stringify(filter));
+    }
+    function is_songlist_page() {
+        return location.pathname == "/";
+    }
+
+    const api_cache = new SessionCache("beast");
+    async function get_data(song_key) {
+        const cached_data = api_cache.get(song_key);
+        if (cached_data !== undefined)
+            return cached_data;
+        try {
+            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
+            const data = JSON.parse(data_str);
+            api_cache.set(song_key, data);
+            return data;
+        }
+        catch (e) {
+            return undefined;
+        }
+    }
+    async function get_bookmarks(username, page, count) {
+        try {
+            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
+            const data = JSON.parse(data_str);
+            return data;
+        }
+        catch (e) {
+            return undefined;
+        }
     }
 
     class Lazy {
@@ -2207,6 +2280,9 @@ h5 > * {
         setup_song_filter_tabs();
         highlight_user();
         add_percentage$1();
+        setup_links_songlist();
+        setup_extra_filter_checkboxes();
+        apply_extra_filters();
         setup_self_pin_button();
         setup_self_button();
         setup_user_compare();
