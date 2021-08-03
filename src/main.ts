@@ -1,5 +1,6 @@
 import * as compare from "./compare";
 import * as header from "./header";
+import * as page_songlist from "./pages/songlist";
 import * as page_song from "./pages/song";
 import * as page_user from "./pages/user";
 import * as ppgraph from "./ppgraph";
@@ -44,6 +45,9 @@ function on_load_body(): void {
 	page_song.setup_song_filter_tabs();
 	page_song.highlight_user();
 	page_song.add_percentage();
+	page_songlist.setup_links_songlist();
+	page_songlist.setup_extra_filter_checkboxes();
+	page_songlist.apply_extra_filters();
 	header.setup_self_pin_button();
 	header.setup_self_button();
 	compare.setup_user_compare();
