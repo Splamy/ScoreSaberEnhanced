@@ -13,7 +13,7 @@ export default class Global {
 	public static song_table_backup: HTMLElement | undefined;
 
 	public static readonly scoresaber_link = "https://scoresaber.com";
-	public static readonly beatsaver_link = "https://beatsaver.com/beatmap/";
+	public static readonly beatsaver_link = "https://beatsaver.com/maps/";
 	public static readonly bsaber_songs_link = "https://bsaber.com/songs/";
 	public static readonly song_hash_reg = /\/([\da-zA-Z]{40})\.png/;
 	public static readonly score_reg = /(score|accuracy):\s*([\d.,]+)%?\s*(\(([\w,]*)\))?/;
