@@ -1,11 +1,13 @@
 import * as beatsaver from "../api/beatsaver";
-import * as buttons from "../components/buttons";
-import { get_wide_table, is_user_page } from "../env";
+import { BMButton, BMButtonHelp, bmvar, get_wide_table, is_user_page, Pages } from "../env";
 import g from "../global";
-import { create, into } from "../util/dom";
+import { as_fragment, create, into } from "../util/dom";
 import { check } from "../util/err";
 import { number_invariant } from "../util/format";
 import { calculate_max_score, get_notes_count, get_song_hash_from_text, parse_score_bottom } from "../util/song";
+import QuickButton from "../components/QuickButton.svelte";
+
+const PAGE: Pages = "user";
 
 export function setup_dl_link_user_site(): void {
 	if (!is_user_page()) { return; }
@@ -15,9 +17,16 @@ export function setup_dl_link_user_site(): void {
 
 	// add a new column for our links
 	const table_tr = check(table.querySelector("thead tr"));
-	into(table_tr, create("th", { class: "compact bs_link" }, "BS"));
-	into(table_tr, create("th", { class: "compact oc_link" }, "OC"));
-	into(table_tr, create("th", { class: "compact bb_link" }, "BB"));
+	for (const btn of BMButton) {
+		into(table_tr,
+			create("th", {
+				class: "compact",
+				style: bmvar(PAGE, btn, "table-cell"),
+				// TODO: Tooltip is currently cut off at the to due to div nesting
+				//data: { tooltip: BMButtonHelp[btn].long },
+			}, BMButtonHelp[btn].short)
+		);
+	}
 
 	// add a link for each song
 	const table_row = table.querySelectorAll("tbody tr");
@@ -25,26 +34,16 @@ export function setup_dl_link_user_site(): void {
 		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
 		const song_hash = get_song_hash_from_text(image_link);
 
-		// link to the website
-		into(row,
-			create("th", { class: "compact bs_link" },
-				buttons.generate_beatsaver(song_hash, "medium")
-			)
-		);
-
-		// oneclick installer
-		into(row,
-			create("th", { class: "compact oc_link" },
-				buttons.generate_oneclick(song_hash, "medium")
-			)
-		);
-
-		// beastsaber bookmark
-		into(row,
-			create("th", { class: "compact bb_link" },
-				buttons.generate_bsaber_bookmark(song_hash, "medium")
-			)
-		);
+		for (const btn of BMButton) {
+			into(row,
+				create("th", { class: "compact", style: bmvar(PAGE, btn, "table-cell") },
+					as_fragment(target => new QuickButton({
+						target,
+						props: { song_hash, size: "medium", type: btn }
+					}))
+				)
+			);
+		}
 	}
 }
 

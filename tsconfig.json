@@ -1,11 +1,10 @@
 {
 	"compilerOptions": {
-		"target": "es2017",
-		"module": "es6",
+		"target": "ES2017",
+		"module": "ES2020",
+		"moduleResolution": "node",
 		"sourceMap": true,
 		"watch": false,
-		"rootDir": "src",
-		"outDir": "out",
 		// scoresaber.user.js
 		"removeComments": true,
 		"noImplicitAny": true,

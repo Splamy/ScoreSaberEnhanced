@@ -5,6 +5,8 @@ export const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flat
 	"Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
 	"Sandstone", "Simplex", "Slate", "Solar", "Spacelab", "Superhero", "United",
 	"Yeti"];
+export const dark_themes = ["Cyborg", "Darkly", "Nuclear", "Slate", "Solar", "Superhero"];
+
 export const theme_light = `:root {
 	--color-ahead: rgb(128, 255, 128);
 	--color-behind: rgb(255, 128, 128);
@@ -15,7 +17,7 @@ export const theme_dark = `:root {
 	--color-behind: rgb(128, 0, 0);
 	--color-highlight: darkgreen;
 }
-.beatsaver_bg_btn {
+.BS_bg_btn {
 	background-color: white;
 }
 /* Reset colors for generic themes */

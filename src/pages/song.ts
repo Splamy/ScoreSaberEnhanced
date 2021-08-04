@@ -1,14 +1,16 @@
 import * as beastsaber from "../api/beastsaber";
 import * as beatsaver from "../api/beatsaver";
-import * as buttons from "../components/buttons";
 import { IDbUser, ISong } from "../declarations/Types";
-import { get_home_user, is_song_leaderboard_page } from "../env";
+import { BMButton, get_home_user, is_song_leaderboard_page, Pages } from "../env";
 import g from "../global";
 import { create, intor } from "../util/dom";
 import { check } from "../util/err";
 import { format_en, number_invariant, number_to_timespan, toggled_class } from "../util/format";
 import { Lazy } from "../util/lazy";
 import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text } from "../util/song";
+import QuickButton from "../components/QuickButton.svelte";
+
+const PAGE: Pages = "song";
 
 const shared = new Lazy(() => {
 	// find the element we want to modify
@@ -68,20 +70,19 @@ export function setup_dl_link_leaderboard(): void {
 
 	const { song_hash, details_box } = shared.get();
 
-	details_box.appendChild(
-		create("div", {
-			id: "leaderboard_tool_strip",
-			style: {
-				marginTop: "1em"
-			}
-		},
-			buttons.generate_bsaber(song_hash),
-			buttons.generate_beatsaver(song_hash, "large"),
-			buttons.generate_oneclick(song_hash, "large"),
-			buttons.generate_preview(song_hash),
-			buttons.generate_bsaber_bookmark(song_hash, "large"),
-			buttons.generate_copy_bsr(song_hash),
-		));
+	const tool_strip = create("div", {
+		id: "leaderboard_tool_strip",
+		style: {
+			marginTop: "1em"
+		}
+	});
+	for (const btn of BMButton) {
+		new QuickButton({
+			target: tool_strip,
+			props: { song_hash, size: "large", type: btn, page: PAGE }
+		});
+	}
+	details_box.appendChild(tool_strip);
 
 	const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
 	const beatsaver_box = create("div", box_style,

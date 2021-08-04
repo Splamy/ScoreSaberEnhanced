@@ -121,18 +121,58 @@ export function get_wide_table(): boolean {
 	return localStorage.getItem("wide_song_table") === "true";
 }
 
-export function set_show_bs_link(value: boolean): void {
-	localStorage.setItem("show_bs_link", value ? "true" : "false");
-}
-export function get_show_bs_link(): boolean {
-	return (localStorage.getItem("show_bs_link") || "true") === "true";
+export const BMPage: Pages[] = ["song", "songlist", "user"]
+export const BMButton: Buttons[] = ["BS", "OC", "Beast", "BeastBook", "Preview", "BSR"];
+export const BMPageButtons: PageButtons[] = BMPage
+	.map(p => BMButton.map(b => `${p}-${b}`))
+	.reduce((agg, lis) => [...agg, ...lis], []) as PageButtons[];
+export type Pages = "song" | "songlist" | "user";
+export type Buttons = "BS" | "OC" | "Beast" | "BeastBook" | "Preview" | "BSR";
+export type PageButtons = `${Pages}-${Buttons}`;
+export type ButtonMatrix = Partial<Record<PageButtons, boolean>>;
+export const BMButtonHelp: Record<Buttons, { 
+	short: string,
+	long: string,
+	tip: string
+}> = {
+	BS: { short: "BS", long: "BeatSaver", tip: "View on BeatSaver" },
+	OC: { short: "OC", long: "OneClick™", tip: "Download with OneClick™" },
+	Beast: { short: "BST", long: "BeastSaber", tip: "View/Add rating on BeastSaber" },
+	BeastBook: { short: "BB", long: "BeastSaber Bookmark", tip: "Bookmark on BeastSaber" },
+	Preview: { short: "👓", long: "Preview", tip: "Preview map" },
+	BSR: { short: "❗", long: "BeatSaver Request", tip: "Copy !bsr" },
+};
+
+export function bmvar(page: Pages, button: Buttons, def: string): Partial<CSSStyleDeclaration> {
+	return {
+		display: `var(--sse-show-${page}-${button}, ${def})`,
+	};
 }
 
-export function set_show_oc_link(value: boolean): void {
-	localStorage.setItem("show_oc_link", value ? "true" : "false");
+export function get_button_matrix(): ButtonMatrix {
+	const json = localStorage.getItem("sse_button_matrix");
+	if (!json)
+		return default_button_matrix();
+	return JSON.parse(json);
 }
-export function get_show_oc_link(): boolean {
-	return (localStorage.getItem("show_oc_link") || "true") === "true";
+
+function default_button_matrix(): ButtonMatrix {
+	return {
+		"song-BS": true,
+		"song-BSR": true,
+		"song-Beast": true,
+		"song-BeastBook": true,
+		"song-OC": true,
+		"song-Preview": true,
+		"songlist-BS": true,
+		"songlist-OC": true,
+		"user-BS": true,
+		"user-OC": true,
+	};
+}
+
+export function set_button_matrix(bm: ButtonMatrix): void {
+	localStorage.setItem("sse_button_matrix", JSON.stringify(bm));
 }
 
 export function set_use_new_ss_api(value: boolean): void {

@@ -1,3 +1,4 @@
+import { logc } from "../util/log";
 import { fetch2 } from "../util/net";
 import { SessionCache } from "../util/sessioncache";
 
@@ -12,7 +13,10 @@ export async function get_data_by_hash(song_hash: string): Promise<IBeatSaverDat
 		const data = JSON.parse(data_str);
 		api_cache.set(song_hash, data);
 		return data;
-	} catch (e) { return undefined; }
+	} catch (err) {
+		logc("Failed to download song data", err)
+		return undefined;
+	}
 }
 
 export interface IBeatSaverData {

@@ -49,7 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
-1.9.3 | 2021-08-03
+1.10.0 | 2021-08-04
+ - Added Download links to the main song list & filter for hiding duplicate songs ([#24](https://github.com/Splamy/ScoreSaberEnhanced/pull/24) Thanks [@urholaukkarinen](https://github.com/urholaukkarinen) for this PR)
+ - Added ButtonMatrix in the options to customize where to show which quickaction buttons
  - Minor Bugfixes
 
 1.9.2 | 2021-05-10

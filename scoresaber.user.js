@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.9.2
+// @version      1.10.0
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -128,6 +128,11 @@
         }
         return elem;
     }
+    function as_fragment(builder) {
+        const frag = document.createDocumentFragment();
+        builder(frag);
+        return frag;
+    }
 
     function check(elem) {
         if (elem === undefined || elem === null) {
@@ -232,17 +237,46 @@
     function get_wide_table() {
         return localStorage.getItem("wide_song_table") === "true";
     }
-    function set_show_bs_link(value) {
-        localStorage.setItem("show_bs_link", value ? "true" : "false");
+    const BMPage = ["song", "songlist", "user"];
+    const BMButton = ["BS", "OC", "Beast", "BeastBook", "Preview", "BSR"];
+    const BMPageButtons = BMPage
+        .map(p => BMButton.map(b => `${p}-${b}`))
+        .reduce((agg, lis) => [...agg, ...lis], []);
+    const BMButtonHelp = {
+        BS: { short: "BS", long: "BeatSaver", tip: "View on BeatSaver" },
+        OC: { short: "OC", long: "OneClick™", tip: "Download with OneClick™" },
+        Beast: { short: "BST", long: "BeastSaber", tip: "View/Add rating on BeastSaber" },
+        BeastBook: { short: "BB", long: "BeastSaber Bookmark", tip: "Bookmark on BeastSaber" },
+        Preview: { short: "👓", long: "Preview", tip: "Preview map" },
+        BSR: { short: "❗", long: "BeatSaver Request", tip: "Copy !bsr" },
+    };
+    function bmvar(page, button, def) {
+        return {
+            display: `var(--sse-show-${page}-${button}, ${def})`,
+        };
     }
-    function get_show_bs_link() {
-        return (localStorage.getItem("show_bs_link") || "true") === "true";
+    function get_button_matrix() {
+        const json = localStorage.getItem("sse_button_matrix");
+        if (!json)
+            return default_button_matrix();
+        return JSON.parse(json);
     }
-    function set_show_oc_link(value) {
-        localStorage.setItem("show_oc_link", value ? "true" : "false");
+    function default_button_matrix() {
+        return {
+            "song-BS": true,
+            "song-BSR": true,
+            "song-Beast": true,
+            "song-BeastBook": true,
+            "song-OC": true,
+            "song-Preview": true,
+            "songlist-BS": true,
+            "songlist-OC": true,
+            "user-BS": true,
+            "user-OC": true,
+        };
     }
-    function get_show_oc_link() {
-        return (localStorage.getItem("show_oc_link") || "true") === "true";
+    function set_button_matrix(bm) {
+        localStorage.setItem("sse_button_matrix", JSON.stringify(bm));
     }
     function set_use_new_ss_api(value) {
         localStorage.setItem("use_new_api", value ? "true" : "false");
@@ -270,9 +304,6 @@
     function check_bsaber_bookmark(song_hash) {
         const bookmarks = get_bsaber_bookmarks();
         return bookmarks.includes(song_hash.toLowerCase());
-    }
-    function get_show_bb_link() {
-        return (get_bsaber_bookmarks() !== [] && !!get_bsaber_username());
     }
 
     function format_en(num, digits) {
@@ -445,7 +476,8 @@
             api_cache$1.set(song_hash, data);
             return data;
         }
-        catch (e) {
+        catch (err) {
+            logc("Failed to download song data", err);
             return undefined;
         }
     }
@@ -480,7 +512,7 @@
                 inner = create("div", { class: "modal-content" }, create("div", { class: "box" }, opt.text, create("br"), button_bar));
                 break;
             case "card":
-                inner = create("div", { class: "modal-card" }, create("header", { class: "modal-card-head" }, (_b = opt.title) !== null && _b !== void 0 ? _b : ""), create("header", { class: "modal-card-body" }, opt.text), create("header", { class: "modal-card-foot" }, (_c = opt.footer) !== null && _c !== void 0 ? _c : button_bar));
+                inner = create("div", { class: "modal-card" }, create("header", { class: "modal-card-head" }, (_b = opt.title) !== null && _b !== void 0 ? _b : ""), create("section", { class: "modal-card-body" }, opt.text), create("footer", { class: "modal-card-foot" }, (_c = opt.footer) !== null && _c !== void 0 ? _c : button_bar));
                 break;
             default:
                 throw new Error("invalid type");
@@ -1157,174 +1189,785 @@
         }
     }
 
-    function generate_beatsaver(song_hash, size) {
-        return create("div", {
-            class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")} beatsaver_bg_btn`,
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-                padding: "0",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: "View on BeatSaver" },
-            onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => new_page(Global.beatsaver_link + song_info.key))
-                    .catch(() => failed_to_download(this));
-            },
-        }, create("div", { class: "beatsaver_bg" }));
+    function noop() { }
+    function run(fn) {
+        return fn();
     }
-    function generate_oneclick(song_hash, size) {
-        return create("div", {
-            class: `button icon is-${size} ${toggled_class(size !== "large", "has-tooltip-left")}`,
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: "Download with OneClick™" },
-            onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => oneclick_install(song_info.key))
-                    .then(() => ok_after_download(this))
-                    .catch(() => failed_to_download(this));
-            },
-        }, create("i", { class: "fas fa-cloud-download-alt" }));
+    function blank_object() {
+        return Object.create(null);
     }
-    function generate_bsaber(song_hash) {
-        return create("a", {
-            class: "button icon is-large",
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-                padding: "0",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: "View/Add rating on BeastSaber" },
-            async onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => new_page(Global.bsaber_songs_link + song_info.key))
-                    .catch(() => failed_to_download(this));
-            },
-        }, create("div", {
-            style: {
-                backgroundImage: "url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\")",
-                backgroundSize: "cover",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-                width: "100%",
-                height: "100%",
-                borderRadius: "inherit",
+    function run_all(fns) {
+        fns.forEach(run);
+    }
+    function is_function(thing) {
+        return typeof thing === 'function';
+    }
+    function safe_not_equal(a, b) {
+        return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
+    }
+    function is_empty(obj) {
+        return Object.keys(obj).length === 0;
+    }
+    function append(target, node) {
+        target.appendChild(node);
+    }
+    function append_styles(target, style_sheet_id, styles) {
+        const append_styles_to = get_root_for_style(target);
+        if (!append_styles_to.getElementById(style_sheet_id)) {
+            const style = element('style');
+            style.id = style_sheet_id;
+            style.textContent = styles;
+            append_stylesheet(append_styles_to, style);
+        }
+    }
+    function get_root_for_style(node) {
+        if (!node)
+            return document;
+        const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
+        if (root.host) {
+            return root;
+        }
+        return document;
+    }
+    function append_stylesheet(node, style) {
+        append(node.head || node, style);
+    }
+    function insert(target, node, anchor) {
+        target.insertBefore(node, anchor || null);
+    }
+    function detach(node) {
+        node.parentNode.removeChild(node);
+    }
+    function destroy_each(iterations, detaching) {
+        for (let i = 0; i < iterations.length; i += 1) {
+            if (iterations[i])
+                iterations[i].d(detaching);
+        }
+    }
+    function element(name) {
+        return document.createElement(name);
+    }
+    function text(data) {
+        return document.createTextNode(data);
+    }
+    function space() {
+        return text(' ');
+    }
+    function listen(node, event, handler, options) {
+        node.addEventListener(event, handler, options);
+        return () => node.removeEventListener(event, handler, options);
+    }
+    function attr(node, attribute, value) {
+        if (value == null)
+            node.removeAttribute(attribute);
+        else if (node.getAttribute(attribute) !== value)
+            node.setAttribute(attribute, value);
+    }
+    function children(element) {
+        return Array.from(element.childNodes);
+    }
+    function select_option(select, value) {
+        for (let i = 0; i < select.options.length; i += 1) {
+            const option = select.options[i];
+            if (option.__value === value) {
+                option.selected = true;
+                return;
             }
-        }));
-    }
-    function generate_bsaber_bookmark(song_hash, size) {
-        const bookmarked = song_hash === undefined ? false : check_bsaber_bookmark(song_hash);
-        const color = bookmarked ? "is-success" : "is-danger";
-        const tooltip = bookmarked ? "Bookmarked on BeastSaber" : "Not Bookmarked on BeastSaber";
-        return create("div", {
-            class: `button icon is-${size} ${color} ${toggled_class(size !== "large", "has-tooltip-left")}`,
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-                padding: "0",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: tooltip },
-            onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => new_page(Global.bsaber_songs_link + song_info.key))
-                    .catch(() => failed_to_download(this));
-            },
-        }, create("i", { class: `fas fa-thumbtack` }));
-    }
-    function generate_preview(song_hash) {
-        return create("div", {
-            class: "button icon is-large",
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-                padding: "0",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: "Preview map" },
-            onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.key))
-                    .catch(() => failed_to_download(this));
-            },
-        }, create("i", { class: "fas fa-glasses" }));
-    }
-    function generate_copy_bsr(song_hash) {
-        const txtDummyNode = create("input", {
-            style: {
-                position: "absolute",
-                top: "0px",
-                left: "-100000px",
-            }
-        });
-        return create("a", {
-            class: "button icon is-large",
-            style: {
-                cursor: song_hash === undefined ? "default" : "pointer",
-                padding: "0",
-            },
-            disabled: song_hash === undefined,
-            data: { tooltip: "Copy !bsr" },
-            onclick() {
-                checked_hash_to_song_info(this, song_hash)
-                    .then(song_info => {
-                    txtDummyNode.value = `!bsr ${song_info.key}`;
-                    txtDummyNode.select();
-                    txtDummyNode.setSelectionRange(0, 99999);
-                    document.execCommand("copy");
-                    ok_after_download(this);
-                })
-                    .catch(() => failed_to_download(this));
-            },
-        }, txtDummyNode, create("i", { class: "fas fa-exclamation" }));
-    }
-    async function checked_hash_to_song_info(ref, song_hash) {
-        reset_download_visual(ref);
-        if (song_hash === undefined) {
-            failed_to_download(ref);
-            throw new Error("song_hash is undefined");
-        }
-        const song_info = await get_data_by_hash(song_hash);
-        if (song_info === undefined) {
-            failed_to_download(ref);
-            throw new Error("song_info is undefined");
-        }
-        return song_info;
-    }
-    function reset_download_visual(ref) {
-        if (ref) {
-            ref.classList.remove("button_success");
-            ref.classList.remove("button_error");
         }
     }
-    function failed_to_download(ref) {
-        if (ref) {
-            ref.classList.add("button_error");
-        }
+    function select_value(select) {
+        const selected_option = select.querySelector(':checked') || select.options[0];
+        return selected_option && selected_option.__value;
     }
-    function ok_after_download(ref) {
-        if (ref) {
-            ref.classList.add("button_success");
-        }
-    }
-    function new_page(link) {
-        window.open(link, "_blank");
+    function toggle_class(element, name, toggle) {
+        element.classList[toggle ? 'add' : 'remove'](name);
     }
 
+    let current_component;
+    function set_current_component(component) {
+        current_component = component;
+    }
+
+    const dirty_components = [];
+    const binding_callbacks = [];
+    const render_callbacks = [];
+    const flush_callbacks = [];
+    const resolved_promise = Promise.resolve();
+    let update_scheduled = false;
+    function schedule_update() {
+        if (!update_scheduled) {
+            update_scheduled = true;
+            resolved_promise.then(flush);
+        }
+    }
+    function add_render_callback(fn) {
+        render_callbacks.push(fn);
+    }
+    let flushing = false;
+    const seen_callbacks = new Set();
+    function flush() {
+        if (flushing)
+            return;
+        flushing = true;
+        do {
+            // first, call beforeUpdate functions
+            // and update components
+            for (let i = 0; i < dirty_components.length; i += 1) {
+                const component = dirty_components[i];
+                set_current_component(component);
+                update(component.$$);
+            }
+            set_current_component(null);
+            dirty_components.length = 0;
+            while (binding_callbacks.length)
+                binding_callbacks.pop()();
+            // then, once components are updated, call
+            // afterUpdate functions. This may cause
+            // subsequent updates...
+            for (let i = 0; i < render_callbacks.length; i += 1) {
+                const callback = render_callbacks[i];
+                if (!seen_callbacks.has(callback)) {
+                    // ...so guard against infinite loops
+                    seen_callbacks.add(callback);
+                    callback();
+                }
+            }
+            render_callbacks.length = 0;
+        } while (dirty_components.length);
+        while (flush_callbacks.length) {
+            flush_callbacks.pop()();
+        }
+        update_scheduled = false;
+        flushing = false;
+        seen_callbacks.clear();
+    }
+    function update($$) {
+        if ($$.fragment !== null) {
+            $$.update();
+            run_all($$.before_update);
+            const dirty = $$.dirty;
+            $$.dirty = [-1];
+            $$.fragment && $$.fragment.p($$.ctx, dirty);
+            $$.after_update.forEach(add_render_callback);
+        }
+    }
+    const outroing = new Set();
+    let outros;
+    function group_outros() {
+        outros = {
+            r: 0,
+            c: [],
+            p: outros // parent group
+        };
+    }
+    function check_outros() {
+        if (!outros.r) {
+            run_all(outros.c);
+        }
+        outros = outros.p;
+    }
+    function transition_in(block, local) {
+        if (block && block.i) {
+            outroing.delete(block);
+            block.i(local);
+        }
+    }
+    function transition_out(block, local, detach, callback) {
+        if (block && block.o) {
+            if (outroing.has(block))
+                return;
+            outroing.add(block);
+            outros.c.push(() => {
+                outroing.delete(block);
+                if (callback) {
+                    if (detach)
+                        block.d(1);
+                    callback();
+                }
+            });
+            block.o(local);
+        }
+    }
+    function create_component(block) {
+        block && block.c();
+    }
+    function mount_component(component, target, anchor, customElement) {
+        const { fragment, on_mount, on_destroy, after_update } = component.$$;
+        fragment && fragment.m(target, anchor);
+        if (!customElement) {
+            // onMount happens before the initial afterUpdate
+            add_render_callback(() => {
+                const new_on_destroy = on_mount.map(run).filter(is_function);
+                if (on_destroy) {
+                    on_destroy.push(...new_on_destroy);
+                }
+                else {
+                    // Edge case - component was destroyed immediately,
+                    // most likely as a result of a binding initialising
+                    run_all(new_on_destroy);
+                }
+                component.$$.on_mount = [];
+            });
+        }
+        after_update.forEach(add_render_callback);
+    }
+    function destroy_component(component, detaching) {
+        const $$ = component.$$;
+        if ($$.fragment !== null) {
+            run_all($$.on_destroy);
+            $$.fragment && $$.fragment.d(detaching);
+            // TODO null out other refs, including component.$$ (but need to
+            // preserve final state?)
+            $$.on_destroy = $$.fragment = null;
+            $$.ctx = [];
+        }
+    }
+    function make_dirty(component, i) {
+        if (component.$$.dirty[0] === -1) {
+            dirty_components.push(component);
+            schedule_update();
+            component.$$.dirty.fill(0);
+        }
+        component.$$.dirty[(i / 31) | 0] |= (1 << (i % 31));
+    }
+    function init(component, options, instance, create_fragment, not_equal, props, append_styles, dirty = [-1]) {
+        const parent_component = current_component;
+        set_current_component(component);
+        const $$ = component.$$ = {
+            fragment: null,
+            ctx: null,
+            // state
+            props,
+            update: noop,
+            not_equal,
+            bound: blank_object(),
+            // lifecycle
+            on_mount: [],
+            on_destroy: [],
+            on_disconnect: [],
+            before_update: [],
+            after_update: [],
+            context: new Map(parent_component ? parent_component.$$.context : options.context || []),
+            // everything else
+            callbacks: blank_object(),
+            dirty,
+            skip_bound: false,
+            root: options.target || parent_component.$$.root
+        };
+        append_styles && append_styles($$.root);
+        let ready = false;
+        $$.ctx = instance
+            ? instance(component, options.props || {}, (i, ret, ...rest) => {
+                const value = rest.length ? rest[0] : ret;
+                if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
+                    if (!$$.skip_bound && $$.bound[i])
+                        $$.bound[i](value);
+                    if (ready)
+                        make_dirty(component, i);
+                }
+                return ret;
+            })
+            : [];
+        $$.update();
+        ready = true;
+        run_all($$.before_update);
+        // `false` as a special case of no DOM component
+        $$.fragment = create_fragment ? create_fragment($$.ctx) : false;
+        if (options.target) {
+            if (options.hydrate) {
+                const nodes = children(options.target);
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                $$.fragment && $$.fragment.l(nodes);
+                nodes.forEach(detach);
+            }
+            else {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                $$.fragment && $$.fragment.c();
+            }
+            if (options.intro)
+                transition_in(component.$$.fragment);
+            mount_component(component, options.target, options.anchor, options.customElement);
+            flush();
+        }
+        set_current_component(parent_component);
+    }
+    /**
+     * Base class for Svelte components. Used when dev=false.
+     */
+    class SvelteComponent {
+        $destroy() {
+            destroy_component(this, 1);
+            this.$destroy = noop;
+        }
+        $on(type, callback) {
+            const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
+            callbacks.push(callback);
+            return () => {
+                const index = callbacks.indexOf(callback);
+                if (index !== -1)
+                    callbacks.splice(index, 1);
+            };
+        }
+        $set($$props) {
+            if (this.$$set && !is_empty($$props)) {
+                this.$$.skip_bound = true;
+                this.$$set($$props);
+                this.$$.skip_bound = false;
+            }
+        }
+    }
+
+    /* src\components\QuickButton.svelte generated by Svelte v3.41.0 */
+
+    function add_css(target) {
+    	append_styles(target, "svelte-1so5nc2", "div.svelte-1so5nc2{padding:0;cursor:pointer}div.svelte-1so5nc2:disabled{cursor:default}.bsaber_bg.svelte-1so5nc2{background-image:url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\");background-size:cover;background-repeat:no-repeat;background-position:center;width:100%;height:100%;border-radius:inherit}.dummy.svelte-1so5nc2{position:absolute;top:0px;left:-100000px}");
+    }
+
+    // (130:26) 
+    function create_if_block_5(ctx) {
+    	let i;
+    	let t;
+    	let input;
+
+    	return {
+    		c() {
+    			i = element("i");
+    			t = space();
+    			input = element("input");
+    			attr(i, "class", "fas fa-exclamation");
+    			attr(input, "class", "dummy svelte-1so5nc2");
+    		},
+    		m(target, anchor) {
+    			insert(target, i, anchor);
+    			insert(target, t, anchor);
+    			insert(target, input, anchor);
+    			/*input_binding*/ ctx[11](input);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(i);
+    			if (detaching) detach(t);
+    			if (detaching) detach(input);
+    			/*input_binding*/ ctx[11](null);
+    		}
+    	};
+    }
+
+    // (128:30) 
+    function create_if_block_4(ctx) {
+    	let i;
+
+    	return {
+    		c() {
+    			i = element("i");
+    			attr(i, "class", "fas fa-glasses");
+    		},
+    		m(target, anchor) {
+    			insert(target, i, anchor);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(i);
+    		}
+    	};
+    }
+
+    // (126:32) 
+    function create_if_block_3(ctx) {
+    	let i;
+
+    	return {
+    		c() {
+    			i = element("i");
+    			attr(i, "class", "fas fa-thumbtack");
+    		},
+    		m(target, anchor) {
+    			insert(target, i, anchor);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(i);
+    		}
+    	};
+    }
+
+    // (124:28) 
+    function create_if_block_2(ctx) {
+    	let div;
+
+    	return {
+    		c() {
+    			div = element("div");
+    			attr(div, "class", "bsaber_bg svelte-1so5nc2");
+    		},
+    		m(target, anchor) {
+    			insert(target, div, anchor);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(div);
+    		}
+    	};
+    }
+
+    // (122:25) 
+    function create_if_block_1(ctx) {
+    	let i;
+
+    	return {
+    		c() {
+    			i = element("i");
+    			attr(i, "class", "fas fa-cloud-download-alt");
+    		},
+    		m(target, anchor) {
+    			insert(target, i, anchor);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(i);
+    		}
+    	};
+    }
+
+    // (120:1) {#if type === "BS"}
+    function create_if_block(ctx) {
+    	let div;
+
+    	return {
+    		c() {
+    			div = element("div");
+    			attr(div, "class", "beatsaver_bg svelte-1so5nc2");
+    		},
+    		m(target, anchor) {
+    			insert(target, div, anchor);
+    		},
+    		p: noop,
+    		d(detaching) {
+    			if (detaching) detach(div);
+    		}
+    	};
+    }
+
+    function create_fragment$1(ctx) {
+    	let div;
+    	let div_class_value;
+    	let mounted;
+    	let dispose;
+
+    	function select_block_type(ctx, dirty) {
+    		if (/*type*/ ctx[0] === "BS") return create_if_block;
+    		if (/*type*/ ctx[0] === "OC") return create_if_block_1;
+    		if (/*type*/ ctx[0] === "Beast") return create_if_block_2;
+    		if (/*type*/ ctx[0] === "BeastBook") return create_if_block_3;
+    		if (/*type*/ ctx[0] === "Preview") return create_if_block_4;
+    		if (/*type*/ ctx[0] === "BSR") return create_if_block_5;
+    	}
+
+    	let current_block_type = select_block_type(ctx);
+    	let if_block = current_block_type && current_block_type(ctx);
+
+    	return {
+    		c() {
+    			div = element("div");
+    			if (if_block) if_block.c();
+    			attr(div, "class", div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn" + " svelte-1so5nc2");
+    			attr(div, "style", /*display*/ ctx[6]);
+    			attr(div, "disabled", /*disabled*/ ctx[7]);
+    			attr(div, "data-tooltip", /*tooltip*/ ctx[5]);
+    			toggle_class(div, "has-tooltip-left", /*size*/ ctx[1] !== "large" && !/*preview*/ ctx[2]);
+    		},
+    		m(target, anchor) {
+    			insert(target, div, anchor);
+    			if (if_block) if_block.m(div, null);
+    			/*div_binding*/ ctx[12](div);
+
+    			if (!mounted) {
+    				dispose = listen(div, "click", /*onclick*/ ctx[8]);
+    				mounted = true;
+    			}
+    		},
+    		p(ctx, [dirty]) {
+    			if (current_block_type === (current_block_type = select_block_type(ctx)) && if_block) {
+    				if_block.p(ctx, dirty);
+    			} else {
+    				if (if_block) if_block.d(1);
+    				if_block = current_block_type && current_block_type(ctx);
+
+    				if (if_block) {
+    					if_block.c();
+    					if_block.m(div, null);
+    				}
+    			}
+
+    			if (dirty & /*size, type*/ 3 && div_class_value !== (div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn" + " svelte-1so5nc2")) {
+    				attr(div, "class", div_class_value);
+    			}
+
+    			if (dirty & /*display*/ 64) {
+    				attr(div, "style", /*display*/ ctx[6]);
+    			}
+
+    			if (dirty & /*disabled*/ 128) {
+    				attr(div, "disabled", /*disabled*/ ctx[7]);
+    			}
+
+    			if (dirty & /*tooltip*/ 32) {
+    				attr(div, "data-tooltip", /*tooltip*/ ctx[5]);
+    			}
+
+    			if (dirty & /*size, type, size, preview*/ 7) {
+    				toggle_class(div, "has-tooltip-left", /*size*/ ctx[1] !== "large" && !/*preview*/ ctx[2]);
+    			}
+    		},
+    		i: noop,
+    		o: noop,
+    		d(detaching) {
+    			if (detaching) detach(div);
+
+    			if (if_block) {
+    				if_block.d();
+    			}
+
+    			/*div_binding*/ ctx[12](null);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+    }
+
+    function new_page(link) {
+    	window.open(link, "_blank");
+    }
+
+    function instance$1($$self, $$props, $$invalidate) {
+    	let disabled;
+    	let display;
+
+    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
+    		function adopt(value) {
+    			return value instanceof P
+    			? value
+    			: new P(function (resolve) {
+    						resolve(value);
+    					});
+    		}
+
+    		return new (P || (P = Promise))(function (resolve, reject) {
+    				function fulfilled(value) {
+    					try {
+    						step(generator.next(value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function rejected(value) {
+    					try {
+    						step(generator["throw"](value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function step(result) {
+    					result.done
+    					? resolve(result.value)
+    					: adopt(result.value).then(fulfilled, rejected);
+    				}
+
+    				step((generator = generator.apply(thisArg, _arguments || [])).next());
+    			});
+    	};
+
+    	
+    	
+    	let { song_hash = undefined } = $$props;
+    	let { type } = $$props;
+    	let { size } = $$props;
+    	let { preview = false } = $$props;
+    	let { page = undefined } = $$props;
+    	let button;
+    	let txtDummyNode;
+    	let tooltip;
+
+    	function checked_hash_to_song_info(song_hash) {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			reset_download_visual();
+
+    			if (song_hash === undefined) {
+    				failed_to_download();
+    				throw new Error("song_hash is undefined");
+    			}
+
+    			const song_info = yield get_data_by_hash(song_hash);
+
+    			if (song_info === undefined) {
+    				failed_to_download();
+    				throw new Error("song_info is undefined");
+    			}
+
+    			return song_info;
+    		});
+    	}
+
+    	function reset_download_visual() {
+    		button.classList.remove("button_success");
+    		button.classList.remove("button_error");
+    	}
+
+    	function failed_to_download() {
+    		button.classList.add("button_error");
+    	}
+
+    	function ok_after_download() {
+    		button.classList.add("button_success");
+    	}
+
+    	function onclick() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			if (preview) return;
+
+    			try {
+    				const song_info = yield checked_hash_to_song_info(song_hash);
+
+    				if (type === "BS") {
+    					new_page(Global.beatsaver_link + song_info.key);
+    				} else if (type === "OC") {
+    					yield oneclick_install(song_info.key);
+    					ok_after_download();
+    				} else if (type === "Beast") {
+    					new_page(Global.bsaber_songs_link + song_info.key);
+    				} else if (type === "BeastBook") {
+    					new_page(Global.bsaber_songs_link + song_info.key);
+    				} else if (type === "Preview") {
+    					new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.key);
+    				} else if (type === "BSR") {
+    					$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.key}`, txtDummyNode);
+    					txtDummyNode.select();
+    					txtDummyNode.setSelectionRange(0, 99999);
+    					document.execCommand("copy");
+    					ok_after_download();
+    				}
+    			} catch(err) {
+    				console.log("Failed QuickAction", song_hash, err);
+    				failed_to_download();
+    			}
+    		});
+    	}
+
+    	function input_binding($$value) {
+    		binding_callbacks[$$value ? 'unshift' : 'push'](() => {
+    			txtDummyNode = $$value;
+    			$$invalidate(4, txtDummyNode);
+    		});
+    	}
+
+    	function div_binding($$value) {
+    		binding_callbacks[$$value ? 'unshift' : 'push'](() => {
+    			button = $$value;
+    			$$invalidate(3, button);
+    		});
+    	}
+
+    	$$self.$$set = $$props => {
+    		if ('song_hash' in $$props) $$invalidate(9, song_hash = $$props.song_hash);
+    		if ('type' in $$props) $$invalidate(0, type = $$props.type);
+    		if ('size' in $$props) $$invalidate(1, size = $$props.size);
+    		if ('preview' in $$props) $$invalidate(2, preview = $$props.preview);
+    		if ('page' in $$props) $$invalidate(10, page = $$props.page);
+    	};
+
+    	$$self.$$.update = () => {
+    		if ($$self.$$.dirty & /*preview, song_hash*/ 516) {
+    			$$invalidate(7, disabled = !preview && song_hash === undefined
+    			? "disabled"
+    			: undefined);
+    		}
+
+    		if ($$self.$$.dirty & /*preview, page, type*/ 1029) {
+    			$$invalidate(6, display = !preview && page !== undefined
+    			? `display: var(--sse-show-${page}-${type}, inline-flex);`
+    			: "");
+    		}
+
+    		if ($$self.$$.dirty & /*type, preview, song_hash*/ 517) {
+    			{
+    				$$invalidate(5, tooltip = BMButtonHelp[type].tip);
+
+    				if (type === "BeastBook" && !preview) {
+    					const bookmarked = song_hash === undefined
+    					? false
+    					: check_bsaber_bookmark(song_hash);
+
+    					$$invalidate(5, tooltip = bookmarked
+    					? "Bookmarked on BeastSaber"
+    					: "Not Bookmarked on BeastSaber");
+    				}
+    			}
+    		}
+    	};
+
+    	return [
+    		type,
+    		size,
+    		preview,
+    		button,
+    		txtDummyNode,
+    		tooltip,
+    		display,
+    		disabled,
+    		onclick,
+    		song_hash,
+    		page,
+    		input_binding,
+    		div_binding
+    	];
+    }
+
+    class QuickButton extends SvelteComponent {
+    	constructor(options) {
+    		super();
+
+    		init(
+    			this,
+    			options,
+    			instance$1,
+    			create_fragment$1,
+    			safe_not_equal,
+    			{
+    				song_hash: 9,
+    				type: 0,
+    				size: 1,
+    				preview: 2,
+    				page: 10
+    			},
+    			add_css
+    		);
+    	}
+    }
+
+    const PAGE$2 = "songlist";
     function setup_links_songlist() {
         if (!is_songlist_page()) {
             return;
         }
         const song_table = check(document.querySelector("table.ranking.songs"));
         const song_table_header = check(song_table.querySelector("thead tr"));
-        into(song_table_header, create("th", { class: "compact bs_link" }, "BS"));
-        into(song_table_header, create("th", { class: "compact oc_link" }, "OC"));
+        for (const btn of BMButton) {
+            into(song_table_header, create("th", {
+                class: "compact",
+                style: bmvar(PAGE$2, btn, "table-cell"),
+            }, BMButtonHelp[btn].short));
+        }
         const song_rows = song_table.querySelectorAll("tbody tr");
         for (const row of song_rows) {
             const song_hash = get_song_hash_from_row(row);
-            into(row, create("th", { class: "compact bs_link" }, generate_beatsaver(song_hash, "medium")));
-            into(row, create("th", { class: "compact oc_link" }, generate_oneclick(song_hash, "medium")));
+            for (const btn of BMButton) {
+                into(row, create("th", { class: "compact", style: bmvar(PAGE$2, btn, "table-cell") }, as_fragment(target => new QuickButton({
+                    target,
+                    props: { song_hash, size: "medium", type: btn }
+                }))));
+            }
         }
     }
     function get_song_hash_from_row(row) {
@@ -1424,6 +2067,7 @@
         }
     }
 
+    const PAGE$1 = "song";
     const shared = new Lazy(() => {
         let details_box = check(document.querySelector(".content .title.is-5"));
         details_box = check(details_box.parentElement);
@@ -1472,12 +2116,19 @@
             return;
         }
         const { song_hash, details_box } = shared.get();
-        details_box.appendChild(create("div", {
+        const tool_strip = create("div", {
             id: "leaderboard_tool_strip",
             style: {
                 marginTop: "1em"
             }
-        }, generate_bsaber(song_hash), generate_beatsaver(song_hash, "large"), generate_oneclick(song_hash, "large"), generate_preview(song_hash), generate_bsaber_bookmark(song_hash, "large"), generate_copy_bsr(song_hash)));
+        });
+        for (const btn of BMButton) {
+            new QuickButton({
+                target: tool_strip,
+                props: { song_hash, size: "large", type: btn, page: PAGE$1 }
+            });
+        }
+        details_box.appendChild(tool_strip);
         const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
         const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
         const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
@@ -1547,10 +2198,13 @@
             return;
         }
         (async () => {
+            var _a;
             const data = await get_data_by_hash(song_hash);
             if (!data)
                 return;
-            const diff_name = check(document.querySelector(`div.tabs li.is-active span`)).innerText;
+            const diff_name = (_a = document.querySelector(`div.tabs li.is-active span`)) === null || _a === void 0 ? void 0 : _a.innerText;
+            if (!diff_name)
+                return;
             const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
             if (!diff_name || !standard_characteristic)
                 return;
@@ -1572,22 +2226,29 @@
         })();
     }
 
+    const PAGE = "user";
     function setup_dl_link_user_site() {
         if (!is_user_page()) {
             return;
         }
         const table = check(document.querySelector("table.ranking.songs"));
         const table_tr = check(table.querySelector("thead tr"));
-        into(table_tr, create("th", { class: "compact bs_link" }, "BS"));
-        into(table_tr, create("th", { class: "compact oc_link" }, "OC"));
-        into(table_tr, create("th", { class: "compact bb_link" }, "BB"));
+        for (const btn of BMButton) {
+            into(table_tr, create("th", {
+                class: "compact",
+                style: bmvar(PAGE, btn, "table-cell"),
+            }, BMButtonHelp[btn].short));
+        }
         const table_row = table.querySelectorAll("tbody tr");
         for (const row of table_row) {
             const image_link = check(row.querySelector("th.song img")).src;
             const song_hash = get_song_hash_from_text(image_link);
-            into(row, create("th", { class: "compact bs_link" }, generate_beatsaver(song_hash, "medium")));
-            into(row, create("th", { class: "compact oc_link" }, generate_oneclick(song_hash, "medium")));
-            into(row, create("th", { class: "compact bb_link" }, generate_bsaber_bookmark(song_hash, "medium")));
+            for (const btn of BMButton) {
+                into(row, create("th", { class: "compact", style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
+                    target,
+                    props: { song_hash, size: "medium", type: btn }
+                }))));
+            }
         }
     }
     function setup_wide_table_checkbox() {
@@ -1637,7 +2298,7 @@
         }
     }
     function rank_to_page(rank, ranks_per_page) {
-        return Math.floor((rank + ranks_per_page - 1) / ranks_per_page);
+        return Math.max(Math.floor((rank + ranks_per_page - 1) / ranks_per_page), 1);
     }
     function add_percentage() {
         if (!is_user_page()) {
@@ -1871,6 +2532,7 @@
         "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
         "Sandstone", "Simplex", "Slate", "Solar", "Spacelab", "Superhero", "United",
         "Yeti"];
+    const dark_themes = ["Cyborg", "Darkly", "Nuclear", "Slate", "Solar", "Superhero"];
     const theme_light = `:root {
 	--color-ahead: rgb(128, 255, 128);
 	--color-behind: rgb(255, 128, 128);
@@ -1881,7 +2543,7 @@
 	--color-behind: rgb(128, 0, 0);
 	--color-highlight: darkgreen;
 }
-.beatsaver_bg_btn {
+.BS_bg_btn {
 	background-color: white;
 }
 /* Reset colors for generic themes */
@@ -2013,6 +2675,803 @@ h5 > * {
         into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
     }
 
+    /* src\components\SettingsDialogue.svelte generated by Svelte v3.41.0 */
+
+    function get_each_context(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[16] = list[i];
+    	return child_ctx;
+    }
+
+    function get_each_context_1(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[19] = list[i];
+    	return child_ctx;
+    }
+
+    function get_each_context_2(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[19] = list[i];
+    	return child_ctx;
+    }
+
+    function get_each_context_3(ctx, list, i) {
+    	const child_ctx = ctx.slice();
+    	child_ctx[24] = list[i];
+    	return child_ctx;
+    }
+
+    // (122:5) {#each themes as name}
+    function create_each_block_3(ctx) {
+    	let option;
+    	let t0_value = /*name*/ ctx[24] + "";
+    	let t0;
+    	let t1_value = (dark_themes.includes(/*name*/ ctx[24]) ? " (Dark)" : "") + "";
+    	let t1;
+    	let t2;
+    	let option_value_value;
+    	let option_selected_value;
+
+    	return {
+    		c() {
+    			option = element("option");
+    			t0 = text(t0_value);
+    			t1 = text(t1_value);
+    			t2 = space();
+    			option.__value = option_value_value = /*name*/ ctx[24];
+    			option.value = option.__value;
+    			option.selected = option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0];
+    		},
+    		m(target, anchor) {
+    			insert(target, option, anchor);
+    			append(option, t0);
+    			append(option, t1);
+    			append(option, t2);
+    		},
+    		p(ctx, dirty) {
+    			if (dirty & /*current_theme, themes*/ 1 && option_selected_value !== (option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0])) {
+    				option.selected = option_selected_value;
+    			}
+    		},
+    		d(detaching) {
+    			if (detaching) detach(option);
+    		}
+    	};
+    }
+
+    // (154:3) {#each env.BMButton as button}
+    function create_each_block_2(ctx) {
+    	let th;
+    	let quickbutton;
+    	let t;
+    	let current;
+
+    	quickbutton = new QuickButton({
+    			props: {
+    				size: "medium",
+    				song_hash: undefined,
+    				type: /*button*/ ctx[19],
+    				preview: true
+    			}
+    		});
+
+    	return {
+    		c() {
+    			th = element("th");
+    			create_component(quickbutton.$$.fragment);
+    			t = space();
+    		},
+    		m(target, anchor) {
+    			insert(target, th, anchor);
+    			mount_component(quickbutton, th, null);
+    			append(th, t);
+    			current = true;
+    		},
+    		p: noop,
+    		i(local) {
+    			if (current) return;
+    			transition_in(quickbutton.$$.fragment, local);
+    			current = true;
+    		},
+    		o(local) {
+    			transition_out(quickbutton.$$.fragment, local);
+    			current = false;
+    		},
+    		d(detaching) {
+    			if (detaching) detach(th);
+    			destroy_component(quickbutton);
+    		}
+    	};
+    }
+
+    // (168:4) {#each env.BMButton as button}
+    function create_each_block_1(ctx) {
+    	let td;
+    	let input;
+    	let input_checked_value;
+    	let t;
+    	let label;
+    	let mounted;
+    	let dispose;
+
+    	return {
+    		c() {
+    			td = element("td");
+    			input = element("input");
+    			t = space();
+    			label = element("label");
+    			attr(input, "id", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
+    			attr(input, "type", "checkbox");
+    			attr(input, "class", "is-checkradio");
+    			attr(input, "data-key", "" + (/*page*/ ctx[16] + "-" + /*button*/ ctx[19]));
+    			input.checked = input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`];
+    			attr(label, "for", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
+    		},
+    		m(target, anchor) {
+    			insert(target, td, anchor);
+    			append(td, input);
+    			append(td, t);
+    			append(td, label);
+
+    			if (!mounted) {
+    				dispose = listen(input, "change", /*updateButtonMatrix*/ ctx[10]);
+    				mounted = true;
+    			}
+    		},
+    		p(ctx, dirty) {
+    			if (dirty & /*bm*/ 4 && input_checked_value !== (input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`])) {
+    				input.checked = input_checked_value;
+    			}
+    		},
+    		d(detaching) {
+    			if (detaching) detach(td);
+    			mounted = false;
+    			dispose();
+    		}
+    	};
+    }
+
+    // (165:2) {#each env.BMPage as page}
+    function create_each_block(ctx) {
+    	let tr;
+    	let td;
+    	let t0_value = /*page*/ ctx[16] + "";
+    	let t0;
+    	let t1;
+    	let t2;
+    	let each_value_1 = BMButton;
+    	let each_blocks = [];
+
+    	for (let i = 0; i < each_value_1.length; i += 1) {
+    		each_blocks[i] = create_each_block_1(get_each_context_1(ctx, each_value_1, i));
+    	}
+
+    	return {
+    		c() {
+    			tr = element("tr");
+    			td = element("td");
+    			t0 = text(t0_value);
+    			t1 = space();
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].c();
+    			}
+
+    			t2 = space();
+    		},
+    		m(target, anchor) {
+    			insert(target, tr, anchor);
+    			append(tr, td);
+    			append(td, t0);
+    			append(tr, t1);
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(tr, null);
+    			}
+
+    			append(tr, t2);
+    		},
+    		p(ctx, dirty) {
+    			if (dirty & /*env, bm, updateButtonMatrix*/ 1028) {
+    				each_value_1 = BMButton;
+    				let i;
+
+    				for (i = 0; i < each_value_1.length; i += 1) {
+    					const child_ctx = get_each_context_1(ctx, each_value_1, i);
+
+    					if (each_blocks[i]) {
+    						each_blocks[i].p(child_ctx, dirty);
+    					} else {
+    						each_blocks[i] = create_each_block_1(child_ctx);
+    						each_blocks[i].c();
+    						each_blocks[i].m(tr, t2);
+    					}
+    				}
+
+    				for (; i < each_blocks.length; i += 1) {
+    					each_blocks[i].d(1);
+    				}
+
+    				each_blocks.length = each_value_1.length;
+    			}
+    		},
+    		d(detaching) {
+    			if (detaching) detach(tr);
+    			destroy_each(each_blocks, detaching);
+    		}
+    	};
+    }
+
+    function create_fragment(ctx) {
+    	let div14;
+    	let div2;
+    	let label0;
+    	let t1;
+    	let div1;
+    	let div0;
+    	let select;
+    	let t2;
+    	let div3;
+    	let t4;
+    	let div4;
+    	let input0;
+    	let t5;
+    	let label2;
+    	let t7;
+    	let div5;
+    	let t9;
+    	let table;
+    	let tr;
+    	let th;
+    	let t10;
+    	let t11;
+    	let t12;
+    	let div6;
+    	let t14;
+    	let div7;
+    	let input1;
+    	let t15;
+    	let label5;
+    	let t17;
+    	let div8;
+    	let t19;
+    	let div9;
+    	let button0;
+    	let t21;
+    	let button1;
+    	let t23;
+    	let div10;
+    	let t25;
+    	let div13;
+    	let div11;
+    	let input2;
+    	let t26;
+    	let span;
+    	let t27;
+    	let div12;
+    	let button2;
+    	let i1;
+    	let t28;
+    	let br;
+    	let current;
+    	let mounted;
+    	let dispose;
+    	let each_value_3 = themes;
+    	let each_blocks_2 = [];
+
+    	for (let i = 0; i < each_value_3.length; i += 1) {
+    		each_blocks_2[i] = create_each_block_3(get_each_context_3(ctx, each_value_3, i));
+    	}
+
+    	let each_value_2 = BMButton;
+    	let each_blocks_1 = [];
+
+    	for (let i = 0; i < each_value_2.length; i += 1) {
+    		each_blocks_1[i] = create_each_block_2(get_each_context_2(ctx, each_value_2, i));
+    	}
+
+    	const out = i => transition_out(each_blocks_1[i], 1, 1, () => {
+    		each_blocks_1[i] = null;
+    	});
+
+    	let each_value = BMPage;
+    	let each_blocks = [];
+
+    	for (let i = 0; i < each_value.length; i += 1) {
+    		each_blocks[i] = create_each_block(get_each_context(ctx, each_value, i));
+    	}
+
+    	return {
+    		c() {
+    			div14 = element("div");
+    			div2 = element("div");
+    			label0 = element("label");
+    			label0.textContent = "Theme";
+    			t1 = space();
+    			div1 = element("div");
+    			div0 = element("div");
+    			select = element("select");
+
+    			for (let i = 0; i < each_blocks_2.length; i += 1) {
+    				each_blocks_2[i].c();
+    			}
+
+    			t2 = space();
+    			div3 = element("div");
+    			div3.innerHTML = `<label class="label">Song Table Options</label>`;
+    			t4 = space();
+    			div4 = element("div");
+    			input0 = element("input");
+    			t5 = space();
+    			label2 = element("label");
+    			label2.textContent = "Always expand table to full width";
+    			t7 = space();
+    			div5 = element("div");
+    			div5.innerHTML = `<label class="label">QuickAction Buttons</label>`;
+    			t9 = space();
+    			table = element("table");
+    			tr = element("tr");
+    			th = element("th");
+    			t10 = space();
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].c();
+    			}
+
+    			t11 = space();
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].c();
+    			}
+
+    			t12 = space();
+    			div6 = element("div");
+    			div6.innerHTML = `<label class="label">Other</label>`;
+    			t14 = space();
+    			div7 = element("div");
+    			input1 = element("input");
+    			t15 = space();
+    			label5 = element("label");
+    			label5.textContent = "Use new ScoreSaber api";
+    			t17 = space();
+    			div8 = element("div");
+    			div8.innerHTML = `<label class="label">Tools</label>`;
+    			t19 = space();
+    			div9 = element("div");
+    			button0 = element("button");
+    			button0.textContent = "Update All User";
+    			t21 = space();
+    			button1 = element("button");
+    			button1.textContent = "Force Update All User";
+    			t23 = space();
+    			div10 = element("div");
+    			div10.innerHTML = `<label class="label">Beastsaber Bookmarks</label>`;
+    			t25 = space();
+    			div13 = element("div");
+    			div11 = element("div");
+    			input2 = element("input");
+    			t26 = space();
+    			span = element("span");
+    			span.innerHTML = `<i class="fas fa-user fa-xs"></i>`;
+    			t27 = space();
+    			div12 = element("div");
+    			button2 = element("button");
+    			i1 = element("i");
+    			t28 = space();
+    			br = element("br");
+    			attr(label0, "class", "label");
+    			if (/*current_theme*/ ctx[0] === void 0) add_render_callback(() => /*select_change_handler*/ ctx[11].call(select));
+    			attr(div0, "class", "select");
+    			attr(div1, "class", "control");
+    			attr(div2, "class", "field");
+    			attr(div3, "class", "field");
+    			attr(input0, "id", "wide_song_table");
+    			attr(input0, "type", "checkbox");
+    			attr(input0, "class", "is-checkradio");
+    			input0.checked = get_wide_table();
+    			attr(label2, "for", "wide_song_table");
+    			attr(label2, "class", "checkbox");
+    			attr(div4, "class", "field");
+    			attr(div5, "class", "field");
+    			attr(table, "class", "table");
+    			attr(div6, "class", "field");
+    			attr(input1, "id", "use_new_ss_api");
+    			attr(input1, "type", "checkbox");
+    			attr(input1, "class", "is-checkradio");
+    			input1.checked = get_use_new_ss_api();
+    			attr(label5, "for", "use_new_ss_api");
+    			attr(label5, "class", "checkbox");
+    			attr(div7, "class", "field");
+    			attr(div8, "class", "field");
+    			attr(button0, "class", "button");
+    			attr(button1, "class", "button is-danger");
+    			attr(div9, "class", "buttons");
+    			attr(div10, "class", "field");
+    			attr(input2, "id", "bsaber_username");
+    			attr(input2, "type", "text");
+    			attr(input2, "class", "input");
+    			attr(input2, "placeholder", "Username");
+    			input2.value = get_bsaber_username() ?? "";
+    			attr(span, "class", "icon is-small is-left");
+    			attr(div11, "class", "control has-icons-left");
+    			attr(i1, "class", "fas fa-sync");
+    			toggle_class(i1, "fa-spin", /*isBeastSaberSyncing*/ ctx[1]);
+    			attr(button2, "class", "button bsaber_update_bookmarks");
+    			attr(button2, "data-tooltip", "Load Bookmarks");
+    			attr(div12, "class", "control");
+    			attr(div13, "class", "field has-addons");
+    		},
+    		m(target, anchor) {
+    			insert(target, div14, anchor);
+    			append(div14, div2);
+    			append(div2, label0);
+    			append(div2, t1);
+    			append(div2, div1);
+    			append(div1, div0);
+    			append(div0, select);
+
+    			for (let i = 0; i < each_blocks_2.length; i += 1) {
+    				each_blocks_2[i].m(select, null);
+    			}
+
+    			select_option(select, /*current_theme*/ ctx[0]);
+    			append(div14, t2);
+    			append(div14, div3);
+    			append(div14, t4);
+    			append(div14, div4);
+    			append(div4, input0);
+    			append(div4, t5);
+    			append(div4, label2);
+    			append(div14, t7);
+    			append(div14, div5);
+    			append(div14, t9);
+    			append(div14, table);
+    			append(table, tr);
+    			append(tr, th);
+    			append(tr, t10);
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				each_blocks_1[i].m(tr, null);
+    			}
+
+    			append(table, t11);
+
+    			for (let i = 0; i < each_blocks.length; i += 1) {
+    				each_blocks[i].m(table, null);
+    			}
+
+    			append(div14, t12);
+    			append(div14, div6);
+    			append(div14, t14);
+    			append(div14, div7);
+    			append(div7, input1);
+    			append(div7, t15);
+    			append(div7, label5);
+    			append(div14, t17);
+    			append(div14, div8);
+    			append(div14, t19);
+    			append(div14, div9);
+    			append(div9, button0);
+    			append(div9, t21);
+    			append(div9, button1);
+    			append(div14, t23);
+    			append(div14, div10);
+    			append(div14, t25);
+    			append(div14, div13);
+    			append(div13, div11);
+    			append(div11, input2);
+    			append(div11, t26);
+    			append(div11, span);
+    			append(div13, t27);
+    			append(div13, div12);
+    			append(div12, button2);
+    			append(button2, i1);
+    			append(div14, t28);
+    			append(div14, br);
+    			current = true;
+
+    			if (!mounted) {
+    				dispose = [
+    					listen(select, "change", /*select_change_handler*/ ctx[11]),
+    					listen(select, "change", /*onChangeTheme*/ ctx[3]),
+    					listen(input0, "change", /*onChangeWideTable*/ ctx[4]),
+    					listen(input1, "change", /*onChangeUseNewSSApi*/ ctx[5]),
+    					listen(button0, "click", /*updateAllUser*/ ctx[6]),
+    					listen(button1, "click", /*forceUpdateAllUser*/ ctx[7]),
+    					listen(input2, "change", /*onChangeBeastSaber*/ ctx[8]),
+    					listen(button2, "click", /*beastSaberSync*/ ctx[9])
+    				];
+
+    				mounted = true;
+    			}
+    		},
+    		p(ctx, [dirty]) {
+    			if (dirty & /*themes, current_theme, dark_themes*/ 1) {
+    				each_value_3 = themes;
+    				let i;
+
+    				for (i = 0; i < each_value_3.length; i += 1) {
+    					const child_ctx = get_each_context_3(ctx, each_value_3, i);
+
+    					if (each_blocks_2[i]) {
+    						each_blocks_2[i].p(child_ctx, dirty);
+    					} else {
+    						each_blocks_2[i] = create_each_block_3(child_ctx);
+    						each_blocks_2[i].c();
+    						each_blocks_2[i].m(select, null);
+    					}
+    				}
+
+    				for (; i < each_blocks_2.length; i += 1) {
+    					each_blocks_2[i].d(1);
+    				}
+
+    				each_blocks_2.length = each_value_3.length;
+    			}
+
+    			if (dirty & /*current_theme, themes*/ 1) {
+    				select_option(select, /*current_theme*/ ctx[0]);
+    			}
+
+    			if (dirty & /*undefined, env*/ 0) {
+    				each_value_2 = BMButton;
+    				let i;
+
+    				for (i = 0; i < each_value_2.length; i += 1) {
+    					const child_ctx = get_each_context_2(ctx, each_value_2, i);
+
+    					if (each_blocks_1[i]) {
+    						each_blocks_1[i].p(child_ctx, dirty);
+    						transition_in(each_blocks_1[i], 1);
+    					} else {
+    						each_blocks_1[i] = create_each_block_2(child_ctx);
+    						each_blocks_1[i].c();
+    						transition_in(each_blocks_1[i], 1);
+    						each_blocks_1[i].m(tr, null);
+    					}
+    				}
+
+    				group_outros();
+
+    				for (i = each_value_2.length; i < each_blocks_1.length; i += 1) {
+    					out(i);
+    				}
+
+    				check_outros();
+    			}
+
+    			if (dirty & /*env, bm, updateButtonMatrix*/ 1028) {
+    				each_value = BMPage;
+    				let i;
+
+    				for (i = 0; i < each_value.length; i += 1) {
+    					const child_ctx = get_each_context(ctx, each_value, i);
+
+    					if (each_blocks[i]) {
+    						each_blocks[i].p(child_ctx, dirty);
+    					} else {
+    						each_blocks[i] = create_each_block(child_ctx);
+    						each_blocks[i].c();
+    						each_blocks[i].m(table, null);
+    					}
+    				}
+
+    				for (; i < each_blocks.length; i += 1) {
+    					each_blocks[i].d(1);
+    				}
+
+    				each_blocks.length = each_value.length;
+    			}
+
+    			if (dirty & /*isBeastSaberSyncing*/ 2) {
+    				toggle_class(i1, "fa-spin", /*isBeastSaberSyncing*/ ctx[1]);
+    			}
+    		},
+    		i(local) {
+    			if (current) return;
+
+    			for (let i = 0; i < each_value_2.length; i += 1) {
+    				transition_in(each_blocks_1[i]);
+    			}
+
+    			current = true;
+    		},
+    		o(local) {
+    			each_blocks_1 = each_blocks_1.filter(Boolean);
+
+    			for (let i = 0; i < each_blocks_1.length; i += 1) {
+    				transition_out(each_blocks_1[i]);
+    			}
+
+    			current = false;
+    		},
+    		d(detaching) {
+    			if (detaching) detach(div14);
+    			destroy_each(each_blocks_2, detaching);
+    			destroy_each(each_blocks_1, detaching);
+    			destroy_each(each_blocks, detaching);
+    			mounted = false;
+    			run_all(dispose);
+    		}
+    	};
+    }
+
+    function instance($$self, $$props, $$invalidate) {
+    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
+    		function adopt(value) {
+    			return value instanceof P
+    			? value
+    			: new P(function (resolve) {
+    						resolve(value);
+    					});
+    		}
+
+    		return new (P || (P = Promise))(function (resolve, reject) {
+    				function fulfilled(value) {
+    					try {
+    						step(generator.next(value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function rejected(value) {
+    					try {
+    						step(generator["throw"](value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function step(result) {
+    					result.done
+    					? resolve(result.value)
+    					: adopt(result.value).then(fulfilled, rejected);
+    				}
+
+    				step((generator = generator.apply(thisArg, _arguments || [])).next());
+    			});
+    	};
+
+    	var _a;
+    	
+
+    	let current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0
+    	? _a
+    	: "Default";
+
+    	function onChangeTheme() {
+    		settings_set_theme(this.value);
+    	}
+
+    	function onChangeWideTable() {
+    		set_wide_table(this.checked);
+    		const cssElem = check(document.getElementById("wide_song_table_css"));
+    		cssElem.checked = this.checked;
+    	}
+
+    	function onChangeUseNewSSApi() {
+    		set_use_new_ss_api(this.checked);
+    	}
+
+    	function updateAllUser() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			yield fetch_all();
+    		});
+    	}
+
+    	function forceUpdateAllUser() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			const resp = yield show_modal({
+    				text: "Warning: This might take a long time, depending " + "on how many users you have in your library list and " + "how many songs they have on ScoreSaber.\n" + "Use this only when all pp is fucked again.\n" + "And have mercy on the ScoreSaber servers.",
+    				buttons: {
+    					ok: { text: "Continue", class: "is-success" },
+    					x: { text: "Cancel", class: "is-danger" }
+    				}
+    			});
+
+    			if (resp === "ok") {
+    				yield fetch_all(true);
+    			}
+    		});
+    	}
+
+    	function onChangeBeastSaber() {
+    		set_bsaber_username(this.value);
+    		update_button_visibility();
+    	}
+
+    	let isBeastSaberSyncing = false;
+
+    	function beastSaberSync() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			const bsaber_username = get_bsaber_username();
+
+    			if (!bsaber_username) {
+    				yield show_modal({
+    					text: "Please enter a username first.",
+    					buttons: buttons.OkOnly
+    				});
+
+    				return;
+    			}
+
+    			$$invalidate(1, isBeastSaberSyncing = true);
+    			yield update_bsaber_bookmark_cache(bsaber_username);
+    			$$invalidate(1, isBeastSaberSyncing = false);
+    		});
+    	}
+
+    	function update_bsaber_bookmark_cache(username) {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			for (let page = 1; ; page++) {
+    				SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
+    				const bookmarks = yield get_bookmarks(username, page, 50);
+    				if (!bookmarks) break;
+    				process_bookmarks(bookmarks.songs);
+
+    				if (bookmarks.next_page === null) {
+    					break;
+    				}
+    			}
+
+    			SseEvent.StatusInfo.invoke({
+    				text: "Finished loading BeastSaber bookmarks"
+    			});
+    		});
+    	}
+
+    	function process_bookmarks(songs) {
+    		for (const song of songs) {
+    			if (!song.hash) {
+    				continue;
+    			}
+
+    			if (!check_bsaber_bookmark(song.hash)) {
+    				add_bsaber_bookmark(song.hash);
+    			}
+    		}
+    	}
+
+    	const bm = get_button_matrix();
+
+    	function updateButtonMatrix() {
+    		let key = this.dataset.key;
+    		let val = this.checked;
+    		console.log("Updating", key, val);
+    		$$invalidate(2, bm[key] = val, bm);
+    		set_button_matrix(bm);
+    		update_button_visibility();
+    	}
+
+    	function select_change_handler() {
+    		current_theme = select_value(this);
+    		$$invalidate(0, current_theme);
+    	}
+
+    	return [
+    		current_theme,
+    		isBeastSaberSyncing,
+    		bm,
+    		onChangeTheme,
+    		onChangeWideTable,
+    		onChangeUseNewSSApi,
+    		updateAllUser,
+    		forceUpdateAllUser,
+    		onChangeBeastSaber,
+    		beastSaberSync,
+    		updateButtonMatrix,
+    		select_change_handler
+    	];
+    }
+
+    class SettingsDialogue extends SvelteComponent {
+    	constructor(options) {
+    		super();
+    		init(this, options, instance, create_fragment, safe_not_equal, {});
+    	}
+    }
+
     let notify_box;
     let settings_modal;
     function setup() {
@@ -2047,98 +3506,14 @@ h5 > * {
         });
     }
     function show_settings_lazy() {
-        var _a, _b;
         if (settings_modal) {
             settings_modal.show();
             return;
         }
-        const current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0 ? _a : "Default";
         const status_box = create("div", {});
         SseEvent.StatusInfo.register((status) => intor(status_box, status.text));
-        const set_div = create("div", {}, check(notify_box), create("div", { class: "field" }, create("label", { class: "label" }, "Theme"), create("div", { class: "control" }, create("div", { class: "select" }, create("select", {
-            onchange() {
-                settings_set_theme(this.value);
-            }
-        }, ...themes.map(name => create("option", { selected: name === current_theme }, name)))))), create("div", { class: "field" }, create("label", { class: "label" }, "Song Table Options")), create("div", { class: "field" }, create("input", {
-            id: "wide_song_table",
-            type: "checkbox",
-            class: "is-checkradio",
-            checked: get_wide_table(),
-            onchange() {
-                set_wide_table(this.checked);
-                check(document.getElementById("wide_song_table_css")).checked = this.checked;
-            }
-        }), create("label", { for: "wide_song_table", class: "checkbox" }, "Always expand table to full width")), create("div", { class: "field" }, create("label", { class: "label" }, "Links")), create("div", { class: "field" }, create("input", {
-            id: "show_bs_link",
-            type: "checkbox",
-            class: "is-checkradio",
-            checked: get_show_bs_link(),
-            onchange() {
-                set_show_bs_link(this.checked);
-                update_button_visibility();
-            }
-        }), create("label", { for: "show_bs_link", class: "checkbox" }, "Show BeatSaver link")), create("div", { class: "field" }, create("input", {
-            id: "show_oc_link",
-            type: "checkbox",
-            class: "is-checkradio",
-            checked: get_show_oc_link(),
-            onchange() {
-                set_show_oc_link(this.checked);
-                update_button_visibility();
-            }
-        }), create("label", { for: "show_oc_link", class: "checkbox" }, "Show OneClick link")), create("div", { class: "field" }, create("label", { class: "label" }, "Other")), create("div", { class: "field" }, create("input", {
-            id: "use_new_ss_api",
-            type: "checkbox",
-            class: "is-checkradio",
-            checked: get_use_new_ss_api(),
-            onchange() {
-                set_use_new_ss_api(this.checked);
-            }
-        }), create("label", { for: "use_new_ss_api", class: "checkbox" }, "Use new ScoreSaber api")), create("div", { class: "field" }, create("label", { class: "label" }, "Tools")), create("div", { class: "field" }, create("div", { class: "buttons" }, create("button", {
-            class: "button",
-            async onclick() {
-                await fetch_all();
-            }
-        }, "Update All User"), create("button", {
-            class: "button is-danger",
-            async onclick() {
-                const resp = await show_modal({
-                    text: "Warning: This might take a long time, depending " +
-                        "on how many users you have in your library list and " +
-                        "how many songs they have on ScoreSaber.\n" +
-                        "Use this only when all pp is fucked again.\n" +
-                        "And have mercy on the ScoreSaber servers.",
-                    buttons: {
-                        ok: { text: "Continue", class: "is-success" },
-                        x: { text: "Cancel", class: "is-danger" }
-                    }
-                });
-                if (resp === "ok") {
-                    await fetch_all(true);
-                }
-            }
-        }, "Force Update All User"))), create("div", { class: "field" }, create("label", { class: "label" }, "Beastsaber Bookmarks")), create("div", { class: "field has-addons" }, create("div", { class: "control has-icons-left" }, create("input", {
-            id: "bsaber_username",
-            type: "text",
-            class: "input",
-            placeholder: "username",
-            value: (_b = get_bsaber_username()) !== null && _b !== void 0 ? _b : "",
-            onchange() {
-                set_bsaber_username(this.value);
-                update_button_visibility();
-            }
-        }), create("span", { class: "icon is-small is-left" }, create("i", { class: "fas fa-user fa-xs" }))), create("div", { class: "control" }, create("button", {
-            class: "button bsaber_update_bookmarks",
-            data: { tooltip: "Load Bookmarks" },
-            async onclick() {
-                const bsaber_username = get_bsaber_username();
-                if (!bsaber_username) {
-                    await show_modal({ text: "Please enter a username first.", buttons: buttons.OkOnly });
-                    return;
-                }
-                await update_bsaber_bookmark_cache(this.firstElementChild, bsaber_username);
-            },
-        }, create("i", { class: "fas fa-sync" })))), create("br"));
+        const set_div = create("div");
+        new SettingsDialogue({ target: set_div });
         settings_modal = create_modal({
             title: "Options",
             text: set_div,
@@ -2167,9 +3542,7 @@ h5 > * {
     }
     function load_theme(name, css) {
         let css_fin;
-        if (get_scoresaber_darkmode()
-            || name === "Cyborg" || name === "Darkly" || name === "Nuclear"
-            || name === "Slate" || name === "Solar" || name === "Superhero") {
+        if (get_scoresaber_darkmode() || dark_themes.includes(name)) {
             css_fin = css + " " + theme_dark;
         }
         else {
@@ -2185,42 +3558,12 @@ h5 > * {
     function get_scoresaber_darkmode() {
         return document.cookie.includes("dark=1");
     }
-    async function update_bsaber_bookmark_cache(button, username) {
-        button.classList.add("fa-spin");
-        for (let page = 1;; page++) {
-            SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
-            const bookmarks = await get_bookmarks(username, page, 50);
-            if (!bookmarks)
-                break;
-            process_bookmarks(bookmarks.songs);
-            if (bookmarks.next_page === null) {
-                break;
-            }
-        }
-        SseEvent.StatusInfo.invoke({ text: "Finished loading BeastSaber bookmarks" });
-        button.classList.remove("fa-spin");
-    }
-    function process_bookmarks(songs) {
-        for (const song of songs) {
-            if (!song.hash) {
-                continue;
-            }
-            if (!check_bsaber_bookmark(song.hash)) {
-                add_bsaber_bookmark(song.hash);
-            }
-        }
-    }
     function update_button_visibility() {
-        if (!is_user_page()) {
-            return;
+        const bm = get_button_matrix();
+        for (const pb of BMPageButtons) {
+            const showButton = bm[pb] || false;
+            document.documentElement.style.setProperty(`--sse-show-${pb}`, showButton ? "unset" : "none");
         }
-        const table = check(document.querySelector("table.ranking.songs"));
-        const bs_view = get_show_bs_link() ? "" : "none";
-        table.querySelectorAll("th.bs_link").forEach(bs_link => bs_link.style.display = bs_view);
-        const oc_view = get_show_oc_link() ? "" : "none";
-        table.querySelectorAll("th.oc_link").forEach(oc_link => oc_link.style.display = oc_view);
-        const bb_view = get_show_bb_link() ? "" : "none";
-        table.querySelectorAll("th.bb_link").forEach(bb_link => bb_link.style.display = bb_view);
     }
 
     async function check_for_updates() {

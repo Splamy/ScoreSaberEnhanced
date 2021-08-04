@@ -59,8 +59,8 @@ export function create_modal<T extends string>(opt: IModalOptions<T>): Modal<T> 
 		case "card":
 			inner = create("div", { class: "modal-card" },
 				create("header", { class: "modal-card-head" }, opt.title ?? ""),
-				create("header", { class: "modal-card-body" }, opt.text),
-				create("header", { class: "modal-card-foot" }, opt.footer ?? button_bar),
+				create("section", { class: "modal-card-body" }, opt.text),
+				create("footer", { class: "modal-card-foot" }, opt.footer ?? button_bar),
 			);
 			break;
 		default:

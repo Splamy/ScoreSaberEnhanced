@@ -4,3 +4,7 @@ interface ParentNode {
 }
 
 type Modify<T, R> = Omit<T, keyof R> & R;
+
+declare module '*.svelte' {
+	export { SvelteComponentDev as default } from 'svelte/internal';
+}
