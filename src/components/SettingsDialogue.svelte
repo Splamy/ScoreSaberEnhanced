@@ -5,10 +5,11 @@
 	import * as modal from "./modal";
 	import { settings_set_theme, update_button_visibility } from "../settings";
 	import { dark_themes, themes } from "../themes";
-	import { check } from "../util/err";
 	import SseEvent from "./events";
 	import type { PageButtons } from "../env";
 	import QuickButton from "./QuickButton.svelte";
+	import { update_wide_table_css } from "../pages/user";
+	import { logc } from "../util/log";
 
 	let current_theme = localStorage.getItem("theme_name") ?? "Default";
 
@@ -18,10 +19,7 @@
 
 	function onChangeWideTable(this: HTMLInputElement) {
 		env.set_wide_table(this.checked);
-		const cssElem = check(
-			document.getElementById("wide_song_table_css")
-		) as HTMLInputElement;
-		cssElem.checked = this.checked;
+		update_wide_table_css();
 	}
 
 	function onChangeUseNewSSApi(this: HTMLInputElement) {
@@ -110,7 +108,7 @@
 	function updateButtonMatrix(this: HTMLInputElement) {
 		let key = this.dataset.key as PageButtons;
 		let val = this.checked;
-		console.log("Updating", key, val);
+		logc("Updating", key, val);
 		bm[key] = val;
 		env.set_button_matrix(bm);
 		update_button_visibility();
@@ -145,7 +143,7 @@
 			on:change={onChangeWideTable}
 		/>
 		<label for="wide_song_table" class="checkbox">
-			Always expand table to full width
+			Expand table to full width
 		</label>
 	</div>
 

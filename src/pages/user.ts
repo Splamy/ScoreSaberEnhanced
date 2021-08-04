@@ -49,17 +49,11 @@ export function setup_dl_link_user_site(): void {
 
 // ** Wide table ***
 
-export function setup_wide_table_checkbox(): void {
+export function update_wide_table_css(): void {
 	if (!is_user_page()) { return; }
 
 	const table = check(document.querySelector("table.ranking.songs"));
-
-	table.insertAdjacentElement("beforebegin", create("input", {
-		id: "wide_song_table_css",
-		type: "checkbox",
-		style: { display: "none" },
-		checked: get_wide_table(),
-	}));
+	table.classList.toggle("wide_song_table", get_wide_table());
 }
 
 // ** Link util **

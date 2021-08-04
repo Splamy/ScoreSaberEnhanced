@@ -10,7 +10,7 @@ h5 > * {
 	margin-right: 0.3em;
 }
 
-#wide_song_table_css:checked ~ table.ranking.songs {
+.wide_song_table {
 	max-width: unset !important;
 }
 

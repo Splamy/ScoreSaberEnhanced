@@ -25,7 +25,13 @@ task("build", async () => {
 					handler(warning);
 				},
 			}),
-			eslint({ filterExclude: ["**/*.svelte", "node_modules/**"] }),
+			eslint({
+				filterInclude: "src/**/*",
+				filterExclude: [
+					"**/*.svelte",
+					"node_modules/**"
+				]
+			}),
 			resolve({ browser: true }),
 			typescript({ tsconfig: './tsconfig.json' }),
 			commonjs({ extensions: ['.js', '.ts'] }),

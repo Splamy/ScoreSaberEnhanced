@@ -40,7 +40,7 @@ function on_load_body(): void {
 	page_user.add_percentage();
 	page_user.setup_user_rank_link_swap();
 	page_user.setup_song_rank_link_swap();
-	page_user.setup_wide_table_checkbox();
+	page_user.update_wide_table_css();
 	page_song.setup_dl_link_leaderboard();
 	page_song.setup_song_filter_tabs();
 	page_song.highlight_user();

@@ -2251,17 +2251,12 @@
             }
         }
     }
-    function setup_wide_table_checkbox() {
+    function update_wide_table_css() {
         if (!is_user_page()) {
             return;
         }
         const table = check(document.querySelector("table.ranking.songs"));
-        table.insertAdjacentElement("beforebegin", create("input", {
-            id: "wide_song_table_css",
-            type: "checkbox",
-            style: { display: "none" },
-            checked: get_wide_table(),
-        }));
+        table.classList.toggle("wide_song_table", get_wide_table());
     }
     function setup_user_rank_link_swap() {
         if (!is_user_page()) {
@@ -2566,7 +2561,7 @@ h5 > * {
 	margin-right: 0.3em;
 }
 
-#wide_song_table_css:checked ~ table.ranking.songs {
+.wide_song_table {
 	max-width: unset !important;
 }
 
@@ -3004,7 +2999,7 @@ h5 > * {
     			input0 = element("input");
     			t5 = space();
     			label2 = element("label");
-    			label2.textContent = "Always expand table to full width";
+    			label2.textContent = "Expand table to full width";
     			t7 = space();
     			div5 = element("div");
     			div5.innerHTML = `<label class="label">QuickAction Buttons</label>`;
@@ -3346,8 +3341,7 @@ h5 > * {
 
     	function onChangeWideTable() {
     		set_wide_table(this.checked);
-    		const cssElem = check(document.getElementById("wide_song_table_css"));
-    		cssElem.checked = this.checked;
+    		update_wide_table_css();
     	}
 
     	function onChangeUseNewSSApi() {
@@ -3438,7 +3432,7 @@ h5 > * {
     	function updateButtonMatrix() {
     		let key = this.dataset.key;
     		let val = this.checked;
-    		console.log("Updating", key, val);
+    		logc("Updating", key, val);
     		$$invalidate(2, bm[key] = val, bm);
     		set_button_matrix(bm);
     		update_button_visibility();
@@ -3618,7 +3612,7 @@ h5 > * {
         add_percentage();
         setup_user_rank_link_swap();
         setup_song_rank_link_swap();
-        setup_wide_table_checkbox();
+        update_wide_table_css();
         setup_dl_link_leaderboard();
         setup_song_filter_tabs();
         highlight_user();
