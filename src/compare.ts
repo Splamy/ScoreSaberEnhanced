@@ -1,7 +1,7 @@
 import * as scoresaber from "./api/scoresaber";
 import SseEvent from "./components/events";
 import { IDbUser } from "./declarations/Types";
-import { get_compare_user, get_current_user, get_use_new_ss_api, get_user_header, insert_compare_feature, is_user_page, set_compare_user } from "./env";
+import { get_compare_user, get_current_user, get_use_new_ss_api, get_user_header, insert_compare_feature, is_user_page, set_compare_user, get_home_user } from "./env";
 import g from "./global";
 import * as usercache from "./usercache";
 import { create, into, IntoElem, intor } from "./util/dom";
@@ -62,9 +62,12 @@ export function update_user_compare_dropdown(): void {
 					set_compare_user(user);
 					SseEvent.CompareUserChanged.invoke();
 				}
-			}, ...Object.entries(g.user_list).map(([id, user]) => {
-				return create("option", { value: id, selected: id === compare }, user.name);
-			}))
+			},
+				create("option", { value: undefined, selected: compare === undefined }, "(None)"),
+				...Object.entries(g.user_list).map(([id, user]) => {
+					return create("option", { value: id, selected: compare === id }, user.name);
+				})
+			)
 		)
 	);
 }
@@ -72,33 +75,46 @@ export function update_user_compare_dropdown(): void {
 export function update_user_compare_songtable(other_user?: string): void {
 	if (!is_user_page()) { return; }
 
+	const table = check(document.querySelector("table.ranking.songs"));
+	const table_row = table.querySelectorAll("tbody tr");
+	const scoreHeader = check(table.querySelector("tr th.score"));
+
+	// Reset table data
+	scoreHeader.textContent = "Score";
+	table.querySelectorAll(".comparisonScore").forEach(el => el.remove());
+	table_row.forEach(row => row.style.backgroundImage = "unset");
+
 	if (other_user === undefined) {
 		other_user = get_compare_user();
 		if (other_user === undefined) {
-			return; // TODO maybe clean up list ?
+			return;
 		}
 	}
 
 	const other_data = g.user_list[other_user];
 	if (!other_data) {
-		logc("Other user not found: ", other_user); // Try update?
+		logc("Other user not found: ", other_user);
 		return;
 	}
 
-	const table = check(document.querySelector("table.ranking.songs"));
-
-	// Reload table data
-	table.querySelectorAll(".comparisonScore").forEach(el => el.remove());
-
 	const ranking_table_header = check(table.querySelector("thead > tr"));
-	check(ranking_table_header.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, other_data.name));
+	const scoreCompareHeader = create("th", { class: "comparisonScore" }, other_data.name);
+	check(ranking_table_header.querySelector(".score")).insertAdjacentElement("afterend", scoreCompareHeader);
+
+	const isSameCompare = other_user === get_current_user().id;
+	const isSelfCompare = isSameCompare && other_user === get_home_user()?.id;
+	if (isSelfCompare) {
+		scoreHeader.textContent = "You (now)";
+		scoreCompareHeader.textContent = "You (last cache)";
+	} else if (isSameCompare) {
+		scoreHeader.textContent = `${other_data.name} (now)`;
+		scoreCompareHeader.textContent = "(last cache)";
+	} else {
+		scoreHeader.textContent = get_current_user().name;
+	}
 
 	// Update table
-	const table_row = table.querySelectorAll("tbody tr");
 	for (const row of table_row) {
-		// reset style
-		row.style.backgroundImage = "unset";
-
 		const [song_id, song] = scoresaber.get_row_data(row);
 		const other_song = other_data.songs[song_id];
 
