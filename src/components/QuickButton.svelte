@@ -80,20 +80,20 @@
 		try {
 			const song_info = await checked_hash_to_song_info(song_hash);
 			if (type === "BS") {
-				new_page(g.beatsaver_link + song_info.key);
+				new_page(g.beatsaver_link + song_info.id);
 			} else if (type === "OC") {
-				await oneclick_install(song_info.key);
+				await oneclick_install(song_info.id);
 				ok_after_download();
 			} else if (type === "Beast") {
-				new_page(g.bsaber_songs_link + song_info.key);
+				new_page(g.bsaber_songs_link + song_info.id);
 			} else if (type === "BeastBook") {
-				new_page(g.bsaber_songs_link + song_info.key);
+				new_page(g.bsaber_songs_link + song_info.id);
 			} else if (type === "Preview") {
 				new_page(
-					"https://skystudioapps.com/bs-viewer/?id=" + song_info.key
+					"https://skystudioapps.com/bs-viewer/?id=" + song_info.id
 				);
 			} else if (type === "BSR") {
-				txtDummyNode.value = `!bsr ${song_info.key}`;
+				txtDummyNode.value = `!bsr ${song_info.id}`;
 				txtDummyNode.select();
 				txtDummyNode.setSelectionRange(0, 99999);
 				document.execCommand("copy");

@@ -55,7 +55,7 @@ export async function fetch_hash(link: string): Promise<string | undefined> {
 export async function oneclick_install_byhash(song_hash: string): Promise<boolean> {
 	const song_info = await beatsaver.get_data_by_hash(song_hash);
 	if (!song_info) return false;
-	await oneclick_install(song_info.key);
+	await oneclick_install(song_info.id);
 	return true;
 }
 
@@ -134,15 +134,8 @@ export function parse_score_bottom(text: string): { score?: number, accuracy?: n
 	return { score, accuracy, mods };
 }
 
-export function get_notes_count(diff_name: string, characteristic: beatsaver.IBeatSaverSongCharacteristic): number {
-	let diff;
-	switch (diff_name) {
-		case "Easy": diff = characteristic.difficulties.easy; break;
-		case "Normal": diff = characteristic.difficulties.normal; break;
-		case "Hard": diff = characteristic.difficulties.hard; break;
-		case "Expert": diff = characteristic.difficulties.expert; break;
-		case "Expert+": diff = characteristic.difficulties.expertPlus; break;
-	}
+export function get_notes_count(diff_name: string, characteristic: string, version: beatsaver.IBeatSaverSongVersion): number {
+	const diff = version.diffs.find((d) => (d.characteristic === characteristic && d.difficulty === diff_name));
 	return diff?.notes ?? -1;
 }
 

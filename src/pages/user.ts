@@ -125,10 +125,10 @@ export function add_percentage(): void {
 				return;
 			const song_column = check(row.querySelector(`th.song`));
 			const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-			const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-			if (!diff_name || !standard_characteristic)
-				return;
-			const notes = get_notes_count(diff_name, standard_characteristic);
+			const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+			if (!diff_name || !version)
+					return;
+			const notes = get_notes_count(diff_name, "Standard", version);
 			if (notes < 0)
 				return;
 			const max_score = calculate_max_score(notes);

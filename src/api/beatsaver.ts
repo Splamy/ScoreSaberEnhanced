@@ -9,7 +9,7 @@ export async function get_data_by_hash(song_hash: string): Promise<IBeatSaverDat
 	if (cached_data !== undefined)
 		return cached_data;
 	try {
-		const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
+		const data_str = await fetch2(`https://api.beatsaver.com/maps/hash/${song_hash}`);
 		const data = JSON.parse(data_str);
 		api_cache.set(song_hash, data);
 		return data;
@@ -20,35 +20,27 @@ export async function get_data_by_hash(song_hash: string): Promise<IBeatSaverDat
 }
 
 export interface IBeatSaverData {
-	key: string;
+	id: string;
 	name: string;
-	hash: string;
-	downloadURL: string;
 	stats: {
-		downloads: number;
 		plays: number;
-		downVotes: number;
-		upVotes: number;
-		heat: number;
-		rating: number;
+		downloads: number;
+		upvotes: number;
+		downvotes: number;
+		score: number;
 	};
+	versions: IBeatSaverSongVersion[];
 	metadata: {
 		duration: number;
-		characteristics: IBeatSaverSongCharacteristic[];
 	};
 }
 
-export interface IBeatSaverSongCharacteristic {
-	name: string;
-	difficulties: {
-		easy: IBeatSaverSongDifficulty | null,
-		normal: IBeatSaverSongDifficulty | null,
-		hard: IBeatSaverSongDifficulty | null,
-		expert: IBeatSaverSongDifficulty | null,
-		expertPlus: IBeatSaverSongDifficulty | null,
-	};
-}
-
-interface IBeatSaverSongDifficulty {
-	notes: number;
+export interface IBeatSaverSongVersion {
+	hash: string;
+	diffs: {
+		characteristic: string;
+		difficulty: string;
+		notes: number;
+	}[];
+	downloadURL: string;
 }
