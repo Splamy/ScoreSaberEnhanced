@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.10.1
+// @version      1.11.0
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -30,7 +30,7 @@
     }
     Global.debug = false;
     Global.scoresaber_link = "https://scoresaber.com";
-    Global.beatsaver_link = "https://beatsaver.com/beatmap/";
+    Global.beatsaver_link = "https://beatsaver.com/maps/";
     Global.bsaber_songs_link = "https://bsaber.com/songs/";
     Global.song_hash_reg = /\/([\da-zA-Z]{40})\.png/;
     Global.score_reg = /(score|accuracy):\s*([\d.,]+)%?\s*(\(([\w,]*)\))?/;
@@ -471,7 +471,7 @@
         if (cached_data !== undefined)
             return cached_data;
         try {
-            const data_str = await fetch2(`https://beatsaver.com/api/maps/by-hash/${song_hash}`);
+            const data_str = await fetch2(`https://api.beatsaver.com/maps/hash/${song_hash}`);
             const data = JSON.parse(data_str);
             api_cache$1.set(song_hash, data);
             return data;
@@ -679,26 +679,9 @@
         }
         return { score, accuracy, mods };
     }
-    function get_notes_count(diff_name, characteristic) {
+    function get_notes_count(diff_name, characteristic, version) {
         var _a;
-        let diff;
-        switch (diff_name) {
-            case "Easy":
-                diff = characteristic.difficulties.easy;
-                break;
-            case "Normal":
-                diff = characteristic.difficulties.normal;
-                break;
-            case "Hard":
-                diff = characteristic.difficulties.hard;
-                break;
-            case "Expert":
-                diff = characteristic.difficulties.expert;
-                break;
-            case "Expert+":
-                diff = characteristic.difficulties.expertPlus;
-                break;
-        }
+        const diff = version.diffs.find((d) => (d.characteristic === characteristic && d.difficulty === diff_name));
         return (_a = diff === null || diff === void 0 ? void 0 : diff.notes) !== null && _a !== void 0 ? _a : -1;
     }
     function calculate_max_score(notes) {
@@ -1848,18 +1831,18 @@
     				const song_info = yield checked_hash_to_song_info(song_hash);
 
     				if (type === "BS") {
-    					new_page(Global.beatsaver_link + song_info.key);
+    					new_page(Global.beatsaver_link + song_info.id);
     				} else if (type === "OC") {
-    					yield oneclick_install(song_info.key);
+    					yield oneclick_install(song_info.id);
     					ok_after_download();
     				} else if (type === "Beast") {
-    					new_page(Global.bsaber_songs_link + song_info.key);
+    					new_page(Global.bsaber_songs_link + song_info.id);
     				} else if (type === "BeastBook") {
-    					new_page(Global.bsaber_songs_link + song_info.key);
+    					new_page(Global.bsaber_songs_link + song_info.id);
     				} else if (type === "Preview") {
-    					new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.key);
+    					new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.id);
     				} else if (type === "BSR") {
-    					$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.key}`, txtDummyNode);
+    					$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.id}`, txtDummyNode);
     					txtDummyNode.select();
     					txtDummyNode.setSelectionRange(0, 99999);
     					document.execCommand("copy");
@@ -2163,14 +2146,14 @@
             if (!data)
                 return;
             show_beatsaver_song_data(beatsaver_box, data);
-            const data2 = await get_data(data.key);
+            const data2 = await get_data(data.id);
             if (!data2)
                 return;
             show_beastsaber_song_data(beastsaber_box, data2);
         })();
     }
     function show_beatsaver_song_data(elem, data) {
-        intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upVotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downVotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.rating * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
+        intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
     }
     function show_beastsaber_song_data(elem, data) {
         intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
@@ -2222,10 +2205,10 @@
             const diff_name = (_a = document.querySelector(`div.tabs li.is-active span`)) === null || _a === void 0 ? void 0 : _a.innerText;
             if (!diff_name)
                 return;
-            const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-            if (!diff_name || !standard_characteristic)
+            const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+            if (!diff_name || !version)
                 return;
-            const notes = get_notes_count(diff_name, standard_characteristic);
+            const notes = get_notes_count(diff_name, "Standard", version);
             if (notes < 0)
                 return;
             const max_score = calculate_max_score(notes);
@@ -2334,10 +2317,10 @@
                     return;
                 const song_column = check(row.querySelector(`th.song`));
                 const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-                const standard_characteristic = data.metadata.characteristics.find(c => c.name === "Standard");
-                if (!diff_name || !standard_characteristic)
+                const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+                if (!diff_name || !version)
                     return;
-                const notes = get_notes_count(diff_name, standard_characteristic);
+                const notes = get_notes_count(diff_name, "Standard", version);
                 if (notes < 0)
                     return;
                 const max_score = calculate_max_score(notes);

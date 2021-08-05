@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.11.0 | 2021-08-05
+ - Updated to new beatsaber api ([#25](https://github.com/Splamy/ScoreSaberEnhanced/pull/25) Thanks [@ChrisJAllan](https://github.com/ChrisJAllan) for this PR)
+
 1.10.1 | 2021-08-04
  - Added option to disable user song compare
 
