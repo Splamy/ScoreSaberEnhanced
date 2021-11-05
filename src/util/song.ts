@@ -135,6 +135,8 @@ export function parse_score_bottom(text: string): { score?: number, accuracy?: n
 }
 
 export function get_notes_count(diff_name: string, characteristic: string, version: beatsaver.IBeatSaverSongVersion): number {
+	if (diff_name === "Expert+")
+		diff_name = "ExpertPlus";
 	const diff = version.diffs.find((d) => (d.characteristic === characteristic && d.difficulty === diff_name));
 	return diff?.notes ?? -1;
 }
