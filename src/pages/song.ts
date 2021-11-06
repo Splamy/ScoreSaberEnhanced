@@ -9,6 +9,8 @@ import { format_en, number_invariant, number_to_timespan, toggled_class } from "
 import { Lazy } from "../util/lazy";
 import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text } from "../util/song";
 import QuickButton from "../components/QuickButton.svelte";
+import { new_page } from "../util/net";
+import { get_scoresaber_data_by_hash } from "../api/beatsaver";
 
 const PAGE: Pages = "song";
 
@@ -18,7 +20,9 @@ const shared = new Lazy(() => {
 	details_box = check(details_box.parentElement);
 
 	const song_hash = get_song_hash_from_text(details_box.innerHTML);
-	return { song_hash, details_box };
+
+	const diff_name = document.querySelector(`div.tabs li.is-active span`)?.innerText;
+	return { song_hash, details_box, diff_name };
 });
 
 export function setup_song_filter_tabs(): void {
@@ -84,6 +88,9 @@ export function setup_dl_link_leaderboard(): void {
 	}
 	details_box.appendChild(tool_strip);
 
+	const song_warning = create("div");
+	details_box.appendChild(song_warning);
+
 	const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
 	const beatsaver_box = create("div", box_style,
 		create("b", {}, "BeatSaver"),
@@ -113,12 +120,37 @@ export function setup_dl_link_leaderboard(): void {
 		const data = await beatsaver.get_data_by_hash(song_hash);
 		if (!data)
 			return;
+		show_song_warning(song_warning, song_hash, data);
 		show_beatsaver_song_data(beatsaver_box, data);
 		const data2 = await beastsaber.get_data(data.id);
 		if (!data2)
 			return;
 		show_beastsaber_song_data(beastsaber_box, data2);
 	})();
+}
+
+function show_song_warning(elem: HTMLElement, song_hash: string, data: beatsaver.IBeatSaverData) {
+	const contains_version = data.versions.some(x => x.hash === song_hash);
+	if (!contains_version) {
+		const new_song_hash = data.versions[data.versions.length - 1].hash;
+		const { diff_name } = shared.get();
+
+		intor(elem,
+			create("div", {
+				style: { marginTop: "1em", cursor: "pointer" },
+				class: "notification is-warning",
+				onclick: async () => {
+					const bs2ss = await get_scoresaber_data_by_hash(new_song_hash, diff_name);
+					if (bs2ss === undefined)
+						return;
+					new_page(`https://scoresaber.com/leaderboard/${bs2ss.uid}`);
+				},
+			},
+				create("i", { class: "fas fa-exclamation-triangle" }),
+				create("span", { style: { marginLeft: "0.25em" } }, "A newer version of this song exists on BeatSaver")
+			)
+		);
+	}
 }
 
 function show_beatsaver_song_data(elem: HTMLElement, data: beatsaver.IBeatSaverData) {
@@ -204,7 +236,7 @@ export function add_percentage(): void {
 		return;
 	}
 
-	const { song_hash } = shared.get();
+	const { song_hash, diff_name } = shared.get();
 
 	if (!song_hash) {
 		return;
@@ -214,7 +246,6 @@ export function add_percentage(): void {
 		const data = await beatsaver.get_data_by_hash(song_hash);
 		if (!data)
 			return;
-		const diff_name = document.querySelector(`div.tabs li.is-active span`)?.innerText;
 		// Scoresaber fails to display the difficlulty tab for some categories (e.g. Lawless), ex:
 		// - none at all: https://scoresaber.com/leaderboard/307121
 		// - only expert+ shown, but actual diff is missing: https://scoresaber.com/leaderboard/314128
@@ -222,7 +253,7 @@ export function add_percentage(): void {
 			return;
 		const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
 		if (!diff_name || !version)
-				return;
+			return;
 		const notes = get_notes_count(diff_name, "Standard", version);
 		if (notes < 0)
 			return;

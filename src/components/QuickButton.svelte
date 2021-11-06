@@ -5,6 +5,7 @@
 	import { BMButtonHelp, check_bsaber_bookmark } from "../env";
 	import type { Buttons } from "../env";
 	import { oneclick_install } from "../util/song";
+	import { new_page } from "../util/net";
 
 	export let song_hash: string | undefined = undefined;
 	export let type: Buttons;
@@ -71,10 +72,6 @@
 		button.classList.add("button_success");
 	}
 
-	function new_page(link: string): void {
-		window.open(link, "_blank");
-	}
-
 	async function onclick(this: HTMLElement) {
 		if (preview) return;
 		try {
@@ -108,7 +105,7 @@
 
 <div
 	bind:this={button}
-	class="button icon is-{size} {type}_bg_btn"
+	class="button icon is-{size} {type}_bg_btn {color}"
 	class:has-tooltip-left={size !== "large" && !preview}
 	style={display}
 	{disabled}

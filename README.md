@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+1.12.0 | 2021-11-06
+ - Added smol notice when a map has a newer version on BeatSaver
+
 1.11.1 | 2021-11-06
  - Fixed calculated percentages on Expert+ ([#26](https://github.com/Splamy/ScoreSaberEnhanced/pull/25) Thanks [@ChrisJAllan](https://github.com/ChrisJAllan) for this PR)
 

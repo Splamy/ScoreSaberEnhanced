@@ -1,6 +1,7 @@
 import { logc } from "../util/log";
 import { fetch2 } from "../util/net";
 import { SessionCache } from "../util/sessioncache";
+import { diff_name_to_value } from "../util/song";
 
 const api_cache = new SessionCache<IBeatSaverData>("saver");
 
@@ -18,6 +19,19 @@ export async function get_data_by_hash(song_hash: string): Promise<IBeatSaverDat
 		return undefined;
 	}
 }
+
+export async function get_scoresaber_data_by_hash(song_hash: string, diff_name?: string): Promise<IBeatSaverScoreSaber | undefined> {
+	try {
+		const diff_value = diff_name === undefined ? 0 : diff_name_to_value(diff_name);
+		const data_str = await fetch2(`https://beatsaver.com/api/scores/${song_hash}/0?difficulty=${diff_value}&gameMode=0`);
+		const data = JSON.parse(data_str);
+		return data;
+	} catch (err) {
+		logc("Failed to download song data", err)
+		return undefined;
+	}
+}
+
 
 export interface IBeatSaverData {
 	id: string;
@@ -43,4 +57,19 @@ export interface IBeatSaverSongVersion {
 		notes: number;
 	}[];
 	downloadURL: string;
+}
+
+export interface IBeatSaverScoreSaber {
+	ranked: boolean;
+	uid: string;
+	scores: {
+		playerId: string;
+		name: string;
+		rank: number;
+		score: number;
+		pp: number;
+		mods: string[];
+	}[];
+	mods: boolean;
+	valid: boolean;
 }

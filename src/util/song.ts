@@ -42,7 +42,7 @@ function get_song_mod_multiplier(song: ISong): number {
 
 export function get_song_hash_from_text(text: string): string | undefined {
 	const res = g.song_hash_reg.exec(text);
-	return res ? res[1] : undefined;
+	return res ? res[1]?.toLowerCase() : undefined;
 }
 
 export async function fetch_hash(link: string): Promise<string | undefined> {
@@ -152,4 +152,26 @@ export function calculate_max_score(notes: number): number {
 		return note_score * (9 + (notes - 5) * 4);
 	// x8
 	return note_score * (41 + (notes - 13) * 8);
+}
+
+export function diff_value_to_name(value: number): string {
+	switch (value) {
+		case 1: return "Easy";
+		case 3: return "Medium";
+		case 5: return "Hard";
+		case 7: return "Expert";
+		case 9: return "ExpertPlus";
+		default: return "Unknown";
+	}
+}
+
+export function diff_name_to_value(name: string): number {
+	switch (name) {
+		case "Easy": return 1;
+		case "Medium": return 3;
+		case "Hard": return 5;
+		case "Expert": return 7;
+		case "ExpertPlus": return 9;
+		default: return -1;
+	}
 }

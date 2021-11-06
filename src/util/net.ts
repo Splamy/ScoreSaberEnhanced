@@ -30,3 +30,7 @@ function get_hostname(url: string): string | undefined {
 		return undefined;
 	}
 }
+
+export function new_page(link: string): void {
+	window.open(link, "_blank");
+}
