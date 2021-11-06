@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.11.0
+// @version      1.11.1
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -681,6 +681,8 @@
     }
     function get_notes_count(diff_name, characteristic, version) {
         var _a;
+        if (diff_name === "Expert+")
+            diff_name = "ExpertPlus";
         const diff = version.diffs.find((d) => (d.characteristic === characteristic && d.difficulty === diff_name));
         return (_a = diff === null || diff === void 0 ? void 0 : diff.notes) !== null && _a !== void 0 ? _a : -1;
     }
