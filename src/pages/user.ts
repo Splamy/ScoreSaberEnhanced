@@ -13,30 +13,37 @@ export function setup_dl_link_user_site(): void {
 	if (!is_user_page()) { return; }
 
 	// find the table we want to modify
-	const table = check(document.querySelector("table.ranking.songs"));
+	const table = check(document.querySelector(".ranking.songs"));
 
 	// add a new column for our links
-	const table_tr = check(table.querySelector("thead tr"));
+    /*
+	const table_tr = check(table.querySelector(".table-item"));
 	for (const btn of BMButton) {
 		into(table_tr,
-			create("th", {
-				class: "compact",
+			create("div", {
+				class: "compact svelte-hij8c", // TODO: might not be static
 				style: bmvar(PAGE, btn, "table-cell"),
 				// TODO: Tooltip is currently cut off at the to due to div nesting
 				//data: { tooltip: BMButtonHelp[btn].long },
 			}, BMButtonHelp[btn].short)
 		);
 	}
+    * */
 
 	// add a link for each song
-	const table_row = table.querySelectorAll("tbody tr");
+	const table_row = table.querySelectorAll(".table-item");
 	for (const row of table_row) {
-		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
+		const image_link = check(row.querySelector<HTMLImageElement>(".song-container img")).src;
 		const song_hash = get_song_hash_from_text(image_link);
-
+		
+		const col = create("div", {
+			class: "svelte-hij8c"
+		});
+		into(row, col);
+		
 		for (const btn of BMButton) {
-			into(row,
-				create("th", { class: "compact", style: bmvar(PAGE, btn, "table-cell") },
+			into(col,
+				create("span", { class: "compact", style: bmvar(PAGE, btn, "table-cell") },
 					as_fragment(target => new QuickButton({
 						target,
 						props: { song_hash, size: "medium", type: btn }
@@ -52,56 +59,15 @@ export function setup_dl_link_user_site(): void {
 export function update_wide_table_css(): void {
 	if (!is_user_page()) { return; }
 
-	const table = check(document.querySelector("table.ranking.songs"));
+	const table = check(document.querySelector(".ranking.songs"));
 	table.classList.toggle("wide_song_table", get_wide_table());
 }
 
 // ** Link util **
 
-export function setup_user_rank_link_swap(): void {
-	if (!is_user_page()) { return; }
-
-	const elem_ranking_links = document.querySelectorAll<HTMLAnchorElement>(".content div.columns ul > li > a");
-	console.assert(elem_ranking_links.length >= 2, elem_ranking_links);
-	// Global rank
-	const elem_global = elem_ranking_links[0];
-	const res_global = check(g.leaderboard_rank_reg.exec(elem_global.innerText));
-	const rank_global = number_invariant(res_global[1]);
-	elem_global.href = g.scoresaber_link + "/global/" + rank_to_page(rank_global, g.user_per_page_global_leaderboard);
-	// Country rank
-	const elem_country = elem_ranking_links[1];
-	const res_country = check(g.leaderboard_rank_reg.exec(elem_country.innerText));
-	const country_str = check(g.leaderboard_country_reg.exec(elem_country.href));
-	const number_country = number_invariant(res_country[1]);
-	elem_country.href = g.scoresaber_link +
-		"/global/" + rank_to_page(number_country, g.user_per_page_global_leaderboard) +
-		"?country=" + country_str[2];
-}
-
-export function setup_song_rank_link_swap(): void {
-	if (!is_user_page()) { return; }
-
-	const song_elems = document.querySelectorAll("table.ranking.songs tbody tr");
-	for (const row of song_elems) {
-		const rank_elem = check(row.querySelector(".rank"));
-		// there's only one link, so 'a' will find it.
-		const leaderboard_link = check(row.querySelector<HTMLAnchorElement>("th.song a")).href;
-		const rank = number_invariant(rank_elem.innerText.slice(1));
-		const rank_str = rank_elem.innerText;
-		rank_elem.innerHTML = "";
-		into(rank_elem,
-			create("a", {
-				href: `${leaderboard_link}?page=${rank_to_page(rank, g.user_per_page_song_leaderboard)}`
-			}, rank_str)
-		);
-	}
-}
-
-function rank_to_page(rank: number, ranks_per_page: number): number {
-	return Math.max(Math.floor((rank + ranks_per_page - 1) / ranks_per_page), 1);
-}
-
 export function add_percentage(): void {
+	// TODO
+	return;
 	if (!is_user_page()) { return; }
 
 	// find the table we want to modify

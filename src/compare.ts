@@ -43,8 +43,8 @@ export function setup_user_compare(): void {
 	update_user_compare_dropdown();
 
 	SseEvent.UserCacheChanged.register(update_user_compare_dropdown);
-	SseEvent.UserCacheChanged.register(update_user_compare_songtable);
-	SseEvent.CompareUserChanged.register(update_user_compare_songtable);
+	//SseEvent.UserCacheChanged.register(update_user_compare_songtable);
+	//SseEvent.CompareUserChanged.register(update_user_compare_songtable);
 
 	SseEvent.CompareUserChanged.invoke();
 }

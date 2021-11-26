@@ -16,12 +16,12 @@ const PAGE: Pages = "song";
 
 const shared = new Lazy(() => {
 	// find the element we want to modify
-	let details_box = check(document.querySelector(".content .title.is-5"));
-	details_box = check(details_box.parentElement);
+	let details_box = check(document.querySelector(".title.is-5"));
+	details_box = check(details_box.parentElement.parentElement.parentElement);
 
 	const song_hash = get_song_hash_from_text(details_box.innerHTML);
 
-	const diff_name = document.querySelector(`div.tabs li.is-active span`)?.innerText;
+	const diff_name = document.querySelector(`div.tabs a.selected`)?.innerText;
 	return { song_hash, details_box, diff_name };
 });
 

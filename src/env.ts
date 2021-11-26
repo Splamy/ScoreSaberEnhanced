@@ -3,12 +3,12 @@ import g from "./global";
 import { create, into } from "./util/dom";
 import { check } from "./util/err";
 
-export function get_user_header(): HTMLHeadingElement {
-	return check(document.querySelector<HTMLHeadingElement>(".content div.columns h5"));
+export function get_user_header(): HTMLElement {
+	return check(document.querySelector<HTMLElement>(".player-link"));
 }
 
 export function get_navbar(): HTMLDivElement {
-	return check(document.querySelector<HTMLDivElement>("#navMenu div.navbar-start"));
+	return check(document.querySelector<HTMLDivElement>("nav"));
 }
 
 export function is_user_page(): boolean {
@@ -28,7 +28,7 @@ export function get_current_user(): IUser {
 }
 
 export function get_document_user(doc: Document): IUser {
-	const username_elem = check(doc.querySelector(".content .title a"));
+	const username_elem = check(doc.querySelector(".player-link"));
 	const user_name = username_elem.innerText.trim();
 	// TODO will be wrong when calling from a different page
 	const user_id = g.user_reg.exec(window.location.href)![1];
@@ -88,7 +88,7 @@ export function insert_compare_display(elem: HTMLElement): void {
 function setup_compare_feature_list(): void {
 	if (g.feature_list === undefined) {
 		// find the old dropdown elem to replace it with out container
-		const select_score_order_elem = check(document.querySelector(".content div.select"));
+		const select_score_order_elem = check(document.querySelector(".btn-group"));
 		const parent_box_elem = check(select_score_order_elem.parentElement);
 		g.feature_list = create("div", { class: "level-item" });
 		const level_box_elem = create("div", { class: "level" }, g.feature_list);

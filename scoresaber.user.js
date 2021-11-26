@@ -142,10 +142,10 @@
     }
 
     function get_user_header() {
-        return check(document.querySelector(".content div.columns h5"));
+        return check(document.querySelector(".player-link"));
     }
     function get_navbar() {
-        return check(document.querySelector("#navMenu div.navbar-start"));
+        return check(document.querySelector("nav"));
     }
     function is_user_page() {
         return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/u/");
@@ -164,7 +164,7 @@
         return Global._current_user;
     }
     function get_document_user(doc) {
-        const username_elem = check(doc.querySelector(".content .title a"));
+        const username_elem = check(doc.querySelector(".player-link"));
         const user_name = username_elem.innerText.trim();
         const user_id = Global.user_reg.exec(window.location.href)[1];
         return { id: user_id, name: user_name };
@@ -213,7 +213,7 @@
     }
     function setup_compare_feature_list() {
         if (Global.feature_list === undefined) {
-            const select_score_order_elem = check(document.querySelector(".content div.select"));
+            const select_score_order_elem = check(document.querySelector(".btn-group"));
             const parent_box_elem = check(select_score_order_elem.parentElement);
             Global.feature_list = create("div", { class: "level-item" });
             const level_box_elem = create("div", { class: "level" }, Global.feature_list);
@@ -404,7 +404,7 @@
     async function load_chart_lib() {
         if (typeof Chart !== "function") {
             try {
-                const resp = await fetch("https://scoresaber.com/imports/js/chart.js");
+                const resp = await fetch("https://old.scoresaber.com/imports/js/chart.js");
                 const js = await resp.text();
                 new Function(js)();
             }
@@ -679,22 +679,6 @@
             return undefined;
         return modarr;
     }
-    function parse_score_bottom(text) {
-        let score = undefined;
-        let accuracy = undefined;
-        let mods = undefined;
-        const score_res = check(Global.score_reg.exec(text));
-        if (score_res[1] === "score") {
-            score = number_invariant(score_res[2]);
-        }
-        else if (score_res[1] === "accuracy") {
-            accuracy = Number(score_res[2]);
-        }
-        if (score_res[4]) {
-            mods = parse_mods(score_res[4]);
-        }
-        return { score, accuracy, mods };
-    }
     function get_notes_count(diff_name, characteristic, version) {
         var _a;
         if (diff_name === "Expert+")
@@ -727,12 +711,7 @@
     const API_LIMITER = new Limiter();
     async function get_user_recent_songs_dynamic(user_id, page) {
         logc(`Fetching user ${user_id} page ${page}`);
-        if (get_use_new_ss_api()) {
-            return get_user_recent_songs_new_api_wrap(user_id, page);
-        }
-        else {
-            return get_user_recent_songs_old_api_wrap(user_id, page);
-        }
+        return get_user_recent_songs_new_api_wrap(user_id, page);
     }
     async function get_user_recent_songs_new_api_wrap(user_id, page) {
         const recent_songs = await get_user_recent_songs(user_id, page);
@@ -797,68 +776,6 @@
             s.leaderboardId = String(s.leaderboardId);
             s.playerId = String(s.playerId);
         }
-        return data;
-    }
-    async function get_user_recent_songs_old_api_wrap(user_id, page) {
-        let doc;
-        let tries = 5;
-        while ((!doc || doc.body.textContent === '"Rate Limit Exceeded"') && tries > 0) {
-            await sleep(500);
-            doc = await fetch_user_page(user_id, page);
-            tries--;
-        }
-        if (doc === undefined) {
-            throw Error("Error fetching user page");
-        }
-        const last_page_elem = doc.querySelector("nav ul.pagination-list li:last-child a");
-        const max_pages = Number(last_page_elem.innerText) + 1;
-        const data = {
-            meta: {
-                max_pages,
-                user_name: get_document_user(doc).name,
-                was_last_page: page === max_pages,
-            },
-            songs: [],
-        };
-        const table_row = doc.querySelectorAll("table.ranking.songs tbody tr");
-        for (const row of table_row) {
-            const song_data = get_row_data(row);
-            data.songs.push(song_data);
-        }
-        return data;
-    }
-    async function fetch_user_page(user_id, page) {
-        const link = Global.scoresaber_link + `/u/${user_id}&page=${page}&sort=2`;
-        if (window.location.href.toLowerCase() === link) {
-            logc("Efficient get :P");
-            return document;
-        }
-        const init_fetch = await (await fetch(link)).text();
-        const parser = new DOMParser();
-        return parser.parseFromString(init_fetch, "text/html");
-    }
-    function get_row_data(row) {
-        const rowc = row;
-        if (rowc.cache) {
-            return rowc.cache;
-        }
-        const leaderboard_elem = check(row.querySelector("th.song a"));
-        const pp_elem = check(row.querySelector("th.score .ppValue"));
-        const score_elem = check(row.querySelector("th.score .scoreBottom"));
-        const time_elem = check(row.querySelector("th.song .time"));
-        const song_id = Global.leaderboard_reg.exec(leaderboard_elem.href)[1];
-        const pp = Number(pp_elem.innerText);
-        const time = read_inline_date(time_elem.title).toISOString();
-        const { score, accuracy, mods } = parse_score_bottom(score_elem.innerText);
-        const song = {
-            pp,
-            time,
-            score,
-            accuracy,
-            mods,
-        };
-        const data = [song_id, song];
-        rowc.cache = data;
         return data;
     }
 
@@ -965,8 +882,6 @@
         insert_compare_feature(Global.users_elem);
         update_user_compare_dropdown();
         SseEvent.UserCacheChanged.register(update_user_compare_dropdown);
-        SseEvent.UserCacheChanged.register(update_user_compare_songtable);
-        SseEvent.CompareUserChanged.register(update_user_compare_songtable);
         SseEvent.CompareUserChanged.invoke();
     }
     function update_user_compare_dropdown() {
@@ -984,98 +899,6 @@
         }, create("option", { value: undefined, selected: compare === undefined }, "(None)"), ...Object.entries(Global.user_list).map(([id, user]) => {
             return create("option", { value: id, selected: compare === id }, user.name);
         }))));
-    }
-    function update_user_compare_songtable(other_user) {
-        var _a;
-        if (!is_user_page()) {
-            return;
-        }
-        const table = check(document.querySelector("table.ranking.songs"));
-        const table_row = table.querySelectorAll("tbody tr");
-        const scoreHeader = check(table.querySelector("tr th.score"));
-        scoreHeader.textContent = "Score";
-        table.querySelectorAll(".comparisonScore").forEach(el => el.remove());
-        table_row.forEach(row => row.style.backgroundImage = "unset");
-        if (other_user === undefined) {
-            other_user = get_compare_user();
-            if (other_user === undefined) {
-                return;
-            }
-        }
-        const other_data = Global.user_list[other_user];
-        if (!other_data) {
-            logc("Other user not found: ", other_user);
-            return;
-        }
-        const ranking_table_header = check(table.querySelector("thead > tr"));
-        const scoreCompareHeader = create("th", { class: "comparisonScore" }, other_data.name);
-        check(ranking_table_header.querySelector(".score")).insertAdjacentElement("afterend", scoreCompareHeader);
-        const isSameCompare = other_user === get_current_user().id;
-        const isSelfCompare = isSameCompare && other_user === ((_a = get_home_user()) === null || _a === void 0 ? void 0 : _a.id);
-        if (isSelfCompare) {
-            scoreHeader.textContent = "You (now)";
-            scoreCompareHeader.textContent = "You (last cache)";
-        }
-        else if (isSameCompare) {
-            scoreHeader.textContent = `${other_data.name} (now)`;
-            scoreCompareHeader.textContent = "(last cache)";
-        }
-        else {
-            scoreHeader.textContent = get_current_user().name;
-        }
-        for (const row of table_row) {
-            const [song_id, song] = get_row_data(row);
-            const other_song = other_data.songs[song_id];
-            let other_score_content;
-            if (other_song) {
-                other_score_content = [
-                    create("span", { class: "scoreTop ppValue" }, format_en(other_song.pp)),
-                    create("span", { class: "scoreTop ppLabel" }, "pp"),
-                    create("br"),
-                    (() => {
-                        let str;
-                        if (other_song.accuracy !== undefined) {
-                            str = `accuracy: ${format_en(other_song.accuracy)}%`;
-                        }
-                        else if (other_song.score !== undefined) {
-                            str = `score: ${format_en(other_song.score)}`;
-                        }
-                        else {
-                            return "<No Data>";
-                        }
-                        if (other_song.mods !== undefined) {
-                            str += ` (${other_song.mods.join(",")})`;
-                        }
-                        return create("span", { class: "scoreBottom" }, str);
-                    })()
-                ];
-            }
-            else {
-                other_score_content = [create("hr", {})];
-            }
-            check(row.querySelector(".score")).insertAdjacentElement("afterend", create("th", { class: "comparisonScore" }, ...other_score_content));
-            if (!other_song) {
-                logc("No match");
-                continue;
-            }
-            const [value1, value2] = get_song_compare_value(song, other_song);
-            if (value1 === -1 && value2 === -1) {
-                logc("No score");
-                continue;
-            }
-            let value = (Math.min(value1, value2) / Math.max(value1, value2)) * 100;
-            const better = value1 > value2;
-            if (better) {
-                value = 100 - value;
-            }
-            value = round2(value);
-            if (better) {
-                row.style.backgroundImage = `linear-gradient(75deg, var(--color-ahead) ${value}%, rgba(0,0,0,0) ${value}%)`;
-            }
-            else {
-                row.style.backgroundImage = `linear-gradient(105deg, rgba(0,0,0,0) ${value}%, var(--color-behind) ${value}%)`;
-            }
-        }
     }
     async function fetch_user(user_id, force = false) {
         var _a, _b;
@@ -1252,10 +1075,10 @@
         if (!node)
             return document;
         const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
-        if (root && root.host) {
+        if (root.host) {
             return root;
         }
-        return node.ownerDocument;
+        return document;
     }
     function append_stylesheet(node, style) {
         append(node.head || node, style);
@@ -1302,7 +1125,6 @@
                 return;
             }
         }
-        select.selectedIndex = -1; // no option should be selected
     }
     function select_value(select) {
         const selected_option = select.querySelector(':checked') || select.options[0];
@@ -1476,7 +1298,7 @@
             on_disconnect: [],
             before_update: [],
             after_update: [],
-            context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
+            context: new Map(parent_component ? parent_component.$$.context : options.context || []),
             // everything else
             callbacks: blank_object(),
             dirty,
@@ -1546,13 +1368,13 @@
         }
     }
 
-    /* src\components\QuickButton.svelte generated by Svelte v3.44.1 */
+    /* src/components/QuickButton.svelte generated by Svelte v3.41.0 */
 
     function add_css(target) {
-    	append_styles(target, "svelte-1so5nc2", "div.svelte-1so5nc2{padding:0;cursor:pointer}div.svelte-1so5nc2:disabled{cursor:default}.bsaber_bg.svelte-1so5nc2{background-image:url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\");background-size:cover;background-repeat:no-repeat;background-position:center;width:100%;height:100%;border-radius:inherit}.dummy.svelte-1so5nc2{position:absolute;top:0px;left:-100000px}");
+    	append_styles(target, "svelte-sm24eh", "div.svelte-sm24eh{padding:0;cursor:pointer;z-index:10}div.svelte-sm24eh:disabled{cursor:default}.bsaber_bg.svelte-sm24eh{background-image:url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\");background-size:cover;background-repeat:no-repeat;background-position:center;width:100%;height:100%;border-radius:inherit}.dummy.svelte-sm24eh{position:absolute;top:0px;left:-100000px}");
     }
 
-    // (113:26) 
+    // (128:26) 
     function create_if_block_5(ctx) {
     	let i;
     	let t;
@@ -1564,7 +1386,7 @@
     			t = space();
     			input = element("input");
     			attr(i, "class", "fas fa-exclamation");
-    			attr(input, "class", "dummy svelte-1so5nc2");
+    			attr(input, "class", "dummy svelte-sm24eh");
     		},
     		m(target, anchor) {
     			insert(target, i, anchor);
@@ -1582,7 +1404,7 @@
     	};
     }
 
-    // (111:30) 
+    // (126:30) 
     function create_if_block_4(ctx) {
     	let i;
 
@@ -1601,7 +1423,7 @@
     	};
     }
 
-    // (109:32) 
+    // (124:32) 
     function create_if_block_3(ctx) {
     	let i;
 
@@ -1620,14 +1442,14 @@
     	};
     }
 
-    // (107:28) 
+    // (122:28) 
     function create_if_block_2(ctx) {
     	let div;
 
     	return {
     		c() {
     			div = element("div");
-    			attr(div, "class", "bsaber_bg svelte-1so5nc2");
+    			attr(div, "class", "bsaber_bg svelte-sm24eh");
     		},
     		m(target, anchor) {
     			insert(target, div, anchor);
@@ -1639,7 +1461,7 @@
     	};
     }
 
-    // (105:25) 
+    // (120:25) 
     function create_if_block_1(ctx) {
     	let i;
 
@@ -1658,14 +1480,14 @@
     	};
     }
 
-    // (103:1) {#if type === "BS"}
+    // (118:1) {#if type === "BS"}
     function create_if_block(ctx) {
     	let div;
 
     	return {
     		c() {
     			div = element("div");
-    			attr(div, "class", "beatsaver_bg svelte-1so5nc2");
+    			attr(div, "class", "beatsaver_bg svelte-sm24eh");
     		},
     		m(target, anchor) {
     			insert(target, div, anchor);
@@ -1699,7 +1521,7 @@
     		c() {
     			div = element("div");
     			if (if_block) if_block.c();
-    			attr(div, "class", div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn " + /*color*/ ctx[5] + " svelte-1so5nc2");
+    			attr(div, "class", div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn " + /*color*/ ctx[5] + " svelte-sm24eh");
     			attr(div, "style", /*display*/ ctx[7]);
     			attr(div, "disabled", /*disabled*/ ctx[8]);
     			attr(div, "data-tooltip", /*tooltip*/ ctx[6]);
@@ -1728,7 +1550,7 @@
     				}
     			}
 
-    			if (dirty & /*size, type, color*/ 35 && div_class_value !== (div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn " + /*color*/ ctx[5] + " svelte-1so5nc2")) {
+    			if (dirty & /*size, type, color*/ 35 && div_class_value !== (div_class_value = "button icon is-" + /*size*/ ctx[1] + " " + /*type*/ ctx[0] + "_bg_btn " + /*color*/ ctx[5] + " svelte-sm24eh")) {
     				attr(div, "class", div_class_value);
     			}
 
@@ -1767,6 +1589,45 @@
     function instance$1($$self, $$props, $$invalidate) {
     	let disabled;
     	let display;
+
+    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
+    		function adopt(value) {
+    			return value instanceof P
+    			? value
+    			: new P(function (resolve) {
+    						resolve(value);
+    					});
+    		}
+
+    		return new (P || (P = Promise))(function (resolve, reject) {
+    				function fulfilled(value) {
+    					try {
+    						step(generator.next(value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function rejected(value) {
+    					try {
+    						step(generator["throw"](value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function step(result) {
+    					result.done
+    					? resolve(result.value)
+    					: adopt(result.value).then(fulfilled, rejected);
+    				}
+
+    				step((generator = generator.apply(thisArg, _arguments || [])).next());
+    			});
+    	};
+
+    	
+    	
     	let { song_hash = undefined } = $$props;
     	let { type } = $$props;
     	let { size } = $$props;
@@ -1777,22 +1638,24 @@
     	let color;
     	let tooltip;
 
-    	async function checked_hash_to_song_info(song_hash) {
-    		reset_download_visual();
+    	function checked_hash_to_song_info(song_hash) {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			reset_download_visual();
 
-    		if (song_hash === undefined) {
-    			failed_to_download();
-    			throw new Error("song_hash is undefined");
-    		}
+    			if (song_hash === undefined) {
+    				failed_to_download();
+    				throw new Error("song_hash is undefined");
+    			}
 
-    		const song_info = await get_data_by_hash(song_hash);
+    			const song_info = yield get_data_by_hash(song_hash);
 
-    		if (song_info === undefined) {
-    			failed_to_download();
-    			throw new Error("song_info is undefined");
-    		}
+    			if (song_info === undefined) {
+    				failed_to_download();
+    				throw new Error("song_info is undefined");
+    			}
 
-    		return song_info;
+    			return song_info;
+    		});
     	}
 
     	function reset_download_visual() {
@@ -1808,34 +1671,36 @@
     		button.classList.add("button_success");
     	}
 
-    	async function onclick() {
-    		if (preview) return;
+    	function onclick() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			if (preview) return;
 
-    		try {
-    			const song_info = await checked_hash_to_song_info(song_hash);
+    			try {
+    				const song_info = yield checked_hash_to_song_info(song_hash);
 
-    			if (type === "BS") {
-    				new_page(Global.beatsaver_link + song_info.id);
-    			} else if (type === "OC") {
-    				await oneclick_install(song_info.id);
-    				ok_after_download();
-    			} else if (type === "Beast") {
-    				new_page(Global.bsaber_songs_link + song_info.id);
-    			} else if (type === "BeastBook") {
-    				new_page(Global.bsaber_songs_link + song_info.id);
-    			} else if (type === "Preview") {
-    				new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.id);
-    			} else if (type === "BSR") {
-    				$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.id}`, txtDummyNode);
-    				txtDummyNode.select();
-    				txtDummyNode.setSelectionRange(0, 99999);
-    				document.execCommand("copy");
-    				ok_after_download();
+    				if (type === "BS") {
+    					new_page(Global.beatsaver_link + song_info.id);
+    				} else if (type === "OC") {
+    					yield oneclick_install(song_info.id);
+    					ok_after_download();
+    				} else if (type === "Beast") {
+    					new_page(Global.bsaber_songs_link + song_info.id);
+    				} else if (type === "BeastBook") {
+    					new_page(Global.bsaber_songs_link + song_info.id);
+    				} else if (type === "Preview") {
+    					new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.id);
+    				} else if (type === "BSR") {
+    					$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.id}`, txtDummyNode);
+    					txtDummyNode.select();
+    					txtDummyNode.setSelectionRange(0, 99999);
+    					document.execCommand("copy");
+    					ok_after_download();
+    				}
+    			} catch(err) {
+    				console.log("Failed QuickAction", song_hash, err);
+    				failed_to_download();
     			}
-    		} catch(err) {
-    			console.log("Failed QuickAction", song_hash, err);
-    			failed_to_download();
-    		}
+    		});
     	}
 
     	function input_binding($$value) {
@@ -2057,10 +1922,10 @@
     const PAGE$1 = "song";
     const shared = new Lazy(() => {
         var _a;
-        let details_box = check(document.querySelector(".content .title.is-5"));
-        details_box = check(details_box.parentElement);
+        let details_box = check(document.querySelector(".title.is-5"));
+        details_box = check(details_box.parentElement.parentElement.parentElement);
         const song_hash = get_song_hash_from_text(details_box.innerHTML);
-        const diff_name = (_a = document.querySelector(`div.tabs li.is-active span`)) === null || _a === void 0 ? void 0 : _a.innerText;
+        const diff_name = (_a = document.querySelector(`div.tabs a.selected`)) === null || _a === void 0 ? void 0 : _a.innerText;
         return { song_hash, details_box, diff_name };
     });
     function setup_song_filter_tabs() {
@@ -2084,7 +1949,7 @@
             }
             elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
             elements.forEach(x => score_table.appendChild(x[1]));
-            add_percentage$1();
+            add_percentage();
         }
         function load_all() {
             if (!Global.song_table_backup) {
@@ -2095,7 +1960,7 @@
             table.removeChild(score_table);
             score_table = table.appendChild(Global.song_table_backup);
             Global.song_table_backup = undefined;
-            add_percentage$1();
+            add_percentage();
         }
         tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
         tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
@@ -2198,7 +2063,7 @@
             element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
         }
     }
-    function add_percentage$1() {
+    function add_percentage() {
         if (!is_song_leaderboard_page()) {
             return;
         }
@@ -2238,20 +2103,17 @@
         if (!is_user_page()) {
             return;
         }
-        const table = check(document.querySelector("table.ranking.songs"));
-        const table_tr = check(table.querySelector("thead tr"));
-        for (const btn of BMButton) {
-            into(table_tr, create("th", {
-                class: "compact",
-                style: bmvar(PAGE, btn, "table-cell"),
-            }, BMButtonHelp[btn].short));
-        }
-        const table_row = table.querySelectorAll("tbody tr");
+        const table = check(document.querySelector(".ranking.songs"));
+        const table_row = table.querySelectorAll(".table-item");
         for (const row of table_row) {
-            const image_link = check(row.querySelector("th.song img")).src;
+            const image_link = check(row.querySelector(".song-container img")).src;
             const song_hash = get_song_hash_from_text(image_link);
+            const col = create("div", {
+                class: "svelte-hij8c"
+            });
+            into(row, col);
             for (const btn of BMButton) {
-                into(row, create("th", { class: "compact", style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
+                into(col, create("span", { class: "compact", style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
                     target,
                     props: { song_hash, size: "medium", type: btn }
                 }))));
@@ -2262,83 +2124,8 @@
         if (!is_user_page()) {
             return;
         }
-        const table = check(document.querySelector("table.ranking.songs"));
+        const table = check(document.querySelector(".ranking.songs"));
         table.classList.toggle("wide_song_table", get_wide_table());
-    }
-    function setup_user_rank_link_swap() {
-        if (!is_user_page()) {
-            return;
-        }
-        const elem_ranking_links = document.querySelectorAll(".content div.columns ul > li > a");
-        console.assert(elem_ranking_links.length >= 2, elem_ranking_links);
-        const elem_global = elem_ranking_links[0];
-        const res_global = check(Global.leaderboard_rank_reg.exec(elem_global.innerText));
-        const rank_global = number_invariant(res_global[1]);
-        elem_global.href = Global.scoresaber_link + "/global/" + rank_to_page(rank_global, Global.user_per_page_global_leaderboard);
-        const elem_country = elem_ranking_links[1];
-        const res_country = check(Global.leaderboard_rank_reg.exec(elem_country.innerText));
-        const country_str = check(Global.leaderboard_country_reg.exec(elem_country.href));
-        const number_country = number_invariant(res_country[1]);
-        elem_country.href = Global.scoresaber_link +
-            "/global/" + rank_to_page(number_country, Global.user_per_page_global_leaderboard) +
-            "?country=" + country_str[2];
-    }
-    function setup_song_rank_link_swap() {
-        if (!is_user_page()) {
-            return;
-        }
-        const song_elems = document.querySelectorAll("table.ranking.songs tbody tr");
-        for (const row of song_elems) {
-            const rank_elem = check(row.querySelector(".rank"));
-            const leaderboard_link = check(row.querySelector("th.song a")).href;
-            const rank = number_invariant(rank_elem.innerText.slice(1));
-            const rank_str = rank_elem.innerText;
-            rank_elem.innerHTML = "";
-            into(rank_elem, create("a", {
-                href: `${leaderboard_link}?page=${rank_to_page(rank, Global.user_per_page_song_leaderboard)}`
-            }, rank_str));
-        }
-    }
-    function rank_to_page(rank, ranks_per_page) {
-        return Math.max(Math.floor((rank + ranks_per_page - 1) / ranks_per_page), 1);
-    }
-    function add_percentage() {
-        if (!is_user_page()) {
-            return;
-        }
-        const table = check(document.querySelector("table.ranking.songs"));
-        const table_row = table.querySelectorAll("tbody tr");
-        for (const row of table_row) {
-            const image_link = check(row.querySelector("th.song img")).src;
-            const song_hash = get_song_hash_from_text(image_link);
-            if (!song_hash) {
-                return;
-            }
-            const score_column = check(row.querySelector(`th.score`));
-            if (!score_column.innerText || score_column.innerText.includes("%")) {
-                continue;
-            }
-            (async () => {
-                const data = await get_data_by_hash(song_hash);
-                if (!data)
-                    return;
-                const song_column = check(row.querySelector(`th.song`));
-                const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-                const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
-                if (!diff_name || !version)
-                    return;
-                const notes = get_notes_count(diff_name, "Standard", version);
-                if (notes < 0)
-                    return;
-                const max_score = calculate_max_score(notes);
-                const user_score = check(score_column.querySelector(".scoreBottom")).innerText;
-                const { score } = parse_score_bottom(user_score);
-                if (score !== undefined) {
-                    const calculated_percentage = (100 * score / max_score).toFixed(2);
-                    check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
-                }
-            })();
-        }
     }
 
     function get_state(elem) {
@@ -2677,38 +2464,38 @@ h5 > * {
         into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
     }
 
-    /* src\components\SettingsDialogue.svelte generated by Svelte v3.44.1 */
+    /* src/components/SettingsDialogue.svelte generated by Svelte v3.41.0 */
 
     function get_each_context(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[15] = list[i];
+    	child_ctx[16] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_1(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[18] = list[i];
+    	child_ctx[19] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_2(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[18] = list[i];
+    	child_ctx[19] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_3(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[23] = list[i];
+    	child_ctx[24] = list[i];
     	return child_ctx;
     }
 
-    // (104:5) {#each themes as name}
+    // (122:5) {#each themes as name}
     function create_each_block_3(ctx) {
     	let option;
-    	let t0_value = /*name*/ ctx[23] + "";
+    	let t0_value = /*name*/ ctx[24] + "";
     	let t0;
-    	let t1_value = (dark_themes.includes(/*name*/ ctx[23]) ? " (Dark)" : "") + "";
+    	let t1_value = (dark_themes.includes(/*name*/ ctx[24]) ? " (Dark)" : "") + "";
     	let t1;
     	let t2;
     	let option_value_value;
@@ -2720,9 +2507,9 @@ h5 > * {
     			t0 = text(t0_value);
     			t1 = text(t1_value);
     			t2 = space();
-    			option.__value = option_value_value = /*name*/ ctx[23];
+    			option.__value = option_value_value = /*name*/ ctx[24];
     			option.value = option.__value;
-    			option.selected = option_selected_value = /*name*/ ctx[23] === /*current_theme*/ ctx[0];
+    			option.selected = option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0];
     		},
     		m(target, anchor) {
     			insert(target, option, anchor);
@@ -2731,7 +2518,7 @@ h5 > * {
     			append(option, t2);
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*current_theme, themes*/ 1 && option_selected_value !== (option_selected_value = /*name*/ ctx[23] === /*current_theme*/ ctx[0])) {
+    			if (dirty & /*current_theme, themes*/ 1 && option_selected_value !== (option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0])) {
     				option.selected = option_selected_value;
     			}
     		},
@@ -2741,7 +2528,7 @@ h5 > * {
     	};
     }
 
-    // (136:3) {#each env.BMButton as button}
+    // (154:3) {#each env.BMButton as button}
     function create_each_block_2(ctx) {
     	let th;
     	let quickbutton;
@@ -2752,7 +2539,7 @@ h5 > * {
     			props: {
     				size: "medium",
     				song_hash: undefined,
-    				type: /*button*/ ctx[18],
+    				type: /*button*/ ctx[19],
     				preview: true
     			}
     		});
@@ -2786,7 +2573,7 @@ h5 > * {
     	};
     }
 
-    // (150:4) {#each env.BMButton as button}
+    // (168:4) {#each env.BMButton as button}
     function create_each_block_1(ctx) {
     	let td;
     	let input;
@@ -2802,12 +2589,12 @@ h5 > * {
     			input = element("input");
     			t = space();
     			label = element("label");
-    			attr(input, "id", "show-" + /*page*/ ctx[15] + "-" + /*button*/ ctx[18]);
+    			attr(input, "id", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
     			attr(input, "type", "checkbox");
     			attr(input, "class", "is-checkradio");
-    			attr(input, "data-key", "" + (/*page*/ ctx[15] + "-" + /*button*/ ctx[18]));
-    			input.checked = input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[15]}-${/*button*/ ctx[18]}`];
-    			attr(label, "for", "show-" + /*page*/ ctx[15] + "-" + /*button*/ ctx[18]);
+    			attr(input, "data-key", "" + (/*page*/ ctx[16] + "-" + /*button*/ ctx[19]));
+    			input.checked = input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`];
+    			attr(label, "for", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
     		},
     		m(target, anchor) {
     			insert(target, td, anchor);
@@ -2821,7 +2608,7 @@ h5 > * {
     			}
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*bm*/ 4 && input_checked_value !== (input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[15]}-${/*button*/ ctx[18]}`])) {
+    			if (dirty & /*bm*/ 4 && input_checked_value !== (input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`])) {
     				input.checked = input_checked_value;
     			}
     		},
@@ -2833,11 +2620,11 @@ h5 > * {
     	};
     }
 
-    // (147:2) {#each env.BMPage as page}
+    // (165:2) {#each env.BMPage as page}
     function create_each_block(ctx) {
     	let tr;
     	let td;
-    	let t0_value = /*page*/ ctx[15] + "";
+    	let t0_value = /*page*/ ctx[16] + "";
     	let t0;
     	let t1;
     	let t2;
@@ -3299,7 +3086,44 @@ h5 > * {
     }
 
     function instance($$self, $$props, $$invalidate) {
+    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
+    		function adopt(value) {
+    			return value instanceof P
+    			? value
+    			: new P(function (resolve) {
+    						resolve(value);
+    					});
+    		}
+
+    		return new (P || (P = Promise))(function (resolve, reject) {
+    				function fulfilled(value) {
+    					try {
+    						step(generator.next(value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function rejected(value) {
+    					try {
+    						step(generator["throw"](value));
+    					} catch(e) {
+    						reject(e);
+    					}
+    				}
+
+    				function step(result) {
+    					result.done
+    					? resolve(result.value)
+    					: adopt(result.value).then(fulfilled, rejected);
+    				}
+
+    				step((generator = generator.apply(thisArg, _arguments || [])).next());
+    			});
+    	};
+
     	var _a;
+    	
 
     	let current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0
     	? _a
@@ -3318,22 +3142,26 @@ h5 > * {
     		set_use_new_ss_api(this.checked);
     	}
 
-    	async function updateAllUser() {
-    		await fetch_all();
+    	function updateAllUser() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			yield fetch_all();
+    		});
     	}
 
-    	async function forceUpdateAllUser() {
-    		const resp = await show_modal({
-    			text: "Warning: This might take a long time, depending " + "on how many users you have in your library list and " + "how many songs they have on ScoreSaber.\n" + "Use this only when all pp is fucked again.\n" + "And have mercy on the ScoreSaber servers.",
-    			buttons: {
-    				ok: { text: "Continue", class: "is-success" },
-    				x: { text: "Cancel", class: "is-danger" }
+    	function forceUpdateAllUser() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			const resp = yield show_modal({
+    				text: "Warning: This might take a long time, depending " + "on how many users you have in your library list and " + "how many songs they have on ScoreSaber.\n" + "Use this only when all pp is fucked again.\n" + "And have mercy on the ScoreSaber servers.",
+    				buttons: {
+    					ok: { text: "Continue", class: "is-success" },
+    					x: { text: "Cancel", class: "is-danger" }
+    				}
+    			});
+
+    			if (resp === "ok") {
+    				yield fetch_all(true);
     			}
     		});
-
-    		if (resp === "ok") {
-    			await fetch_all(true);
-    		}
     	}
 
     	function onChangeBeastSaber() {
@@ -3343,37 +3171,41 @@ h5 > * {
 
     	let isBeastSaberSyncing = false;
 
-    	async function beastSaberSync() {
-    		const bsaber_username = get_bsaber_username();
+    	function beastSaberSync() {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			const bsaber_username = get_bsaber_username();
 
-    		if (!bsaber_username) {
-    			await show_modal({
-    				text: "Please enter a username first.",
-    				buttons: buttons.OkOnly
-    			});
+    			if (!bsaber_username) {
+    				yield show_modal({
+    					text: "Please enter a username first.",
+    					buttons: buttons.OkOnly
+    				});
 
-    			return;
-    		}
+    				return;
+    			}
 
-    		$$invalidate(1, isBeastSaberSyncing = true);
-    		await update_bsaber_bookmark_cache(bsaber_username);
-    		$$invalidate(1, isBeastSaberSyncing = false);
+    			$$invalidate(1, isBeastSaberSyncing = true);
+    			yield update_bsaber_bookmark_cache(bsaber_username);
+    			$$invalidate(1, isBeastSaberSyncing = false);
+    		});
     	}
 
-    	async function update_bsaber_bookmark_cache(username) {
-    		for (let page = 1; ; page++) {
-    			SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
-    			const bookmarks = await get_bookmarks(username, page, 50);
-    			if (!bookmarks) break;
-    			process_bookmarks(bookmarks.songs);
+    	function update_bsaber_bookmark_cache(username) {
+    		return __awaiter(this, void 0, void 0, function* () {
+    			for (let page = 1; ; page++) {
+    				SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
+    				const bookmarks = yield get_bookmarks(username, page, 50);
+    				if (!bookmarks) break;
+    				process_bookmarks(bookmarks.songs);
 
-    			if (bookmarks.next_page === null) {
-    				break;
+    				if (bookmarks.next_page === null) {
+    					break;
+    				}
     			}
-    		}
 
-    		SseEvent.StatusInfo.invoke({
-    			text: "Finished loading BeastSaber bookmarks"
+    			SseEvent.StatusInfo.invoke({
+    				text: "Finished loading BeastSaber bookmarks"
+    			});
     		});
     	}
 
@@ -3568,17 +3400,13 @@ h5 > * {
             logc("Already loaded body");
             return;
         }
-        has_loaded_body = true;
         logc("Loading body");
         setup_dl_link_user_site();
-        add_percentage();
-        setup_user_rank_link_swap();
-        setup_song_rank_link_swap();
         update_wide_table_css();
         setup_dl_link_leaderboard();
         setup_song_filter_tabs();
         highlight_user();
-        add_percentage$1();
+        add_percentage();
         setup_links_songlist();
         setup_extra_filter_checkboxes();
         apply_extra_filters();
@@ -3589,14 +3417,13 @@ h5 > * {
         update_button_visibility();
         setup_pp_graph();
         check_for_updates();
+        has_loaded_body = true;
     }
     function onload() {
         on_load_head();
         on_load_body();
     }
-    onload();
-    window.addEventListener("DOMContentLoaded", onload);
-    window.addEventListener("load", onload);
+    setInterval(onload, 1000);
 
 })();
 //# sourceMappingURL=rollup.js.map

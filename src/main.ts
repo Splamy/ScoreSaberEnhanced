@@ -33,13 +33,10 @@ function on_load_body(): void {
 		return;
 	}
 	if (has_loaded_body) { log.logc("Already loaded body"); return; }
-	has_loaded_body = true;
 	log.logc("Loading body");
 
 	page_user.setup_dl_link_user_site();
-	page_user.add_percentage();
-	page_user.setup_user_rank_link_swap();
-	page_user.setup_song_rank_link_swap();
+	//page_user.add_percentage();
 	page_user.update_wide_table_css();
 	page_song.setup_dl_link_leaderboard();
 	page_song.setup_song_filter_tabs();
@@ -55,6 +52,8 @@ function on_load_body(): void {
 	settings.update_button_visibility();
 	ppgraph.setup_pp_graph();
 	updater.check_for_updates();
+	
+	has_loaded_body = true;
 }
 
 function onload() {
@@ -62,6 +61,4 @@ function onload() {
 	on_load_body();
 }
 
-onload();
-window.addEventListener("DOMContentLoaded", onload);
-window.addEventListener("load", onload);
+setInterval(onload, 1000);
