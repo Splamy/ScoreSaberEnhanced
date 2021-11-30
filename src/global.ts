@@ -24,6 +24,8 @@ export default class Global {
 	public static readonly script_version_reg = /\/\/\s*@version\s+([\d.]+)/;
 	public static readonly user_per_page_global_leaderboard = 50;
 	public static readonly user_per_page_song_leaderboard = 12;
+	
+	public static readonly header_class = "svelte-kbfjj1";
 	/**
 	 * This is the exponential factor ScoreSaber is using to weight their scores.
 	 */

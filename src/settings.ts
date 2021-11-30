@@ -17,7 +17,7 @@ export function setup(): void {
 	into(env.get_navbar(),
 		create("a", {
 			id: "settings_menu",
-			class: "navbar-item",
+			class: g.header_class,
 			style: {
 				cursor: "pointer",
 			},

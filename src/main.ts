@@ -26,17 +26,28 @@ function on_load_head() {
 	settings.load_last_theme();
 }
 
-let has_loaded_body = false;
-function on_load_body(): void {
-	if (document.readyState !== "complete" && document.readyState !== "interactive") {
-		log.logc("Body not ready");
-		return;
-	}
-	if (has_loaded_body) { log.logc("Already loaded body"); return; }
-	log.logc("Loading body");
+let mutated = [];
+let added = [];
+//let modified = [];
 
+function on_load_body() {
+	added = [];
+	//modified = [];
+	
+	mutated
+		.filter((e) => e.target !== document.head)
+		.forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text")));
+	
+	if (added.find(e => e.nodeName === "HEADER")) {
+		log.logc("Heading added");
+		header.setup_self_button();
+		settings.setup();
+		settings.update_button_visibility();
+	}
+	/*
+	header.setup_self_pin_button();
 	page_user.setup_dl_link_user_site();
-	//page_user.add_percentage();
+	page_user.add_percentage();
 	page_user.update_wide_table_css();
 	page_song.setup_dl_link_leaderboard();
 	page_song.setup_song_filter_tabs();
@@ -45,20 +56,30 @@ function on_load_body(): void {
 	page_songlist.setup_links_songlist();
 	page_songlist.setup_extra_filter_checkboxes();
 	page_songlist.apply_extra_filters();
-	header.setup_self_pin_button();
-	header.setup_self_button();
 	compare.setup_user_compare();
-	settings.setup();
-	settings.update_button_visibility();
 	ppgraph.setup_pp_graph();
 	updater.check_for_updates();
-	
-	has_loaded_body = true;
+	*/
+	mutated = [];
 }
+
+let timer_id = null;
 
 function onload() {
-	on_load_head();
-	on_load_body();
+	try {
+		on_load_head();
+		on_load_body();
+		console.log("onload");
+	}
+	catch(e) { console.error(e); }
 }
 
-setInterval(onload, 1000);
+const observer = new MutationObserver((mutations) => {
+	mutated = mutated.concat(mutations);
+	
+	if (timer_id !== null) {
+		clearTimeout(timer_id);
+	}
+	timer_id = setTimeout(onload, 1000);
+});
+observer.observe(document, {childList: true, subtree: true});
