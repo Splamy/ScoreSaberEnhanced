@@ -259,6 +259,9 @@
     function is_user_page() {
         return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/u/");
     }
+    function is_song_leaderboard_page() {
+        return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/leaderboard/");
+    }
     function get_home_user() {
         if (Global._home_user) {
             return Global._home_user;
@@ -340,6 +343,29 @@
         return bookmarks.includes(song_hash.toLowerCase());
     }
 
+    function format_en(num, digits) {
+        if (digits === undefined)
+            digits = 2;
+        return num.toLocaleString("en", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    }
+    function toggled_class(bool, css_class) {
+        return bool ? css_class : "";
+    }
+    function number_invariant(num) {
+        return Number(num.replace(/,/g, ""));
+    }
+    function number_to_timespan(num) {
+        const SECONDS_IN_MINUTE = 60;
+        const MINUTES_IN_HOUR = 60;
+        let str = "";
+        let mod = (num % SECONDS_IN_MINUTE);
+        str = mod.toFixed(0).padStart(2, "0") + str;
+        num = (num - mod) / SECONDS_IN_MINUTE;
+        mod = (num % MINUTES_IN_HOUR);
+        str = mod.toFixed(0).padStart(2, "0") + ":" + str;
+        num = (num - mod) / MINUTES_IN_HOUR;
+        return str;
+    }
     function round2(num) {
         return Math.round(num * 100) / 100;
     }
@@ -504,153 +530,6 @@
         return style;
     }
 
-    const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
-        "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
-        "Sandstone", "Simplex", "Slate", "Solar", "Spacelab", "Superhero", "United",
-        "Yeti"];
-    const dark_themes = ["Cyborg", "Darkly", "Nuclear", "Slate", "Solar", "Superhero"];
-    const theme_light = `:root {
-	--color-ahead: rgb(128, 255, 128);
-	--color-behind: rgb(255, 128, 128);
-	--color-highlight: lightgreen;
-}`;
-    const theme_dark = `:root {
-	--color-ahead: rgb(0, 128, 0);
-	--color-behind: rgb(128, 0, 0);
-	--color-highlight: darkgreen;
-}
-.BS_bg_btn {
-	background-color: white;
-}
-/* Reset colors for generic themes */
-span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
-	color:unset;
-}
-span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapper {
-	text-shadow: 1px 1px 2px #000;
-}`;
-    function setup$1() {
-        const style_data = `.compact {
-	padding-right: 0 !important;
-	padding-left: 0 !important;
-	margin-left: 0px !important;
-	margin-right: 0px !important;
-	text-align: center !important;
-}
-
-h5 > * {
-	margin-right: 0.3em;
-}
-
-.wide_song_table {
-	max-width: unset !important;
-}
-
-#leaderboard_tool_strip > * {
-	margin-right: 0.5em;
-}
-
-.offset_tab {
-	margin-left: auto;
-}
-
-.beatsaver_bg {
-	background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
-	width: 100%;
-	height: 100%;
-}
-
-.fas_big {
-	line-height: 150%;
-	padding-right: 0.5em;
-	padding-left: 0.5em;
-	min-width: 2.25em;
-	/* Fix for some themes overriding font */
-	font-weight: 900;
-	font-family: "Font Awesome 5 Free";
-}
-
-.fas_big::before {
-	font-size: 120%;
-}
-
-[data-tooltip]::before {
-	visibility: hidden;
-	background-color: #555;
-	color: #fff;
-	border-radius: 6px;
-	position: absolute;
-	z-index: 1;
-	margin-top: -5px;
-	opacity: 0;
-	transition: opacity 0.3s;
-	padding: 0.2em 1em;
-	content: attr(data-tooltip);
-	/* Default */
-	top: 0;
-	left: 50%;
-	right: auto;
-	bottom: auto;
-	transform: translate(-50%, -100%);
-}
-[data-tooltip].has-tooltip-left::before {
-	top: auto;
-	right: auto;
-	bottom: 50%;
-	left: -11px;
-	transform: translate(-100%, 50%);
-}
-[data-tooltip]:hover::before {
-	visibility: visible;
-	opacity: 1;
-}
-
-@keyframes fill_anim {
-	0%{background-position:top;}
-	20%{background-position:bottom;}
-	80%{background-position:bottom;}
-	100%{background-position:top;}
-}
-.button_error {
-	background: linear-gradient(to top, red 50%, transparent 50%);
-	background-size: 100% 200%;
-	background-position:top;
-	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
-}
-.button_success {
-	background: linear-gradient(to top, green 50%, transparent 50%);
-	background-size: 100% 200%;
-	background-position:top;
-	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
-}
-
-/* Fix weird tab list offset */
-
-.content li {
-	margin-top: 0;
-}
-
-/* Fix bulma+scoresable dark color */
-/* Theme CSS will be appended and can therefore
- * conveniently overwrite those rules.
- * This makes them effectively useful for the default
- * Light/Dark Themes of ScoreSaber */
-
-.navbar-dropdown, .modal-card-head, .modal-card-foot {
-	color: var(--textColor, black);
-	background-color: var(--background, white);
-	border-color: var(--foreground, #dbdbdb);
-}
-
-.box, .modal-card-body {
-	color: var(--textColor, black);
-	background-color: var(--background, white);
-}
-`;
-        SSE_addStyle(style_data);
-        into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
-    }
-
     function fetch2(url) {
         return new Promise((resolve, reject) => {
             const host = get_hostname(url);
@@ -684,6 +563,227 @@ h5 > * {
     }
     function new_page(link) {
         window.open(link, "_blank");
+    }
+
+    class SessionCache {
+        constructor(prefix) {
+            this.prefix = prefix;
+            if (prefix === undefined)
+                throw Error("Prefix must be set. If you don't want a prefix, explicitely pass ''.");
+        }
+        get(key) {
+            const item = sessionStorage.getItem(this.prefix + key);
+            if (item === null)
+                return undefined;
+            return JSON.parse(item);
+        }
+        set(key, value) {
+            sessionStorage.setItem(this.prefix + key, JSON.stringify(value));
+        }
+    }
+
+    const api_cache$1 = new SessionCache("beast");
+    async function get_data(song_key) {
+        const cached_data = api_cache$1.get(song_key);
+        if (cached_data !== undefined)
+            return cached_data;
+        try {
+            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/${song_key}/ratings`);
+            const data = JSON.parse(data_str);
+            api_cache$1.set(song_key, data);
+            return data;
+        }
+        catch (e) {
+            return undefined;
+        }
+    }
+    async function get_bookmarks(username, page, count) {
+        try {
+            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
+            const data = JSON.parse(data_str);
+            return data;
+        }
+        catch (e) {
+            return undefined;
+        }
+    }
+
+    function get_song_compare_value(song_a, song_b) {
+        if (song_a.pp > 0 || song_b.pp > 0) {
+            return [song_a.pp, song_b.pp];
+        }
+        else if (song_a.score !== undefined && song_b.score !== undefined) {
+            return [song_a.score, song_b.score];
+        }
+        else if (song_a.accuracy !== undefined && song_b.accuracy !== undefined) {
+            return [song_a.accuracy * get_song_mod_multiplier(song_a), song_b.accuracy * get_song_mod_multiplier(song_b)];
+        }
+        else {
+            return [-1, -1];
+        }
+    }
+    function get_song_mod_multiplier(song) {
+        if (!song.mods)
+            return 1.0;
+        let multiplier = 1.0;
+        for (const mod of song.mods) {
+            switch (mod) {
+                case "NF":
+                    multiplier -= 0.50;
+                    break;
+                case "NO":
+                    multiplier -= 0.05;
+                    break;
+                case "NB":
+                    multiplier -= 0.10;
+                    break;
+                case "SS":
+                    multiplier -= 0.30;
+                    break;
+                case "NA":
+                    multiplier -= 0.30;
+                    break;
+                case "DA":
+                    multiplier += 0.07;
+                    break;
+                case "GN":
+                    multiplier += 0.11;
+                    break;
+                case "FS":
+                    multiplier += 0.08;
+                    break;
+            }
+        }
+        return Math.max(0, multiplier);
+    }
+    function get_song_hash_from_text(text) {
+        var _a;
+        const res = Global.song_hash_reg.exec(text);
+        return res ? (_a = res[1]) === null || _a === void 0 ? void 0 : _a.toLowerCase() : undefined;
+    }
+    async function oneclick_install(song_key) {
+        const lastCheck = localStorage.getItem("oneclick-prompt");
+        const prompt = !lastCheck ||
+            new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
+        if (prompt) {
+            localStorage.setItem("oneclick-prompt", new Date().getTime().toString());
+            const resp = await show_modal({
+                buttons: {
+                    install: { text: "Get ModAssistant Installer", class: "is-info" },
+                    done: { text: "OK, now leave me alone", class: "is-success" },
+                },
+                text: "OneClick™ requires any current ModInstaller tool with the OneClick™ feature enabled.\nMake sure you have one installed before proceeding.",
+            });
+            if (resp === "install") {
+                window.open("https://github.com/Assistant/ModAssistant/releases");
+                return;
+            }
+        }
+        console.log("Downloading: ", song_key);
+        window.location.assign(`beatsaver://${song_key}`);
+    }
+    function song_equals(a, b) {
+        if (a === b)
+            return true;
+        if (a === undefined || b === undefined)
+            return false;
+        return (a.accuracy === b.accuracy &&
+            a.pp === b.pp &&
+            a.score === b.score &&
+            a.time === b.time &&
+            array_equals(a.mods, b.mods));
+    }
+    function array_equals(a, b) {
+        if (a === b)
+            return true;
+        if (a === undefined || b === undefined)
+            return false;
+        if (a.length !== b.length)
+            return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i])
+                return false;
+        }
+        return true;
+    }
+    function parse_mods(mods) {
+        if (!mods)
+            return undefined;
+        const modarr = mods.split(/,/g);
+        if (modarr.length === 0)
+            return undefined;
+        return modarr;
+    }
+    function get_notes_count(diff_name, characteristic, version) {
+        var _a;
+        if (diff_name === "Expert+")
+            diff_name = "ExpertPlus";
+        const diff = version.diffs.find((d) => (d.characteristic === characteristic && d.difficulty === diff_name));
+        return (_a = diff === null || diff === void 0 ? void 0 : diff.notes) !== null && _a !== void 0 ? _a : -1;
+    }
+    function calculate_max_score(notes) {
+        const note_score = 115;
+        if (notes <= 1)
+            return note_score * (0 + (notes - 0) * 1);
+        if (notes <= 5)
+            return note_score * (1 + (notes - 1) * 2);
+        if (notes <= 13)
+            return note_score * (9 + (notes - 5) * 4);
+        return note_score * (41 + (notes - 13) * 8);
+    }
+    function diff_name_to_value(name) {
+        switch (name) {
+            case "Easy": return 1;
+            case "Medium": return 3;
+            case "Hard": return 5;
+            case "Expert": return 7;
+            case "ExpertPlus": return 9;
+            default: return -1;
+        }
+    }
+
+    const api_cache = new SessionCache("saver");
+    async function get_data_by_hash(song_hash) {
+        const cached_data = api_cache.get(song_hash);
+        if (cached_data !== undefined)
+            return cached_data;
+        try {
+            const data_str = await fetch2(`https://api.beatsaver.com/maps/hash/${song_hash}`);
+            const data = JSON.parse(data_str);
+            api_cache.set(song_hash, data);
+            return data;
+        }
+        catch (err) {
+            logc("Failed to download song data", err);
+            return undefined;
+        }
+    }
+    async function get_scoresaber_data_by_hash(song_hash, diff_name) {
+        try {
+            const diff_value = diff_name === undefined ? 0 : diff_name_to_value(diff_name);
+            const data_str = await fetch2(`https://beatsaver.com/api/scores/${song_hash}/0?difficulty=${diff_value}&gameMode=0`);
+            const data = JSON.parse(data_str);
+            return data;
+        }
+        catch (err) {
+            logc("Failed to download song data", err);
+            return undefined;
+        }
+    }
+
+    class Lazy {
+        constructor(generator) {
+            this.generator = generator;
+        }
+        get() {
+            if (this.value === undefined) {
+                this.value = this.generator();
+            }
+            return this.value;
+        }
+        reset() {
+            this.value = undefined;
+        }
     }
 
     function noop() { }
@@ -1012,272 +1112,6 @@ h5 > * {
                 this.$$.skip_bound = false;
             }
         }
-    }
-
-    class SessionCache {
-        constructor(prefix) {
-            this.prefix = prefix;
-            if (prefix === undefined)
-                throw Error("Prefix must be set. If you don't want a prefix, explicitely pass ''.");
-        }
-        get(key) {
-            const item = sessionStorage.getItem(this.prefix + key);
-            if (item === null)
-                return undefined;
-            return JSON.parse(item);
-        }
-        set(key, value) {
-            sessionStorage.setItem(this.prefix + key, JSON.stringify(value));
-        }
-    }
-
-    new SessionCache("beast");
-    async function get_bookmarks(username, page, count) {
-        try {
-            const data_str = await fetch2(`https://bsaber.com/wp-json/bsaber-api/songs/?bookmarked_by=${username}&page=${page}&count=${count}`);
-            const data = JSON.parse(data_str);
-            return data;
-        }
-        catch (e) {
-            return undefined;
-        }
-    }
-
-    class Limiter {
-        constructor() {
-            this.ratelimit_reset = undefined;
-            this.ratelimit_remaining = undefined;
-        }
-        async wait() {
-            const now = unix_timestamp();
-            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
-                this.ratelimit_reset = undefined;
-                this.ratelimit_remaining = undefined;
-                return;
-            }
-            if (this.ratelimit_remaining === 0) {
-                const sleepTime = (this.ratelimit_reset - now);
-                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
-                await sleep(sleepTime * 1000);
-                this.ratelimit_remaining = this.ratelimit_limit;
-                this.ratelimit_reset = undefined;
-            }
-        }
-        setLimitData(remaining, reset, limit) {
-            this.ratelimit_remaining = remaining;
-            this.ratelimit_reset = reset;
-            this.ratelimit_limit = limit;
-        }
-    }
-    async function sleep(timeout) {
-        return new Promise(resolve => setTimeout(resolve, timeout));
-    }
-    function unix_timestamp() {
-        return Math.round((new Date()).getTime() / 1000);
-    }
-
-    const api_cache = new SessionCache("saver");
-    async function get_data_by_hash(song_hash) {
-        const cached_data = api_cache.get(song_hash);
-        if (cached_data !== undefined)
-            return cached_data;
-        try {
-            const data_str = await fetch2(`https://api.beatsaver.com/maps/hash/${song_hash}`);
-            const data = JSON.parse(data_str);
-            api_cache.set(song_hash, data);
-            return data;
-        }
-        catch (err) {
-            logc("Failed to download song data", err);
-            return undefined;
-        }
-    }
-
-    async function oneclick_install(song_key) {
-        const lastCheck = localStorage.getItem("oneclick-prompt");
-        const prompt = !lastCheck ||
-            new Date(lastCheck).getTime() + (1000 * 60 * 60 * 24 * 31) < new Date().getTime();
-        if (prompt) {
-            localStorage.setItem("oneclick-prompt", new Date().getTime().toString());
-            const resp = await show_modal({
-                buttons: {
-                    install: { text: "Get ModAssistant Installer", class: "is-info" },
-                    done: { text: "OK, now leave me alone", class: "is-success" },
-                },
-                text: "OneClick™ requires any current ModInstaller tool with the OneClick™ feature enabled.\nMake sure you have one installed before proceeding.",
-            });
-            if (resp === "install") {
-                window.open("https://github.com/Assistant/ModAssistant/releases");
-                return;
-            }
-        }
-        console.log("Downloading: ", song_key);
-        window.location.assign(`beatsaver://${song_key}`);
-    }
-    function song_equals(a, b) {
-        if (a === b)
-            return true;
-        if (a === undefined || b === undefined)
-            return false;
-        return (a.accuracy === b.accuracy &&
-            a.pp === b.pp &&
-            a.score === b.score &&
-            a.time === b.time &&
-            array_equals(a.mods, b.mods));
-    }
-    function array_equals(a, b) {
-        if (a === b)
-            return true;
-        if (a === undefined || b === undefined)
-            return false;
-        if (a.length !== b.length)
-            return false;
-        for (let i = 0; i < a.length; i++) {
-            if (a[i] !== b[i])
-                return false;
-        }
-        return true;
-    }
-    function parse_mods(mods) {
-        if (!mods)
-            return undefined;
-        const modarr = mods.split(/,/g);
-        if (modarr.length === 0)
-            return undefined;
-        return modarr;
-    }
-
-    const SCORESABER_LINK = "https://new.scoresaber.com/api";
-    const API_LIMITER = new Limiter();
-    async function get_user_recent_songs_dynamic(user_id, page) {
-        logc(`Fetching user ${user_id} page ${page}`);
-        return get_user_recent_songs_new_api_wrap(user_id, page);
-    }
-    async function get_user_recent_songs_new_api_wrap(user_id, page) {
-        const recent_songs = await get_user_recent_songs(user_id, page);
-        if (!recent_songs) {
-            return {
-                meta: { was_last_page: true },
-                songs: []
-            };
-        }
-        return {
-            meta: {
-                was_last_page: recent_songs.scores.length < 8
-            },
-            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-                    time: s.timeSet,
-                    pp: s.pp,
-                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
-                    score: s.score,
-                    mods: parse_mods(s.mods)
-                }])
-        };
-    }
-    async function get_user_recent_songs(user_id, page) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
-        if (req.status === 404) {
-            return null;
-        }
-        const data = await req.json();
-        return sanitize_song_ids(data);
-    }
-    async function get_user_info_basic(user_id) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
-        const data = await req.json();
-        return sanitize_player_ids(data);
-    }
-    async function auto_fetch_retry(url) {
-        const MAX_RETRIES = 20;
-        const SLEEP_WAIT = 5000;
-        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
-            await API_LIMITER.wait();
-            const response = await fetch(url);
-            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
-            const reset = Number(response.headers.get("x-ratelimit-reset"));
-            const limit = Number(response.headers.get("x-ratelimit-limit"));
-            API_LIMITER.setLimitData(remaining, reset, limit);
-            if (response.status === 429) {
-                await sleep(SLEEP_WAIT);
-            }
-            else {
-                return response;
-            }
-        }
-        throw new Error("Can't fetch data from new.scoresaber.");
-    }
-    function sanitize_player_ids(data) {
-        data.playerInfo.playerId = String(data.playerInfo.playerId);
-        return data;
-    }
-    function sanitize_song_ids(data) {
-        for (const s of data.scores) {
-            s.scoreId = String(s.scoreId);
-            s.leaderboardId = String(s.leaderboardId);
-            s.playerId = String(s.playerId);
-        }
-        return data;
-    }
-
-    async function fetch_user(user_id, force = false) {
-        var _a, _b;
-        let user = Global.user_list[user_id];
-        if (!user) {
-            user = {
-                name: "User" + user_id,
-                songs: {}
-            };
-            Global.user_list[user_id] = user;
-        }
-        let page_max = undefined;
-        let user_name = user.name;
-        let updated = false;
-        SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
-        if (get_use_new_ss_api()) {
-            const user_data = await get_user_info_basic(user_id);
-            user_name = user_data.playerInfo.playerName;
-        }
-        for (let page = 1;; page++) {
-            SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
-            const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
-            const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
-            updated = updated || has_updated;
-            page_max = (_a = recent_songs.meta.max_pages) !== null && _a !== void 0 ? _a : page_max;
-            user_name = (_b = recent_songs.meta.user_name) !== null && _b !== void 0 ? _b : user_name;
-            if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
-                break;
-            }
-        }
-        user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
-        if (updated) {
-            save();
-        }
-        SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
-        SseEvent.UserCacheChanged.invoke();
-    }
-    async function fetch_all(force = false) {
-        const users = Object.keys(Global.user_list);
-        for (const user of users) {
-            await fetch_user(user, force);
-        }
-        SseEvent.StatusInfo.invoke({ text: `All users updated` });
-    }
-    function process_user_page(songs, user) {
-        let has_old_entry = false;
-        let has_updated = false;
-        for (const [song_id, song] of songs) {
-            const song_old = user.songs[song_id];
-            if (!song_old || !song_equals(song_old, song)) {
-                logc("Updated: ", song_old, song);
-                has_updated = true;
-            }
-            else {
-                logc("Old found: ", song);
-                has_old_entry = true;
-            }
-            user.songs[song_id] = song;
-        }
-        return { has_old_entry, has_updated };
     }
 
     /* src/components/QuickButton.svelte generated by Svelte v3.41.0 */
@@ -1708,6 +1542,499 @@ h5 > * {
     			add_css
     		);
     	}
+    }
+
+    const PAGE = "song";
+    const shared = new Lazy(() => {
+        var _a;
+        let details_box = check(document.querySelector(".title.is-5"));
+        details_box = check(details_box.parentElement.parentElement.parentElement);
+        const song_hash = get_song_hash_from_text(details_box.innerHTML);
+        const diff_name = (_a = document.querySelector(`div.tabs a.selected`)) === null || _a === void 0 ? void 0 : _a.innerText;
+        return { song_hash, details_box, diff_name };
+    });
+    function setup_song_filter_tabs() {
+        if (!is_song_leaderboard_page()) {
+            return;
+        }
+        const tab_list_content = check(document.querySelector(".tabs > ul"));
+        function load_friends() {
+            let score_table = check(document.querySelector(".ranking .global > tbody"));
+            Global.song_table_backup = score_table;
+            const table = check(score_table.parentNode);
+            table.removeChild(score_table);
+            score_table = table.appendChild(create("tbody"));
+            const song_id = Global.leaderboard_reg.exec(window.location.pathname)[1];
+            const elements = [];
+            for (const [user_id, user] of Object.entries(Global.user_list)) {
+                const song = user.songs[song_id];
+                if (!song)
+                    continue;
+                elements.push([song, generate_song_table_row(user_id, user, song)]);
+            }
+            elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
+            elements.forEach(x => score_table.appendChild(x[1]));
+            add_percentage();
+        }
+        function load_all() {
+            if (!Global.song_table_backup) {
+                return;
+            }
+            let score_table = check(document.querySelector(".ranking .global > tbody"));
+            const table = check(score_table.parentNode);
+            table.removeChild(score_table);
+            score_table = table.appendChild(Global.song_table_backup);
+            Global.song_table_backup = undefined;
+            add_percentage();
+        }
+        tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
+        tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
+    }
+    function setup_dl_link_leaderboard() {
+        if (!is_song_leaderboard_page()) {
+            return;
+        }
+        shared.reset();
+        const { song_hash, details_box } = shared.get();
+        const tool_strip = create("div", {
+            id: "leaderboard_tool_strip",
+            style: {
+                marginTop: "1em"
+            }
+        });
+        for (const btn of BMButton) {
+            new QuickButton({
+                target: tool_strip,
+                props: { song_hash, size: "large", type: btn, page: PAGE }
+            });
+        }
+        details_box.appendChild(tool_strip);
+        const song_warning = create("div");
+        details_box.appendChild(song_warning);
+        const box_style = { class: "box", style: { display: "flex", flexDirection: "column", alignItems: "end", padding: "0.5em 1em" } };
+        const beatsaver_box = create("div", box_style, create("b", {}, "BeatSaver"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+        const beastsaber_box = create("div", box_style, create("b", {}, "BeastSaber"), create("span", { class: "icon" }, create("i", { class: "fas fa-spinner fa-pulse" })));
+        const column_style = { class: "column", style: { padding: "0 0.75em" } };
+        details_box.appendChild(create("div", {
+            class: "columns",
+            style: {
+                marginTop: "1em"
+            }
+        }, create("div", column_style, beatsaver_box), create("div", column_style, beastsaber_box)));
+        if (!song_hash)
+            return;
+        (async () => {
+            const data = await get_data_by_hash(song_hash);
+            if (!data)
+                return;
+            show_song_warning(song_warning, song_hash, data);
+            show_beatsaver_song_data(beatsaver_box, data);
+            const data2 = await get_data(data.id);
+            if (!data2)
+                return;
+            show_beastsaber_song_data(beastsaber_box, data2);
+        })();
+    }
+    function show_song_warning(elem, song_hash, data) {
+        const contains_version = data.versions.some(x => x.hash === song_hash);
+        if (!contains_version) {
+            const new_song_hash = data.versions[data.versions.length - 1].hash;
+            const { diff_name } = shared.get();
+            intor(elem, create("div", {
+                style: { marginTop: "1em", cursor: "pointer" },
+                class: "notification is-warning",
+                onclick: async () => {
+                    const bs2ss = await get_scoresaber_data_by_hash(new_song_hash, diff_name);
+                    if (bs2ss === undefined)
+                        return;
+                    new_page(`https://scoresaber.com/leaderboard/${bs2ss.uid}`);
+                },
+            }, create("i", { class: "fas fa-exclamation-triangle" }), create("span", { style: { marginLeft: "0.25em" } }, "A newer version of this song exists on BeatSaver")));
+        }
+    }
+    function show_beatsaver_song_data(elem, data) {
+        intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
+    }
+    function show_beastsaber_song_data(elem, data) {
+        intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
+    }
+    function generate_song_table_row(user_id, user, song) {
+        return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
+    }
+    function generate_song_table_player(user_id, user) {
+        return create("a", { href: `${Global.scoresaber_link}/u/${user_id}` }, user.name);
+    }
+    function generate_tab(title, css_id, action, is_active, has_offset) {
+        const tabClass = `filter_tab ${toggled_class(is_active, "is-active")} ${toggled_class(has_offset, "offset_tab")}`;
+        return create("li", {
+            id: css_id,
+            class: tabClass,
+        }, create("a", {
+            class: "has-text-info",
+            onclick: () => {
+                document.querySelectorAll(".tabs > ul .filter_tab").forEach(x => x.classList.remove("is-active"));
+                check(document.getElementById(css_id)).classList.add("is-active");
+                if (action)
+                    action();
+            }
+        }, title));
+    }
+    function highlight_user() {
+        const home_user = get_home_user();
+        if (!home_user) {
+            return;
+        }
+        const element = document.querySelector(`table.ranking.global a[href='/u/${home_user.id}']`);
+        if (element != null) {
+            element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
+        }
+    }
+    function add_percentage() {
+        if (!is_song_leaderboard_page()) {
+            return;
+        }
+        const { song_hash, diff_name } = shared.get();
+        if (!song_hash) {
+            return;
+        }
+        (async () => {
+            const data = await get_data_by_hash(song_hash);
+            if (!data)
+                return;
+            if (!diff_name)
+                return;
+            const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+            if (!diff_name || !version)
+                return;
+            const notes = get_notes_count(diff_name, "Standard", version);
+            if (notes < 0)
+                return;
+            const max_score = calculate_max_score(notes);
+            const user_scores = document.querySelectorAll("table.ranking.global tbody > tr");
+            for (const score_row of user_scores) {
+                const percentage_column = check(score_row.querySelector("td.percentage"));
+                const percentage_value = percentage_column.innerText;
+                if (percentage_value === "-") {
+                    const score = check(score_row.querySelector("td.score")).innerText;
+                    const score_num = number_invariant(score);
+                    const calculated_percentage = (100 * score_num / max_score).toFixed(2);
+                    percentage_column.innerText = calculated_percentage + "%";
+                }
+            }
+        })();
+    }
+
+    const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
+        "Journal", "Litera", "Lumen", "Lux", "Materia", "Minty", "Nuclear", "Pulse",
+        "Sandstone", "Simplex", "Slate", "Solar", "Spacelab", "Superhero", "United",
+        "Yeti"];
+    const dark_themes = ["Cyborg", "Darkly", "Nuclear", "Slate", "Solar", "Superhero"];
+    const theme_light = `:root {
+	--color-ahead: rgb(128, 255, 128);
+	--color-behind: rgb(255, 128, 128);
+	--color-highlight: lightgreen;
+}`;
+    const theme_dark = `:root {
+	--color-ahead: rgb(0, 128, 0);
+	--color-behind: rgb(128, 0, 0);
+	--color-highlight: darkgreen;
+}
+.BS_bg_btn {
+	background-color: white;
+}
+/* Reset colors for generic themes */
+span.songBottom.time, span.scoreBottom, span.scoreTop.ppWeightedValue {
+	color:unset;
+}
+span.songTop.pp, span.scoreTop.ppValue, span.scoreTop.ppLabel, span.songTop.mapper {
+	text-shadow: 1px 1px 2px #000;
+}`;
+    function setup$1() {
+        const style_data = `.compact {
+	padding-right: 0 !important;
+	padding-left: 0 !important;
+	margin-left: 0px !important;
+	margin-right: 0px !important;
+	text-align: center !important;
+}
+
+h5 > * {
+	margin-right: 0.3em;
+}
+
+.wide_song_table {
+	max-width: unset !important;
+}
+
+#leaderboard_tool_strip > * {
+	margin-right: 0.5em;
+}
+
+.offset_tab {
+	margin-left: auto;
+}
+
+.beatsaver_bg {
+	background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' version='1.1'%3E%3Cg fill='none' stroke='%23000000' stroke-width='10'%3E %3Cpath d='M 100,7 189,47 100,87 12,47 Z' stroke-linejoin='round'/%3E %3Cpath d='M 189,47 189,155 100,196 12,155 12,47' stroke-linejoin='round'/%3E %3Cpath d='M 100,87 100,196' stroke-linejoin='round'/%3E %3Cpath d='M 26,77 85,106 53,130 Z' stroke-linejoin='round'/%3E %3C/g%3E %3C/svg%3E") no-repeat center/85%;
+	width: 100%;
+	height: 100%;
+}
+
+.fas_big {
+	line-height: 150%;
+	padding-right: 0.5em;
+	padding-left: 0.5em;
+	min-width: 2.25em;
+	/* Fix for some themes overriding font */
+	font-weight: 900;
+	font-family: "Font Awesome 5 Free";
+}
+
+.fas_big::before {
+	font-size: 120%;
+}
+
+[data-tooltip]::before {
+	visibility: hidden;
+	background-color: #555;
+	color: #fff;
+	border-radius: 6px;
+	position: absolute;
+	z-index: 1;
+	margin-top: -5px;
+	opacity: 0;
+	transition: opacity 0.3s;
+	padding: 0.2em 1em;
+	content: attr(data-tooltip);
+	/* Default */
+	top: 0;
+	left: 50%;
+	right: auto;
+	bottom: auto;
+	transform: translate(-50%, -100%);
+}
+[data-tooltip].has-tooltip-left::before {
+	top: auto;
+	right: auto;
+	bottom: 50%;
+	left: -11px;
+	transform: translate(-100%, 50%);
+}
+[data-tooltip]:hover::before {
+	visibility: visible;
+	opacity: 1;
+}
+
+@keyframes fill_anim {
+	0%{background-position:top;}
+	20%{background-position:bottom;}
+	80%{background-position:bottom;}
+	100%{background-position:top;}
+}
+.button_error {
+	background: linear-gradient(to top, red 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+.button_success {
+	background: linear-gradient(to top, green 50%, transparent 50%);
+	background-size: 100% 200%;
+	background-position:top;
+	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
+}
+
+/* Fix weird tab list offset */
+
+.content li {
+	margin-top: 0;
+}
+
+/* Fix bulma+scoresable dark color */
+/* Theme CSS will be appended and can therefore
+ * conveniently overwrite those rules.
+ * This makes them effectively useful for the default
+ * Light/Dark Themes of ScoreSaber */
+
+.navbar-dropdown, .modal-card-head, .modal-card-foot {
+	color: var(--textColor, black);
+	background-color: var(--background, white);
+	border-color: var(--foreground, #dbdbdb);
+}
+
+.box, .modal-card-body {
+	color: var(--textColor, black);
+	background-color: var(--background, white);
+}
+`;
+        SSE_addStyle(style_data);
+        into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
+    }
+
+    class Limiter {
+        constructor() {
+            this.ratelimit_reset = undefined;
+            this.ratelimit_remaining = undefined;
+        }
+        async wait() {
+            const now = unix_timestamp();
+            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
+                this.ratelimit_reset = undefined;
+                this.ratelimit_remaining = undefined;
+                return;
+            }
+            if (this.ratelimit_remaining === 0) {
+                const sleepTime = (this.ratelimit_reset - now);
+                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
+                await sleep(sleepTime * 1000);
+                this.ratelimit_remaining = this.ratelimit_limit;
+                this.ratelimit_reset = undefined;
+            }
+        }
+        setLimitData(remaining, reset, limit) {
+            this.ratelimit_remaining = remaining;
+            this.ratelimit_reset = reset;
+            this.ratelimit_limit = limit;
+        }
+    }
+    async function sleep(timeout) {
+        return new Promise(resolve => setTimeout(resolve, timeout));
+    }
+    function unix_timestamp() {
+        return Math.round((new Date()).getTime() / 1000);
+    }
+
+    const SCORESABER_LINK = "https://new.scoresaber.com/api";
+    const API_LIMITER = new Limiter();
+    async function get_user_recent_songs_dynamic(user_id, page) {
+        logc(`Fetching user ${user_id} page ${page}`);
+        return get_user_recent_songs_new_api_wrap(user_id, page);
+    }
+    async function get_user_recent_songs_new_api_wrap(user_id, page) {
+        const recent_songs = await get_user_recent_songs(user_id, page);
+        if (!recent_songs) {
+            return {
+                meta: { was_last_page: true },
+                songs: []
+            };
+        }
+        return {
+            meta: {
+                was_last_page: recent_songs.scores.length < 8
+            },
+            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
+                    time: s.timeSet,
+                    pp: s.pp,
+                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
+                    score: s.score,
+                    mods: parse_mods(s.mods)
+                }])
+        };
+    }
+    async function get_user_recent_songs(user_id, page) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+        if (req.status === 404) {
+            return null;
+        }
+        const data = await req.json();
+        return sanitize_song_ids(data);
+    }
+    async function get_user_info_basic(user_id) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
+        const data = await req.json();
+        return sanitize_player_ids(data);
+    }
+    async function auto_fetch_retry(url) {
+        const MAX_RETRIES = 20;
+        const SLEEP_WAIT = 5000;
+        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
+            await API_LIMITER.wait();
+            const response = await fetch(url);
+            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+            const reset = Number(response.headers.get("x-ratelimit-reset"));
+            const limit = Number(response.headers.get("x-ratelimit-limit"));
+            API_LIMITER.setLimitData(remaining, reset, limit);
+            if (response.status === 429) {
+                await sleep(SLEEP_WAIT);
+            }
+            else {
+                return response;
+            }
+        }
+        throw new Error("Can't fetch data from new.scoresaber.");
+    }
+    function sanitize_player_ids(data) {
+        data.playerInfo.playerId = String(data.playerInfo.playerId);
+        return data;
+    }
+    function sanitize_song_ids(data) {
+        for (const s of data.scores) {
+            s.scoreId = String(s.scoreId);
+            s.leaderboardId = String(s.leaderboardId);
+            s.playerId = String(s.playerId);
+        }
+        return data;
+    }
+
+    async function fetch_user(user_id, force = false) {
+        var _a, _b;
+        let user = Global.user_list[user_id];
+        if (!user) {
+            user = {
+                name: "User" + user_id,
+                songs: {}
+            };
+            Global.user_list[user_id] = user;
+        }
+        let page_max = undefined;
+        let user_name = user.name;
+        let updated = false;
+        SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
+        if (get_use_new_ss_api()) {
+            const user_data = await get_user_info_basic(user_id);
+            user_name = user_data.playerInfo.playerName;
+        }
+        for (let page = 1;; page++) {
+            SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
+            const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
+            const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
+            updated = updated || has_updated;
+            page_max = (_a = recent_songs.meta.max_pages) !== null && _a !== void 0 ? _a : page_max;
+            user_name = (_b = recent_songs.meta.user_name) !== null && _b !== void 0 ? _b : user_name;
+            if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
+                break;
+            }
+        }
+        user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
+        if (updated) {
+            save();
+        }
+        SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
+        SseEvent.UserCacheChanged.invoke();
+    }
+    async function fetch_all(force = false) {
+        const users = Object.keys(Global.user_list);
+        for (const user of users) {
+            await fetch_user(user, force);
+        }
+        SseEvent.StatusInfo.invoke({ text: `All users updated` });
+    }
+    function process_user_page(songs, user) {
+        let has_old_entry = false;
+        let has_updated = false;
+        for (const [song_id, song] of songs) {
+            const song_old = user.songs[song_id];
+            if (!song_old || !song_equals(song_old, song)) {
+                logc("Updated: ", song_old, song);
+                has_updated = true;
+            }
+            else {
+                logc("Old found: ", song);
+                has_old_entry = true;
+            }
+            user.songs[song_id] = song;
+        }
+        return { has_old_entry, has_updated };
     }
 
     function update_wide_table_css() {
@@ -2632,12 +2959,19 @@ h5 > * {
         added = [];
         mutated
             .filter((e) => e.target !== document.head)
-            .forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text")));
+            .forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text" && a.nodeName !== "#comment")));
+        console.log(added);
         if (added.find(e => e.nodeName === "HEADER")) {
             logc("Heading added");
             setup_self_button();
             setup();
             update_button_visibility();
+        }
+        if (added.find(e => e.classList.contains("map-card"))) {
+            setup_dl_link_leaderboard();
+            setup_song_filter_tabs();
+            highlight_user();
+            add_percentage();
         }
         mutated = [];
     }

@@ -71,6 +71,8 @@ export function setup_song_filter_tabs(): void {
 
 export function setup_dl_link_leaderboard(): void {
 	if (!is_song_leaderboard_page()) { return; }
+	
+	shared.reset();
 
 	const { song_hash, details_box } = shared.get();
 

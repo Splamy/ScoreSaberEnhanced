@@ -6,10 +6,12 @@ export class Lazy<T> {
 	) { }
 
 	public get(): T {
-		if (this.generator !== undefined) {
+		if (this.value === undefined) {
 			this.value = this.generator();
-			this.generator = undefined!;
 		}
 		return this.value!;
+	}
+	public reset() {
+		this.value = undefined;
 	}
 }

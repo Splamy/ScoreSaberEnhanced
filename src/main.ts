@@ -36,7 +36,9 @@ function on_load_body() {
 	
 	mutated
 		.filter((e) => e.target !== document.head)
-		.forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text")));
+		.forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text" && a.nodeName !== "#comment")));
+	
+	console.log(added);
 	
 	if (added.find(e => e.nodeName === "HEADER")) {
 		log.logc("Heading added");
@@ -44,15 +46,17 @@ function on_load_body() {
 		settings.setup();
 		settings.update_button_visibility();
 	}
+	if (added.find(e => e.classList.contains("map-card"))) {
+		page_song.setup_dl_link_leaderboard();
+		page_song.setup_song_filter_tabs();
+		page_song.highlight_user();
+		page_song.add_percentage();
+	}
 	/*
 	header.setup_self_pin_button();
 	page_user.setup_dl_link_user_site();
 	page_user.add_percentage();
 	page_user.update_wide_table_css();
-	page_song.setup_dl_link_leaderboard();
-	page_song.setup_song_filter_tabs();
-	page_song.highlight_user();
-	page_song.add_percentage();
 	page_songlist.setup_links_songlist();
 	page_songlist.setup_extra_filter_checkboxes();
 	page_songlist.apply_extra_filters();
