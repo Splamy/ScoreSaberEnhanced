@@ -1,4 +1,5 @@
 import * as compare from "./compare";
+import g from "./global";
 import * as header from "./header";
 import * as page_songlist from "./pages/songlist";
 import * as page_song from "./pages/song";
@@ -26,32 +27,28 @@ function on_load_head() {
 	settings.load_last_theme();
 }
 
-let mutated = [];
-let added = [];
-//let modified = [];
-
-function on_load_body() {
-	added = [];
-	//modified = [];
-	
-	mutated
-		.filter((e) => e.target !== document.head)
-		.forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text" && a.nodeName !== "#comment")));
-	
-	console.log(added);
-	
-	if (added.find(e => e.nodeName === "HEADER")) {
-		log.logc("Heading added");
-		header.setup_self_button();
-		settings.setup();
-		settings.update_button_visibility();
+const observer = new MutationObserver((mutations) => {
+	for (const m of mutations) {
+		for (const a of m.addedNodes) {
+			if (!(a instanceof HTMLElement)) {
+				continue;
+			}
+			if (a.matches("header")) {
+				g.header_class = a.classList[0];
+				on_load_head();
+				header.setup_self_button();
+				settings.setup();
+				settings.update_button_visibility();
+			}
+			if (a.matches(".map-card")) {
+				page_song.setup_dl_link_leaderboard();
+				page_song.setup_song_filter_tabs();
+				page_song.highlight_user();
+				page_song.add_percentage();
+			}
+		}
 	}
-	if (added.find(e => e.classList.contains("map-card"))) {
-		page_song.setup_dl_link_leaderboard();
-		page_song.setup_song_filter_tabs();
-		page_song.highlight_user();
-		page_song.add_percentage();
-	}
+	
 	/*
 	header.setup_self_pin_button();
 	page_user.setup_dl_link_user_site();
@@ -64,26 +61,5 @@ function on_load_body() {
 	ppgraph.setup_pp_graph();
 	updater.check_for_updates();
 	*/
-	mutated = [];
-}
-
-let timer_id = null;
-
-function onload() {
-	try {
-		on_load_head();
-		on_load_body();
-		console.log("onload");
-	}
-	catch(e) { console.error(e); }
-}
-
-const observer = new MutationObserver((mutations) => {
-	mutated = mutated.concat(mutations);
-	
-	if (timer_id !== null) {
-		clearTimeout(timer_id);
-	}
-	timer_id = setTimeout(onload, 1000);
 });
 observer.observe(document, {childList: true, subtree: true});

@@ -41,7 +41,6 @@
     Global.script_version_reg = /\/\/\s*@version\s+([\d.]+)/;
     Global.user_per_page_global_leaderboard = 50;
     Global.user_per_page_song_leaderboard = 12;
-    Global.header_class = "svelte-kbfjj1";
     Global.pp_weighting_factor = 0.965;
 
     function setup$3() {
@@ -2953,45 +2952,27 @@ h5 > * {
         setup$1();
         load_last_theme();
     }
-    let mutated = [];
-    let added = [];
-    function on_load_body() {
-        added = [];
-        mutated
-            .filter((e) => e.target !== document.head)
-            .forEach((e) => added = added.concat(Array.from(e.addedNodes).filter(a => a.nodeName !== "#text" && a.nodeName !== "#comment")));
-        console.log(added);
-        if (added.find(e => e.nodeName === "HEADER")) {
-            logc("Heading added");
-            setup_self_button();
-            setup();
-            update_button_visibility();
-        }
-        if (added.find(e => e.classList.contains("map-card"))) {
-            setup_dl_link_leaderboard();
-            setup_song_filter_tabs();
-            highlight_user();
-            add_percentage();
-        }
-        mutated = [];
-    }
-    let timer_id = null;
-    function onload() {
-        try {
-            on_load_head();
-            on_load_body();
-            console.log("onload");
-        }
-        catch (e) {
-            console.error(e);
-        }
-    }
     const observer = new MutationObserver((mutations) => {
-        mutated = mutated.concat(mutations);
-        if (timer_id !== null) {
-            clearTimeout(timer_id);
+        for (const m of mutations) {
+            for (const a of m.addedNodes) {
+                if (!(a instanceof HTMLElement)) {
+                    continue;
+                }
+                if (a.matches("header")) {
+                    Global.header_class = a.classList[0];
+                    on_load_head();
+                    setup_self_button();
+                    setup();
+                    update_button_visibility();
+                }
+                if (a.matches(".map-card")) {
+                    setup_dl_link_leaderboard();
+                    setup_song_filter_tabs();
+                    highlight_user();
+                    add_percentage();
+                }
+            }
         }
-        timer_id = setTimeout(onload, 1000);
     });
     observer.observe(document, { childList: true, subtree: true });
 
