@@ -1,7 +1,7 @@
 import * as scoresaber from "./api/scoresaber";
 import SseEvent from "./components/events";
 import { IDbUser } from "./declarations/Types";
-import { get_compare_user, get_current_user, get_use_new_ss_api, get_user_header, insert_compare_feature, is_user_page, set_compare_user, get_home_user } from "./env";
+import { get_compare_user, get_current_user, get_use_new_ss_api, insert_compare_feature, is_user_page, set_compare_user, get_home_user } from "./env";
 import g from "./global";
 import * as usercache from "./usercache";
 import { create, into, IntoElem, intor } from "./util/dom";
@@ -11,35 +11,9 @@ import { logc } from "./util/log";
 import { get_song_compare_value, song_equals } from "./util/song";
 
 export function setup_user_compare(): void {
-	if (!is_user_page()) { return; }
-
-	// find the element we want to modify
-
-	const header = get_user_header();
-	header.style.display = "flex";
-	header.style.alignItems = "center";
-
-	const user = get_current_user();
-	into(header,
-		create("div", {
-			class: "button icon is-medium",
-			style: { cursor: "pointer" },
-			data: { tooltip: g.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
-			async onclick() {
-				await fetch_user(get_current_user().id);
-			},
-		},
-			create("i", { class: ["fas", g.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
-		)
-	);
-
-	const status_elem = create("div");
-	into(header, status_elem);
-	SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
-
 	g.users_elem = create("div");
 	insert_compare_feature(g.users_elem);
-
+	
 	update_user_compare_dropdown();
 
 	SseEvent.UserCacheChanged.register(update_user_compare_dropdown);

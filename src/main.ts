@@ -40,6 +40,12 @@ const observer = new MutationObserver((mutations) => {
 				settings.setup();
 				settings.update_button_visibility();
 			}
+			// Player Header
+			if (a.matches(".title.player > .player-link")) {
+				header.setup_self_pin_button();
+				page_user.setup_cache_button();
+			}
+			// Map Page
 			if (a.matches(".map-card")) {
 				page_song.setup_dl_link_leaderboard();
 				page_song.setup_song_filter_tabs();
@@ -50,7 +56,6 @@ const observer = new MutationObserver((mutations) => {
 	}
 	
 	/*
-	header.setup_self_pin_button();
 	page_user.setup_dl_link_user_site();
 	page_user.add_percentage();
 	page_user.update_wide_table_css();

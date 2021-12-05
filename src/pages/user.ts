@@ -1,5 +1,6 @@
 import * as beatsaver from "../api/beatsaver";
-import { BMButton, BMButtonHelp, bmvar, get_wide_table, is_user_page, Pages } from "../env";
+import SseEvent from "../components/events";
+import { BMButton, BMButtonHelp, bmvar, get_current_user, get_user_header, get_wide_table, is_user_page, Pages } from "../env";
 import g from "../global";
 import { as_fragment, create, into } from "../util/dom";
 import { check } from "../util/err";
@@ -8,6 +9,34 @@ import { calculate_max_score, get_notes_count, get_song_hash_from_text, parse_sc
 import QuickButton from "../components/QuickButton.svelte";
 
 const PAGE: Pages = "user";
+
+export function setup_cache_button(): void {
+	if (!is_user_page()) { return; }
+
+	// find the element we want to modify
+
+	const header = get_user_header();
+	header.style.display = "flex";
+	header.style.alignItems = "center";
+
+	const user = get_current_user();
+	into(header,
+		create("div", {
+			class: "button icon is-medium",
+			style: { cursor: "pointer" },
+			data: { tooltip: g.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
+			async onclick() {
+				await fetch_user(get_current_user().id);
+			},
+		},
+			create("i", { class: ["fas", g.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
+		)
+	);
+
+	const status_elem = create("div");
+	into(header, status_elem);
+	SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
+}
 
 export function setup_dl_link_user_site(): void {
 	if (!is_user_page()) { return; }

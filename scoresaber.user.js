@@ -132,7 +132,7 @@
             elem.removeChild(elem.lastChild);
         }
     }
-    function intor(parent, ...children) {
+    function intor$1(parent, ...children) {
         clear_children(parent);
         return into(parent, ...children);
     }
@@ -252,6 +252,9 @@
         return elem;
     }
 
+    function get_user_header() {
+        return check(document.querySelector(".title.player"));
+    }
     function get_navbar() {
         return check(document.querySelector("nav"));
     }
@@ -260,6 +263,19 @@
     }
     function is_song_leaderboard_page() {
         return window.location.href.toLowerCase().startsWith(Global.scoresaber_link + "/leaderboard/");
+    }
+    function get_current_user() {
+        if (!is_user_page()) {
+            throw new Error("Not on a user page");
+        }
+        Global._current_user = get_document_user(document);
+        return Global._current_user;
+    }
+    function get_document_user(doc) {
+        const username_elem = check(doc.querySelector(".player-link"));
+        const user_name = username_elem.innerText.trim();
+        const user_id = Global.user_reg.exec(window.location.href)[1];
+        return { id: user_id, name: user_name };
     }
     function get_home_user() {
         if (Global._home_user) {
@@ -271,6 +287,10 @@
         }
         Global._home_user = JSON.parse(json);
         return Global._home_user;
+    }
+    function set_home_user(user) {
+        Global._home_user = user;
+        localStorage.setItem("home_user", JSON.stringify(user));
     }
     function set_wide_table(value) {
         localStorage.setItem("wide_song_table", value ? "true" : "false");
@@ -421,6 +441,21 @@
         localStorage.setItem("users", JSON.stringify(Global.user_list));
     }
 
+    function setup_self_pin_button() {
+        if (!is_user_page()) {
+            return;
+        }
+        const header = get_user_header();
+        into(header, create("div", {
+            class: "button icon is-medium",
+            style: { cursor: "pointer" },
+            data: { tooltip: "Pin this user to your navigation bar" },
+            onclick() {
+                set_home_user(get_current_user());
+                SseEvent.PinnedUserChanged.invoke();
+            }
+        }, create("i", { class: "fas fa-thumbtack" })));
+    }
     function setup_self_button() {
         var _b;
         let _a, _d, _a_hover = false, _d_hover = false;
@@ -468,7 +503,7 @@
     }
     function update_self_user_list() {
         const home_user_list_elem = check(document.getElementById("home_user_list"));
-        intor(home_user_list_elem, ...Object.entries(Global.user_list).map(([id, user]) => {
+        intor$1(home_user_list_elem, ...Object.entries(Global.user_list).map(([id, user]) => {
             return create("a", {
                 class: Global.header_class,
                 style: {
@@ -1639,7 +1674,7 @@
         if (!contains_version) {
             const new_song_hash = data.versions[data.versions.length - 1].hash;
             const { diff_name } = shared.get();
-            intor(elem, create("div", {
+            intor$1(elem, create("div", {
                 style: { marginTop: "1em", cursor: "pointer" },
                 class: "notification is-warning",
                 onclick: async () => {
@@ -1652,10 +1687,10 @@
         }
     }
     function show_beatsaver_song_data(elem, data) {
-        intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
+        intor$1(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
     }
     function show_beastsaber_song_data(elem, data) {
-        intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
+        intor$1(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
     }
     function generate_song_table_row(user_id, user, song) {
         return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
@@ -1721,6 +1756,34 @@
                 }
             }
         })();
+    }
+
+    function setup_cache_button() {
+        if (!is_user_page()) {
+            return;
+        }
+        const header = get_user_header();
+        header.style.display = "flex";
+        header.style.alignItems = "center";
+        const user = get_current_user();
+        into(header, create("div", {
+            class: "button icon is-medium",
+            style: { cursor: "pointer" },
+            data: { tooltip: Global.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
+            async onclick() {
+                await fetch_user(get_current_user().id);
+            },
+        }, create("i", { class: ["fas", Global.user_list[user.id] ? "fa-sync" : "fa-bookmark"] })));
+        const status_elem = create("div");
+        into(header, status_elem);
+        SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
+    }
+    function update_wide_table_css() {
+        if (!is_user_page()) {
+            return;
+        }
+        const table = check(document.querySelector(".ranking.songs"));
+        table.classList.toggle("wide_song_table", get_wide_table());
     }
 
     const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
@@ -1975,7 +2038,7 @@ h5 > * {
         return data;
     }
 
-    async function fetch_user(user_id, force = false) {
+    async function fetch_user$1(user_id, force = false) {
         var _a, _b;
         let user = Global.user_list[user_id];
         if (!user) {
@@ -2014,7 +2077,7 @@ h5 > * {
     async function fetch_all(force = false) {
         const users = Object.keys(Global.user_list);
         for (const user of users) {
-            await fetch_user(user, force);
+            await fetch_user$1(user, force);
         }
         SseEvent.StatusInfo.invoke({ text: `All users updated` });
     }
@@ -2034,14 +2097,6 @@ h5 > * {
             user.songs[song_id] = song;
         }
         return { has_old_entry, has_updated };
-    }
-
-    function update_wide_table_css() {
-        if (!is_user_page()) {
-            return;
-        }
-        const table = check(document.querySelector(".ranking.songs"));
-        table.classList.toggle("wide_song_table", get_wide_table());
     }
 
     /* src/components/SettingsDialogue.svelte generated by Svelte v3.41.0 */
@@ -2879,7 +2934,7 @@ h5 > * {
             return;
         }
         const status_box = create("div", {});
-        SseEvent.StatusInfo.register((status) => intor(status_box, status.text));
+        SseEvent.StatusInfo.register((status) => intor$1(status_box, status.text));
         const set_div = create("div");
         new SettingsDialogue({ target: set_div });
         settings_modal = create_modal({
@@ -2964,6 +3019,10 @@ h5 > * {
                     setup_self_button();
                     setup();
                     update_button_visibility();
+                }
+                if (a.matches(".title.player > .player-link")) {
+                    setup_self_pin_button();
+                    setup_cache_button();
                 }
                 if (a.matches(".map-card")) {
                     setup_dl_link_leaderboard();

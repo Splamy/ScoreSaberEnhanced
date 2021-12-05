@@ -4,7 +4,7 @@ import { create, into } from "./util/dom";
 import { check } from "./util/err";
 
 export function get_user_header(): HTMLElement {
-	return check(document.querySelector<HTMLElement>(".player-link"));
+	return check(document.querySelector<HTMLElement>(".title.player"));
 }
 
 export function get_navbar(): HTMLDivElement {
@@ -20,7 +20,6 @@ export function is_song_leaderboard_page(): boolean {
 }
 
 export function get_current_user(): IUser {
-	if (g._current_user) { return g._current_user; }
 	if (!is_user_page()) { throw new Error("Not on a user page"); }
 
 	g._current_user = get_document_user(document);
