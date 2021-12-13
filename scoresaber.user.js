@@ -772,16 +772,6 @@
             return note_score * (9 + (notes - 5) * 4);
         return note_score * (41 + (notes - 13) * 8);
     }
-    function diff_name_to_value(name) {
-        switch (name) {
-            case "Easy": return 1;
-            case "Medium": return 3;
-            case "Hard": return 5;
-            case "Expert": return 7;
-            case "ExpertPlus": return 9;
-            default: return -1;
-        }
-    }
 
     const api_cache = new SessionCache("saver");
     async function get_data_by_hash(song_hash) {
@@ -799,32 +789,114 @@
             return undefined;
         }
     }
-    async function get_scoresaber_data_by_hash(song_hash, diff_name) {
-        try {
-            const diff_value = diff_name === undefined ? 0 : diff_name_to_value(diff_name);
-            const data_str = await fetch2(`https://beatsaver.com/api/scores/${song_hash}/0?difficulty=${diff_value}&gameMode=0`);
-            const data = JSON.parse(data_str);
-            return data;
+
+    class Limiter {
+        constructor() {
+            this.ratelimit_reset = undefined;
+            this.ratelimit_remaining = undefined;
         }
-        catch (err) {
-            logc("Failed to download song data", err);
-            return undefined;
+        async wait() {
+            const now = unix_timestamp();
+            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
+                this.ratelimit_reset = undefined;
+                this.ratelimit_remaining = undefined;
+                return;
+            }
+            if (this.ratelimit_remaining === 0) {
+                const sleepTime = (this.ratelimit_reset - now);
+                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
+                await sleep(sleepTime * 1000);
+                this.ratelimit_remaining = this.ratelimit_limit;
+                this.ratelimit_reset = undefined;
+            }
+        }
+        setLimitData(remaining, reset, limit) {
+            this.ratelimit_remaining = remaining;
+            this.ratelimit_reset = reset;
+            this.ratelimit_limit = limit;
         }
     }
+    async function sleep(timeout) {
+        return new Promise(resolve => setTimeout(resolve, timeout));
+    }
+    function unix_timestamp() {
+        return Math.round((new Date()).getTime() / 1000);
+    }
 
-    class Lazy {
-        constructor(generator) {
-            this.generator = generator;
+    const SCORESABER_LINK = "https://new.scoresaber.com/api";
+    const API_LIMITER = new Limiter();
+    async function get_user_recent_songs_dynamic(user_id, page) {
+        logc(`Fetching user ${user_id} page ${page}`);
+        return get_user_recent_songs_new_api_wrap(user_id, page);
+    }
+    async function get_leaderboard_info(leaderboard_id) {
+        const req = await auto_fetch_retry(`https://scoresaber.com/api/leaderboard/by-id/${leaderboard_id}/info`);
+        return await req.json();
+    }
+    async function get_user_recent_songs_new_api_wrap(user_id, page) {
+        const recent_songs = await get_user_recent_songs(user_id, page);
+        if (!recent_songs) {
+            return {
+                meta: { was_last_page: true },
+                songs: []
+            };
         }
-        get() {
-            if (this.value === undefined) {
-                this.value = this.generator();
+        return {
+            meta: {
+                was_last_page: recent_songs.scores.length < 8
+            },
+            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
+                    time: s.timeSet,
+                    pp: s.pp,
+                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
+                    score: s.score,
+                    mods: parse_mods(s.mods)
+                }])
+        };
+    }
+    async function get_user_recent_songs(user_id, page) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+        if (req.status === 404) {
+            return null;
+        }
+        const data = await req.json();
+        return sanitize_song_ids(data);
+    }
+    async function get_user_info_basic(user_id) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
+        const data = await req.json();
+        return sanitize_player_ids(data);
+    }
+    async function auto_fetch_retry(url) {
+        const MAX_RETRIES = 20;
+        const SLEEP_WAIT = 5000;
+        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
+            await API_LIMITER.wait();
+            const response = await fetch(url);
+            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+            const reset = Number(response.headers.get("x-ratelimit-reset"));
+            const limit = Number(response.headers.get("x-ratelimit-limit"));
+            API_LIMITER.setLimitData(remaining, reset, limit);
+            if (response.status === 429) {
+                await sleep(SLEEP_WAIT);
             }
-            return this.value;
+            else {
+                return response;
+            }
         }
-        reset() {
-            this.value = undefined;
+        throw new Error("Can't fetch data from new.scoresaber.");
+    }
+    function sanitize_player_ids(data) {
+        data.playerInfo.playerId = String(data.playerInfo.playerId);
+        return data;
+    }
+    function sanitize_song_ids(data) {
+        for (const s of data.scores) {
+            s.scoreId = String(s.scoreId);
+            s.leaderboardId = String(s.leaderboardId);
+            s.playerId = String(s.playerId);
         }
+        return data;
     }
 
     function noop() { }
@@ -1586,14 +1658,28 @@
     }
 
     const PAGE = "song";
-    const shared = new Lazy(() => {
-        var _a;
-        let details_box = check(document.querySelector(".title.is-5"));
-        details_box = check(details_box.parentElement.parentElement.parentElement);
-        const song_hash = get_song_hash_from_text(details_box.innerHTML);
-        const diff_name = (_a = document.querySelector(`div.tabs a.selected`)) === null || _a === void 0 ? void 0 : _a.innerText;
-        return { song_hash, details_box, diff_name };
-    });
+    class shared {
+        static async get() {
+            if (this._current_page === window.location.pathname) {
+                const song_hash = this.song_hash, details_box = this.details_box, diff_name = this.diff_name, game_mode = this.game_mode;
+                return { song_hash, details_box, diff_name, game_mode };
+            }
+            this.details_box = check(document.querySelector(".title.is-5").parentElement.parentElement.parentElement);
+            const id = window.location.pathname.split('/').pop();
+            if (this._leaderboard_info[id] === undefined) {
+                console.log(`Refresh, ${this._current_href} !== ${window.location.href} ${this.song_hash}`);
+                this._leaderboard_info[id] = get_leaderboard_info(id);
+            }
+            const leaderboard_info = await this._leaderboard_info[id];
+            this.song_hash = leaderboard_info.songHash.toLowerCase();
+            this.diff_name = leaderboard_info.difficulty.difficultyRaw.split("_")[1];
+            this.game_mode = leaderboard_info.difficulty.gameMode;
+            this._current_page = window.location.pathname;
+            const song_hash = this.song_hash, details_box = this.details_box, diff_name = this.diff_name, game_mode = this.game_mode;
+            return { song_hash, details_box, diff_name, game_mode };
+        }
+    }
+    shared._leaderboard_info = {};
     function setup_song_filter_tabs() {
         if (!is_song_leaderboard_page()) {
             return;
@@ -1615,7 +1701,6 @@
             }
             elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
             elements.forEach(x => score_table.appendChild(x[1]));
-            add_percentage$1();
         }
         function load_all() {
             if (!Global.song_table_backup) {
@@ -1626,17 +1711,15 @@
             table.removeChild(score_table);
             score_table = table.appendChild(Global.song_table_backup);
             Global.song_table_backup = undefined;
-            add_percentage$1();
         }
         tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
         tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
     }
-    function setup_dl_link_leaderboard() {
+    async function setup_dl_link_leaderboard() {
         if (!is_song_leaderboard_page()) {
             return;
         }
-        shared.reset();
-        const { song_hash, details_box } = shared.get();
+        const { song_hash, details_box } = await shared.get();
         const tool_strip = create("div", {
             id: "leaderboard_tool_strip",
             style: {
@@ -1676,16 +1759,16 @@
             show_beastsaber_song_data(beastsaber_box, data2);
         })();
     }
-    function show_song_warning(elem, song_hash, data) {
+    async function show_song_warning(elem, song_hash, data) {
         const contains_version = data.versions.some(x => x.hash === song_hash);
         if (!contains_version) {
             const new_song_hash = data.versions[data.versions.length - 1].hash;
-            const { diff_name } = shared.get();
+            const { diff_name } = await shared.get();
             intor(elem, create("div", {
                 style: { marginTop: "1em", cursor: "pointer" },
                 class: "notification is-warning",
                 onclick: async () => {
-                    const bs2ss = await get_scoresaber_data_by_hash(new_song_hash, diff_name);
+                    const bs2ss = await undefined(new_song_hash, diff_name);
                     if (bs2ss === undefined)
                         return;
                     new_page(`https://scoresaber.com/leaderboard/${bs2ss.uid}`);
@@ -1730,144 +1813,44 @@
             element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
         }
     }
-    function add_percentage$1() {
+    async function prepare_table(table) {
+        const header = table.querySelector(".header");
+        for (const heading of header.children) {
+            if (heading.innerText === "Percentage") {
+                return;
+            }
+        }
+        const columns = header.children.length;
+        table.style.setProperty("--columns", `1fr 5fr repeat(${columns - 1}, 2fr)`);
+        into(header, create("div", { "class": `centered ${table.classList[1]}` }, "Percentage"));
+    }
+    async function add_percentage$1(row) {
         if (!is_song_leaderboard_page()) {
             return;
         }
-        const { song_hash, diff_name } = shared.get();
+        if (row.children.length === 6) {
+            return;
+        }
+        const { song_hash, diff_name } = await shared.get();
         if (!song_hash) {
             return;
         }
-        (async () => {
-            const data = await get_data_by_hash(song_hash);
-            if (!data)
-                return;
-            if (!diff_name)
-                return;
-            const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
-            if (!diff_name || !version)
-                return;
-            const notes = get_notes_count(diff_name, "Standard", version);
-            if (notes < 0)
-                return;
-            const max_score = calculate_max_score(notes);
-            const user_scores = document.querySelectorAll("table.ranking.global tbody > tr");
-            for (const score_row of user_scores) {
-                const percentage_column = check(score_row.querySelector("td.percentage"));
-                const percentage_value = percentage_column.innerText;
-                if (percentage_value === "-") {
-                    const score = check(score_row.querySelector("td.score")).innerText;
-                    const score_num = number_invariant(score);
-                    const calculated_percentage = (100 * score_num / max_score).toFixed(2);
-                    percentage_column.innerText = calculated_percentage + "%";
-                }
-            }
-        })();
-    }
-
-    class Limiter {
-        constructor() {
-            this.ratelimit_reset = undefined;
-            this.ratelimit_remaining = undefined;
-        }
-        async wait() {
-            const now = unix_timestamp();
-            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
-                this.ratelimit_reset = undefined;
-                this.ratelimit_remaining = undefined;
-                return;
-            }
-            if (this.ratelimit_remaining === 0) {
-                const sleepTime = (this.ratelimit_reset - now);
-                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
-                await sleep(sleepTime * 1000);
-                this.ratelimit_remaining = this.ratelimit_limit;
-                this.ratelimit_reset = undefined;
-            }
-        }
-        setLimitData(remaining, reset, limit) {
-            this.ratelimit_remaining = remaining;
-            this.ratelimit_reset = reset;
-            this.ratelimit_limit = limit;
-        }
-    }
-    async function sleep(timeout) {
-        return new Promise(resolve => setTimeout(resolve, timeout));
-    }
-    function unix_timestamp() {
-        return Math.round((new Date()).getTime() / 1000);
-    }
-
-    const SCORESABER_LINK = "https://new.scoresaber.com/api";
-    const API_LIMITER = new Limiter();
-    async function get_user_recent_songs_dynamic(user_id, page) {
-        logc(`Fetching user ${user_id} page ${page}`);
-        return get_user_recent_songs_new_api_wrap(user_id, page);
-    }
-    async function get_user_recent_songs_new_api_wrap(user_id, page) {
-        const recent_songs = await get_user_recent_songs(user_id, page);
-        if (!recent_songs) {
-            return {
-                meta: { was_last_page: true },
-                songs: []
-            };
-        }
-        return {
-            meta: {
-                was_last_page: recent_songs.scores.length < 8
-            },
-            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-                    time: s.timeSet,
-                    pp: s.pp,
-                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
-                    score: s.score,
-                    mods: parse_mods(s.mods)
-                }])
-        };
-    }
-    async function get_user_recent_songs(user_id, page) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
-        if (req.status === 404) {
-            return null;
-        }
-        const data = await req.json();
-        return sanitize_song_ids(data);
-    }
-    async function get_user_info_basic(user_id) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
-        const data = await req.json();
-        return sanitize_player_ids(data);
-    }
-    async function auto_fetch_retry(url) {
-        const MAX_RETRIES = 20;
-        const SLEEP_WAIT = 5000;
-        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
-            await API_LIMITER.wait();
-            const response = await fetch(url);
-            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
-            const reset = Number(response.headers.get("x-ratelimit-reset"));
-            const limit = Number(response.headers.get("x-ratelimit-limit"));
-            API_LIMITER.setLimitData(remaining, reset, limit);
-            if (response.status === 429) {
-                await sleep(SLEEP_WAIT);
-            }
-            else {
-                return response;
-            }
-        }
-        throw new Error("Can't fetch data from new.scoresaber.");
-    }
-    function sanitize_player_ids(data) {
-        data.playerInfo.playerId = String(data.playerInfo.playerId);
-        return data;
-    }
-    function sanitize_song_ids(data) {
-        for (const s of data.scores) {
-            s.scoreId = String(s.scoreId);
-            s.leaderboardId = String(s.leaderboardId);
-            s.playerId = String(s.playerId);
-        }
-        return data;
+        const data = await get_data_by_hash(song_hash);
+        if (!data)
+            return;
+        if (!diff_name)
+            return;
+        const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+        if (!diff_name || !version)
+            return;
+        const notes = get_notes_count(diff_name, "Standard", version);
+        if (notes < 0)
+            return;
+        const max_score = calculate_max_score(notes);
+        const score = check(row.querySelector(".score")).innerText;
+        const score_num = number_invariant(score);
+        const calculated_percentage = (100 * score_num / max_score).toFixed(2);
+        into(row, create("div", { "class": `accuracy centered ${row.classList[1]}` }, `${calculated_percentage}%`));
     }
 
     async function fetch_user(user_id, force = false) {
@@ -3065,14 +3048,17 @@ h5 > * {
                     setup_self_pin_button();
                     setup_cache_button();
                 }
+                if (a.matches(".gridTable")) {
+                    prepare_table(a);
+                }
                 if (a.matches(".table-item")) {
                     add_percentage(a);
+                    add_percentage$1(a);
                 }
                 if (a.matches(".map-card")) {
                     setup_dl_link_leaderboard();
                     setup_song_filter_tabs();
                     highlight_user();
-                    add_percentage$1();
                 }
             }
         }

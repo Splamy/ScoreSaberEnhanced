@@ -1,29 +1,57 @@
 import * as beastsaber from "../api/beastsaber";
 import * as beatsaver from "../api/beatsaver";
+import * as scoresaber from "../api/scoresaber";
 import { IDbUser, ISong } from "../declarations/Types";
 import { BMButton, get_home_user, is_song_leaderboard_page, Pages } from "../env";
 import g from "../global";
-import { create, intor } from "../util/dom";
+import { create, into, intor } from "../util/dom";
 import { check } from "../util/err";
 import { format_en, number_invariant, number_to_timespan, toggled_class } from "../util/format";
 import { Lazy } from "../util/lazy";
 import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_hash_from_text } from "../util/song";
 import QuickButton from "../components/QuickButton.svelte";
 import { new_page } from "../util/net";
-import { get_scoresaber_data_by_hash } from "../api/beatsaver";
 
 const PAGE: Pages = "song";
 
-const shared = new Lazy(() => {
-	// find the element we want to modify
-	let details_box = check(document.querySelector(".title.is-5"));
-	details_box = check(details_box.parentElement.parentElement.parentElement);
+class shared {
+	public static _current_page;
+	public static song_hash;
+	public static details_box;
+	public static diff_name;
+	public static game_mode;
+	
+	private static _leaderboard_info ={};
+	
+	static async get() {
+		if (this._current_page === window.location.pathname) {
+			// I hate javascript so much
+			const song_hash = this.song_hash, details_box = this.details_box, diff_name = this.diff_name, game_mode = this.game_mode;
+			return { song_hash, details_box, diff_name, game_mode };
+		}
+		
+		// find the element we want to modify
+		this.details_box = check(document.querySelector(".title.is-5").parentElement.parentElement.parentElement);
+		
+		const id = window.location.pathname.split('/').pop();
+		
+		if (this._leaderboard_info[id] === undefined) {
+			console.log(`Refresh, ${this._current_href} !== ${window.location.href} ${this.song_hash}`);
+			this._leaderboard_info[id] = scoresaber.get_leaderboard_info(id);
+		}
+		
+		const leaderboard_info = await this._leaderboard_info[id];
 
-	const song_hash = get_song_hash_from_text(details_box.innerHTML);
-
-	const diff_name = document.querySelector(`div.tabs a.selected`)?.innerText;
-	return { song_hash, details_box, diff_name };
-});
+		this.song_hash = leaderboard_info.songHash.toLowerCase();
+		this.diff_name = leaderboard_info.difficulty.difficultyRaw.split("_")[1];
+		this.game_mode = leaderboard_info.difficulty.gameMode;
+		
+		this._current_page = window.location.pathname;
+		
+		const song_hash = this.song_hash, details_box = this.details_box, diff_name = this.diff_name, game_mode = this.game_mode;
+		return { song_hash, details_box, diff_name, game_mode };
+	}
+}
 
 export function setup_song_filter_tabs(): void {
 	if (!is_song_leaderboard_page()) { return; }
@@ -48,7 +76,6 @@ export function setup_song_filter_tabs(): void {
 		}
 		elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
 		elements.forEach(x => score_table.appendChild(x[1]));
-		add_percentage();
 	}
 
 	function load_all() {
@@ -61,7 +88,6 @@ export function setup_song_filter_tabs(): void {
 		table.removeChild(score_table);
 		score_table = table.appendChild(g.song_table_backup);
 		g.song_table_backup = undefined;
-		add_percentage();
 	}
 
 	tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
@@ -69,12 +95,10 @@ export function setup_song_filter_tabs(): void {
 	// tab_list_content.appendChild(generate_tab("Around Me", "around_me_tab", () => {}, false, false));
 }
 
-export function setup_dl_link_leaderboard(): void {
+export async function setup_dl_link_leaderboard(): void {
 	if (!is_song_leaderboard_page()) { return; }
-	
-	shared.reset();
 
-	const { song_hash, details_box } = shared.get();
+	const { song_hash, details_box } = await shared.get();
 
 	const tool_strip = create("div", {
 		id: "leaderboard_tool_strip",
@@ -131,18 +155,18 @@ export function setup_dl_link_leaderboard(): void {
 	})();
 }
 
-function show_song_warning(elem: HTMLElement, song_hash: string, data: beatsaver.IBeatSaverData) {
+async function show_song_warning(elem: HTMLElement, song_hash: string, data: beatsaver.IBeatSaverData) {
 	const contains_version = data.versions.some(x => x.hash === song_hash);
 	if (!contains_version) {
 		const new_song_hash = data.versions[data.versions.length - 1].hash;
-		const { diff_name } = shared.get();
+		const { diff_name } = await shared.get();
 
 		intor(elem,
 			create("div", {
 				style: { marginTop: "1em", cursor: "pointer" },
 				class: "notification is-warning",
 				onclick: async () => {
-					const bs2ss = await get_scoresaber_data_by_hash(new_song_hash, diff_name);
+					const bs2ss = await scoresaber.get_scoresaber_data_by_hash(new_song_hash, diff_name);
 					if (bs2ss === undefined)
 						return;
 					new_page(`https://scoresaber.com/leaderboard/${bs2ss.uid}`);
@@ -233,43 +257,61 @@ export function highlight_user(): void {
 	}
 }
 
-export function add_percentage(): void {
+// Add column for percentage if it doesn't exist
+export async function prepare_table(table: HTMLElement): void {
+	const header = table.querySelector(".header");
+	
+	for (const heading of header.children) {
+		if (heading.innerText === "Percentage") {
+			return;
+		}
+	}
+	const columns = header.children.length;
+	
+	table.style.setProperty("--columns", `1fr 5fr repeat(${columns - 1}, 2fr)`);
+	into(header, create(
+		"div",
+		{"class": `centered ${table.classList[1]}`},
+		"Percentage"
+	));
+}
+
+export async function add_percentage(row: HTMLElement): void {
 	if (!is_song_leaderboard_page()) {
 		return;
 	}
 
-	const { song_hash, diff_name } = shared.get();
+	if (row.children.length === 6) {
+		return;
+	}
+
+	const { song_hash, diff_name } = await shared.get();
 
 	if (!song_hash) {
 		return;
 	}
 
-	(async () => {
-		const data = await beatsaver.get_data_by_hash(song_hash);
-		if (!data)
-			return;
-		// Scoresaber fails to display the difficlulty tab for some categories (e.g. Lawless), ex:
-		// - none at all: https://scoresaber.com/leaderboard/307121
-		// - only expert+ shown, but actual diff is missing: https://scoresaber.com/leaderboard/314128
-		if (!diff_name)
-			return;
-		const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
-		if (!diff_name || !version)
-			return;
-		const notes = get_notes_count(diff_name, "Standard", version);
-		if (notes < 0)
-			return;
-		const max_score = calculate_max_score(notes);
-		const user_scores = document.querySelectorAll("table.ranking.global tbody > tr");
-		for (const score_row of user_scores) {
-			const percentage_column = check(score_row.querySelector("td.percentage"));
-			const percentage_value = percentage_column.innerText;
-			if (percentage_value === "-") {
-				const score = check(score_row.querySelector("td.score")).innerText;
-				const score_num = number_invariant(score);
-				const calculated_percentage = (100 * score_num / max_score).toFixed(2);
-				percentage_column.innerText = calculated_percentage + "%";
-			}
-		}
-	})();
+	const data = await beatsaver.get_data_by_hash(song_hash);
+	if (!data)
+		return;
+	// Scoresaber fails to display the difficlulty tab for some categories (e.g. Lawless), ex:
+	// - none at all: https://scoresaber.com/leaderboard/307121
+	// - only expert+ shown, but actual diff is missing: https://scoresaber.com/leaderboard/314128
+	if (!diff_name)
+		return;
+	const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+	if (!diff_name || !version)
+		return;
+	const notes = get_notes_count(diff_name, "Standard", version);
+	if (notes < 0)
+		return;
+	const max_score = calculate_max_score(notes);
+	const score = check(row.querySelector(".score")).innerText;
+	const score_num = number_invariant(score);
+	const calculated_percentage = (100 * score_num / max_score).toFixed(2);
+	into(row, create(
+		"div",
+		{"class" : `accuracy centered ${row.classList[1]}`},
+		`${calculated_percentage}%`
+	));
 }

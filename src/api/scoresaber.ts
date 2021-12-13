@@ -15,6 +15,11 @@ export async function get_user_recent_songs_dynamic(user_id: string, page: numbe
 	return get_user_recent_songs_new_api_wrap(user_id, page);
 }
 
+export async function get_leaderboard_info(leaderboard_id: string) {
+	const req = await auto_fetch_retry(`https://scoresaber.com/api/leaderboard/by-id/${leaderboard_id}/info`);
+	return await req.json();
+}
+
 // NEW API ====================================================================
 
 async function get_user_recent_songs_new_api_wrap(user_id: string, page: number): Promise<IUserPageData> {
