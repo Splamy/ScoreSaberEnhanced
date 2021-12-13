@@ -44,7 +44,7 @@ class shared {
 
 		this.song_hash = leaderboard_info.songHash.toLowerCase();
 		this.diff_name = leaderboard_info.difficulty.difficultyRaw.split("_")[1];
-		this.game_mode = leaderboard_info.difficulty.gameMode;
+		this.game_mode = leaderboard_info.difficulty.gameMode.replace("Solo","");
 		
 		this._current_page = window.location.pathname;
 		
@@ -285,7 +285,7 @@ export async function add_percentage(row: HTMLElement): void {
 		return;
 	}
 
-	const { song_hash, diff_name } = await shared.get();
+	const { song_hash, diff_name, game_mode } = await shared.get();
 
 	if (!song_hash) {
 		return;
@@ -302,7 +302,7 @@ export async function add_percentage(row: HTMLElement): void {
 	const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
 	if (!diff_name || !version)
 		return;
-	const notes = get_notes_count(diff_name, "Standard", version);
+	const notes = get_notes_count(diff_name, game_mode, version);
 	if (notes < 0)
 		return;
 	const max_score = calculate_max_score(notes);

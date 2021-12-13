@@ -1673,7 +1673,7 @@
             const leaderboard_info = await this._leaderboard_info[id];
             this.song_hash = leaderboard_info.songHash.toLowerCase();
             this.diff_name = leaderboard_info.difficulty.difficultyRaw.split("_")[1];
-            this.game_mode = leaderboard_info.difficulty.gameMode;
+            this.game_mode = leaderboard_info.difficulty.gameMode.replace("Solo", "");
             this._current_page = window.location.pathname;
             const song_hash = this.song_hash, details_box = this.details_box, diff_name = this.diff_name, game_mode = this.game_mode;
             return { song_hash, details_box, diff_name, game_mode };
@@ -1831,7 +1831,7 @@
         if (row.children.length === 6) {
             return;
         }
-        const { song_hash, diff_name } = await shared.get();
+        const { song_hash, diff_name, game_mode } = await shared.get();
         if (!song_hash) {
             return;
         }
@@ -1843,7 +1843,7 @@
         const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
         if (!diff_name || !version)
             return;
-        const notes = get_notes_count(diff_name, "Standard", version);
+        const notes = get_notes_count(diff_name, game_mode, version);
         if (notes < 0)
             return;
         const max_score = calculate_max_score(notes);
