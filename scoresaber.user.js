@@ -748,6 +748,13 @@
             return undefined;
         return modarr;
     }
+    function parse_score_bottom(text) {
+        let score = undefined;
+        const accuracy = undefined;
+        const mods = undefined;
+        score = number_invariant(text);
+        return { score, accuracy, mods };
+    }
     function get_notes_count(diff_name, characteristic, version) {
         var _a;
         if (diff_name === "Expert+")
@@ -1608,7 +1615,7 @@
             }
             elements.sort((a, b) => { const [sa, sb] = get_song_compare_value(a[0], b[0]); return sb - sa; });
             elements.forEach(x => score_table.appendChild(x[1]));
-            add_percentage();
+            add_percentage$1();
         }
         function load_all() {
             if (!Global.song_table_backup) {
@@ -1619,7 +1626,7 @@
             table.removeChild(score_table);
             score_table = table.appendChild(Global.song_table_backup);
             Global.song_table_backup = undefined;
-            add_percentage();
+            add_percentage$1();
         }
         tab_list_content.appendChild(generate_tab("All Scores", "all_scores_tab", load_all, true, true));
         tab_list_content.appendChild(generate_tab("Friends", "friends_tab", load_friends, false, false));
@@ -1723,7 +1730,7 @@
             element.parentElement.parentElement.style.backgroundColor = "var(--color-highlight)";
         }
     }
-    function add_percentage() {
+    function add_percentage$1() {
         if (!is_song_leaderboard_page()) {
             return;
         }
@@ -1950,6 +1957,40 @@
         }
         const table = check(document.querySelector(".ranking.songs"));
         table.classList.toggle("wide_song_table", get_wide_table());
+    }
+    function add_percentage(row) {
+        if (!is_user_page()) {
+            return;
+        }
+        const image_link = check(row.querySelector("img.song-image")).src;
+        const song_hash = get_song_hash_from_text(image_link);
+        if (!song_hash) {
+            return;
+        }
+        const score_column = row.querySelector(".stat.acc");
+        if (score_column) {
+            return;
+        }
+        (async () => {
+            const data = await get_data_by_hash(song_hash);
+            if (!data)
+                return;
+            const diff_name = check(row.querySelector(".tag")).title;
+            const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+            if (!diff_name || !version)
+                return;
+            const notes = get_notes_count(diff_name, "Standard", version);
+            if (notes < 0)
+                return;
+            const max_score = calculate_max_score(notes);
+            const user_score = check(row.querySelector(".scoreInfo > div:last-of-type > .stat")).innerText;
+            const { score } = parse_score_bottom(user_score);
+            if (score !== undefined) {
+                const calculated_percentage = (100 * score / max_score).toFixed(2);
+                const score_row = row.querySelector(".scoreInfo > div:last-of-type");
+                score_row.insertBefore(create("span", { "class": `stat acc ${score_row.classList[0]}` }, `${calculated_percentage}%`), score_row.children[0]);
+            }
+        })();
     }
 
     const themes = ["Default", "Cerulean", "Cosmo", "Cyborg", "Darkly", "Flatly",
@@ -3024,11 +3065,14 @@ h5 > * {
                     setup_self_pin_button();
                     setup_cache_button();
                 }
+                if (a.matches(".table-item")) {
+                    add_percentage(a);
+                }
                 if (a.matches(".map-card")) {
                     setup_dl_link_leaderboard();
                     setup_song_filter_tabs();
                     highlight_user();
-                    add_percentage();
+                    add_percentage$1();
                 }
             }
         }

@@ -45,6 +45,11 @@ const observer = new MutationObserver((mutations) => {
 				header.setup_self_pin_button();
 				page_user.setup_cache_button();
 			}
+			
+			if (a.matches(".table-item")) {
+				page_user.add_percentage(a);
+			}
+			
 			// Map Page
 			if (a.matches(".map-card")) {
 				page_song.setup_dl_link_leaderboard();
@@ -57,7 +62,6 @@ const observer = new MutationObserver((mutations) => {
 	
 	/*
 	page_user.setup_dl_link_user_site();
-	page_user.add_percentage();
 	page_user.update_wide_table_css();
 	page_songlist.setup_links_songlist();
 	page_songlist.setup_extra_filter_checkboxes();

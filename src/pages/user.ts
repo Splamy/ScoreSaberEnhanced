@@ -95,45 +95,42 @@ export function update_wide_table_css(): void {
 
 // ** Link util **
 
-export function add_percentage(): void {
-	// TODO
-	return;
+export function add_percentage(row: HTMLElement): void {
 	if (!is_user_page()) { return; }
 
-	// find the table we want to modify
-	const table = check(document.querySelector("table.ranking.songs"));
-	const table_row = table.querySelectorAll("tbody tr");
-	for (const row of table_row) {
-		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
-		const song_hash = get_song_hash_from_text(image_link);
+	const image_link = check(row.querySelector<HTMLImageElement>("img.song-image")).src;
+	const song_hash = get_song_hash_from_text(image_link);
 
-		if (!song_hash) {
-			return;
-		}
-
-		const score_column = check(row.querySelector(`th.score`));
-		// skip rows with percentage from ScoreSaber
-		if (!score_column.innerText || score_column.innerText.includes("%")) { continue; }
-
-		(async () => {
-			const data = await beatsaver.get_data_by_hash(song_hash);
-			if (!data)
-				return;
-			const song_column = check(row.querySelector(`th.song`));
-			const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-			const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
-			if (!diff_name || !version)
-					return;
-			const notes = get_notes_count(diff_name, "Standard", version);
-			if (notes < 0)
-				return;
-			const max_score = calculate_max_score(notes);
-			const user_score = check(score_column.querySelector(".scoreBottom")).innerText;
-			const { score } = parse_score_bottom(user_score);
-			if (score !== undefined) {
-				const calculated_percentage = (100 * score / max_score).toFixed(2);
-				check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
-			}
-		})();
+	if (!song_hash) {
+		return;
 	}
+
+	const score_column = row.querySelector(".stat.acc");
+	// skip rows with percentage from ScoreSaber
+	if (score_column) { return; }
+
+	(async () => {
+		const data = await beatsaver.get_data_by_hash(song_hash);
+		if (!data)
+			return;
+		const diff_name = check(row.querySelector(".tag")).title; // Other languages?
+		const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+		if (!diff_name || !version)
+				return;
+		const notes = get_notes_count(diff_name, "Standard", version);
+		if (notes < 0)
+			return;
+		const max_score = calculate_max_score(notes);
+		const user_score = check(row.querySelector(".scoreInfo > div:last-of-type > .stat")).innerText;
+		const { score } = parse_score_bottom(user_score);
+		if (score !== undefined) {
+			const calculated_percentage = (100 * score / max_score).toFixed(2);
+			const score_row = row.querySelector(".scoreInfo > div:last-of-type");
+			score_row.insertBefore(
+				create("span", {"class": `stat acc ${score_row.classList[0]}`}, `${calculated_percentage}%`),
+				score_row.children[0]
+			);
+			//check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
+		}
+	})();
 }
