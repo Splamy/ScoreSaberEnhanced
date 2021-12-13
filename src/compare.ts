@@ -4,7 +4,7 @@ import { IDbUser } from "./declarations/Types";
 import { get_compare_user, get_current_user, get_use_new_ss_api, insert_compare_feature, is_user_page, set_compare_user, get_home_user } from "./env";
 import g from "./global";
 import * as usercache from "./usercache";
-import { create, into, IntoElem, intor } from "./util/dom";
+import { create, IntoElem, intor } from "./util/dom";
 import { check } from "./util/err";
 import { format_en, round2 } from "./util/format";
 import { logc } from "./util/log";
@@ -146,7 +146,7 @@ export function update_user_compare_songtable(other_user?: string): void {
 	}
 }
 
-async function fetch_user(user_id: string, force: boolean = false): Promise<void> {
+export async function fetch_user(user_id: string, force: boolean = false): Promise<void> {
 	let user = g.user_list[user_id];
 	if (!user) {
 		user = {

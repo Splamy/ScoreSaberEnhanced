@@ -132,7 +132,7 @@
             elem.removeChild(elem.lastChild);
         }
     }
-    function intor$1(parent, ...children) {
+    function intor(parent, ...children) {
         clear_children(parent);
         return into(parent, ...children);
     }
@@ -503,7 +503,7 @@
     }
     function update_self_user_list() {
         const home_user_list_elem = check(document.getElementById("home_user_list"));
-        intor$1(home_user_list_elem, ...Object.entries(Global.user_list).map(([id, user]) => {
+        intor(home_user_list_elem, ...Object.entries(Global.user_list).map(([id, user]) => {
             return create("a", {
                 class: Global.header_class,
                 style: {
@@ -1674,7 +1674,7 @@
         if (!contains_version) {
             const new_song_hash = data.versions[data.versions.length - 1].hash;
             const { diff_name } = shared.get();
-            intor$1(elem, create("div", {
+            intor(elem, create("div", {
                 style: { marginTop: "1em", cursor: "pointer" },
                 class: "notification is-warning",
                 onclick: async () => {
@@ -1687,10 +1687,10 @@
         }
     }
     function show_beatsaver_song_data(elem, data) {
-        intor$1(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
+        intor(elem, create("div", { title: "Downloads" }, `${data.stats.downloads} 💾`), create("div", { title: "Upvotes" }, `${data.stats.upvotes} 👍`), create("div", { title: "Downvotes" }, `${data.stats.downvotes} 👎`), create("div", { title: "Beatmap Rating" }, `${(data.stats.score * 100).toFixed(2)}% 💯`), create("div", { title: "Beatmap Duration" }, `${number_to_timespan(data.metadata.duration)} ⏱`));
     }
     function show_beastsaber_song_data(elem, data) {
-        intor$1(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
+        intor(elem, create("div", { title: "Fun Factor" }, `${data.average_ratings.fun_factor} 😃`), create("div", { title: "Rhythm" }, `${data.average_ratings.rhythm} 🎶`), create("div", { title: "Flow" }, `${data.average_ratings.flow} 🌊`), create("div", { title: "Pattern Quality" }, `${data.average_ratings.pattern_quality} 💠`), create("div", { title: "Readability" }, `${data.average_ratings.readability} 👓`), create("div", { title: "Level Quality" }, `${data.average_ratings.level_quality} ✔️`));
     }
     function generate_song_table_row(user_id, user, song) {
         return create("tr", {}, create("td", { class: "picture" }), create("td", { class: "rank" }, "-"), create("td", { class: "player" }, generate_song_table_player(user_id, user)), create("td", { class: "score" }, song.score !== undefined ? format_en(song.score, 0) : "-"), create("td", { class: "timeset" }, moment(song.time).fromNow()), create("td", { class: "mods" }, song.mods !== undefined ? song.mods.toString() : "-"), create("td", { class: "percentage" }, song.accuracy ? (song.accuracy.toString() + "%") : "-"), create("td", { class: "pp" }, create("span", { class: "scoreTop ppValue" }, format_en(song.pp)), create("span", { class: "scoreTop ppLabel" }, "pp")));
@@ -1756,6 +1756,172 @@
                 }
             }
         })();
+    }
+
+    class Limiter {
+        constructor() {
+            this.ratelimit_reset = undefined;
+            this.ratelimit_remaining = undefined;
+        }
+        async wait() {
+            const now = unix_timestamp();
+            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
+                this.ratelimit_reset = undefined;
+                this.ratelimit_remaining = undefined;
+                return;
+            }
+            if (this.ratelimit_remaining === 0) {
+                const sleepTime = (this.ratelimit_reset - now);
+                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
+                await sleep(sleepTime * 1000);
+                this.ratelimit_remaining = this.ratelimit_limit;
+                this.ratelimit_reset = undefined;
+            }
+        }
+        setLimitData(remaining, reset, limit) {
+            this.ratelimit_remaining = remaining;
+            this.ratelimit_reset = reset;
+            this.ratelimit_limit = limit;
+        }
+    }
+    async function sleep(timeout) {
+        return new Promise(resolve => setTimeout(resolve, timeout));
+    }
+    function unix_timestamp() {
+        return Math.round((new Date()).getTime() / 1000);
+    }
+
+    const SCORESABER_LINK = "https://new.scoresaber.com/api";
+    const API_LIMITER = new Limiter();
+    async function get_user_recent_songs_dynamic(user_id, page) {
+        logc(`Fetching user ${user_id} page ${page}`);
+        return get_user_recent_songs_new_api_wrap(user_id, page);
+    }
+    async function get_user_recent_songs_new_api_wrap(user_id, page) {
+        const recent_songs = await get_user_recent_songs(user_id, page);
+        if (!recent_songs) {
+            return {
+                meta: { was_last_page: true },
+                songs: []
+            };
+        }
+        return {
+            meta: {
+                was_last_page: recent_songs.scores.length < 8
+            },
+            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
+                    time: s.timeSet,
+                    pp: s.pp,
+                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
+                    score: s.score,
+                    mods: parse_mods(s.mods)
+                }])
+        };
+    }
+    async function get_user_recent_songs(user_id, page) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
+        if (req.status === 404) {
+            return null;
+        }
+        const data = await req.json();
+        return sanitize_song_ids(data);
+    }
+    async function get_user_info_basic(user_id) {
+        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
+        const data = await req.json();
+        return sanitize_player_ids(data);
+    }
+    async function auto_fetch_retry(url) {
+        const MAX_RETRIES = 20;
+        const SLEEP_WAIT = 5000;
+        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
+            await API_LIMITER.wait();
+            const response = await fetch(url);
+            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+            const reset = Number(response.headers.get("x-ratelimit-reset"));
+            const limit = Number(response.headers.get("x-ratelimit-limit"));
+            API_LIMITER.setLimitData(remaining, reset, limit);
+            if (response.status === 429) {
+                await sleep(SLEEP_WAIT);
+            }
+            else {
+                return response;
+            }
+        }
+        throw new Error("Can't fetch data from new.scoresaber.");
+    }
+    function sanitize_player_ids(data) {
+        data.playerInfo.playerId = String(data.playerInfo.playerId);
+        return data;
+    }
+    function sanitize_song_ids(data) {
+        for (const s of data.scores) {
+            s.scoreId = String(s.scoreId);
+            s.leaderboardId = String(s.leaderboardId);
+            s.playerId = String(s.playerId);
+        }
+        return data;
+    }
+
+    async function fetch_user(user_id, force = false) {
+        var _a, _b;
+        let user = Global.user_list[user_id];
+        if (!user) {
+            user = {
+                name: "User" + user_id,
+                songs: {}
+            };
+            Global.user_list[user_id] = user;
+        }
+        let page_max = undefined;
+        let user_name = user.name;
+        let updated = false;
+        SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
+        if (get_use_new_ss_api()) {
+            const user_data = await get_user_info_basic(user_id);
+            user_name = user_data.playerInfo.playerName;
+        }
+        for (let page = 1;; page++) {
+            SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
+            const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
+            const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
+            updated = updated || has_updated;
+            page_max = (_a = recent_songs.meta.max_pages) !== null && _a !== void 0 ? _a : page_max;
+            user_name = (_b = recent_songs.meta.user_name) !== null && _b !== void 0 ? _b : user_name;
+            if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
+                break;
+            }
+        }
+        user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
+        if (updated) {
+            save();
+        }
+        SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
+        SseEvent.UserCacheChanged.invoke();
+    }
+    async function fetch_all(force = false) {
+        const users = Object.keys(Global.user_list);
+        for (const user of users) {
+            await fetch_user(user, force);
+        }
+        SseEvent.StatusInfo.invoke({ text: `All users updated` });
+    }
+    function process_user_page(songs, user) {
+        let has_old_entry = false;
+        let has_updated = false;
+        for (const [song_id, song] of songs) {
+            const song_old = user.songs[song_id];
+            if (!song_old || !song_equals(song_old, song)) {
+                logc("Updated: ", song_old, song);
+                has_updated = true;
+            }
+            else {
+                logc("Old found: ", song);
+                has_old_entry = true;
+            }
+            user.songs[song_id] = song;
+        }
+        return { has_old_entry, has_updated };
     }
 
     function setup_cache_button() {
@@ -1931,172 +2097,6 @@ h5 > * {
 `;
         SSE_addStyle(style_data);
         into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
-    }
-
-    class Limiter {
-        constructor() {
-            this.ratelimit_reset = undefined;
-            this.ratelimit_remaining = undefined;
-        }
-        async wait() {
-            const now = unix_timestamp();
-            if (this.ratelimit_reset === undefined || now > this.ratelimit_reset) {
-                this.ratelimit_reset = undefined;
-                this.ratelimit_remaining = undefined;
-                return;
-            }
-            if (this.ratelimit_remaining === 0) {
-                const sleepTime = (this.ratelimit_reset - now);
-                console.log(`Waiting for cloudflare rate limiter... ${sleepTime}sec`);
-                await sleep(sleepTime * 1000);
-                this.ratelimit_remaining = this.ratelimit_limit;
-                this.ratelimit_reset = undefined;
-            }
-        }
-        setLimitData(remaining, reset, limit) {
-            this.ratelimit_remaining = remaining;
-            this.ratelimit_reset = reset;
-            this.ratelimit_limit = limit;
-        }
-    }
-    async function sleep(timeout) {
-        return new Promise(resolve => setTimeout(resolve, timeout));
-    }
-    function unix_timestamp() {
-        return Math.round((new Date()).getTime() / 1000);
-    }
-
-    const SCORESABER_LINK = "https://new.scoresaber.com/api";
-    const API_LIMITER = new Limiter();
-    async function get_user_recent_songs_dynamic(user_id, page) {
-        logc(`Fetching user ${user_id} page ${page}`);
-        return get_user_recent_songs_new_api_wrap(user_id, page);
-    }
-    async function get_user_recent_songs_new_api_wrap(user_id, page) {
-        const recent_songs = await get_user_recent_songs(user_id, page);
-        if (!recent_songs) {
-            return {
-                meta: { was_last_page: true },
-                songs: []
-            };
-        }
-        return {
-            meta: {
-                was_last_page: recent_songs.scores.length < 8
-            },
-            songs: recent_songs.scores.map(s => [String(s.leaderboardId), {
-                    time: s.timeSet,
-                    pp: s.pp,
-                    accuracy: s.maxScore !== 0 ? round2((s.unmodififiedScore / s.maxScore) * 100) : undefined,
-                    score: s.score,
-                    mods: parse_mods(s.mods)
-                }])
-        };
-    }
-    async function get_user_recent_songs(user_id, page) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/scores/recent/${page}`);
-        if (req.status === 404) {
-            return null;
-        }
-        const data = await req.json();
-        return sanitize_song_ids(data);
-    }
-    async function get_user_info_basic(user_id) {
-        const req = await auto_fetch_retry(`${SCORESABER_LINK}/player/${user_id}/basic`);
-        const data = await req.json();
-        return sanitize_player_ids(data);
-    }
-    async function auto_fetch_retry(url) {
-        const MAX_RETRIES = 20;
-        const SLEEP_WAIT = 5000;
-        for (let retries = MAX_RETRIES; retries >= 0; retries--) {
-            await API_LIMITER.wait();
-            const response = await fetch(url);
-            const remaining = Number(response.headers.get("x-ratelimit-remaining"));
-            const reset = Number(response.headers.get("x-ratelimit-reset"));
-            const limit = Number(response.headers.get("x-ratelimit-limit"));
-            API_LIMITER.setLimitData(remaining, reset, limit);
-            if (response.status === 429) {
-                await sleep(SLEEP_WAIT);
-            }
-            else {
-                return response;
-            }
-        }
-        throw new Error("Can't fetch data from new.scoresaber.");
-    }
-    function sanitize_player_ids(data) {
-        data.playerInfo.playerId = String(data.playerInfo.playerId);
-        return data;
-    }
-    function sanitize_song_ids(data) {
-        for (const s of data.scores) {
-            s.scoreId = String(s.scoreId);
-            s.leaderboardId = String(s.leaderboardId);
-            s.playerId = String(s.playerId);
-        }
-        return data;
-    }
-
-    async function fetch_user$1(user_id, force = false) {
-        var _a, _b;
-        let user = Global.user_list[user_id];
-        if (!user) {
-            user = {
-                name: "User" + user_id,
-                songs: {}
-            };
-            Global.user_list[user_id] = user;
-        }
-        let page_max = undefined;
-        let user_name = user.name;
-        let updated = false;
-        SseEvent.StatusInfo.invoke({ text: `Fetching user ${user_name}` });
-        if (get_use_new_ss_api()) {
-            const user_data = await get_user_info_basic(user_id);
-            user_name = user_data.playerInfo.playerName;
-        }
-        for (let page = 1;; page++) {
-            SseEvent.StatusInfo.invoke({ text: `Updating user ${user_name} page ${page}/${(page_max !== null && page_max !== void 0 ? page_max : "?")}` });
-            const recent_songs = await get_user_recent_songs_dynamic(user_id, page);
-            const { has_old_entry, has_updated } = process_user_page(recent_songs.songs, user);
-            updated = updated || has_updated;
-            page_max = (_a = recent_songs.meta.max_pages) !== null && _a !== void 0 ? _a : page_max;
-            user_name = (_b = recent_songs.meta.user_name) !== null && _b !== void 0 ? _b : user_name;
-            if ((!force && has_old_entry) || recent_songs.meta.was_last_page) {
-                break;
-            }
-        }
-        user.name = user_name !== null && user_name !== void 0 ? user_name : user.name;
-        if (updated) {
-            save();
-        }
-        SseEvent.StatusInfo.invoke({ text: `User ${user_name} updated` });
-        SseEvent.UserCacheChanged.invoke();
-    }
-    async function fetch_all(force = false) {
-        const users = Object.keys(Global.user_list);
-        for (const user of users) {
-            await fetch_user$1(user, force);
-        }
-        SseEvent.StatusInfo.invoke({ text: `All users updated` });
-    }
-    function process_user_page(songs, user) {
-        let has_old_entry = false;
-        let has_updated = false;
-        for (const [song_id, song] of songs) {
-            const song_old = user.songs[song_id];
-            if (!song_old || !song_equals(song_old, song)) {
-                logc("Updated: ", song_old, song);
-                has_updated = true;
-            }
-            else {
-                logc("Old found: ", song);
-                has_old_entry = true;
-            }
-            user.songs[song_id] = song;
-        }
-        return { has_old_entry, has_updated };
     }
 
     /* src/components/SettingsDialogue.svelte generated by Svelte v3.41.0 */
@@ -2934,7 +2934,7 @@ h5 > * {
             return;
         }
         const status_box = create("div", {});
-        SseEvent.StatusInfo.register((status) => intor$1(status_box, status.text));
+        SseEvent.StatusInfo.register((status) => intor(status_box, status.text));
         const set_div = create("div");
         new SettingsDialogue({ target: set_div });
         settings_modal = create_modal({

@@ -1,8 +1,9 @@
 import * as beatsaver from "../api/beatsaver";
 import SseEvent from "../components/events";
 import { BMButton, BMButtonHelp, bmvar, get_current_user, get_user_header, get_wide_table, is_user_page, Pages } from "../env";
+import { fetch_user } from "../compare";
 import g from "../global";
-import { as_fragment, create, into } from "../util/dom";
+import { as_fragment, create, into, intor } from "../util/dom";
 import { check } from "../util/err";
 import { number_invariant } from "../util/format";
 import { calculate_max_score, get_notes_count, get_song_hash_from_text, parse_score_bottom } from "../util/song";
