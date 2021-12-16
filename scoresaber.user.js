@@ -1816,19 +1816,19 @@
     async function prepare_table(table) {
         const header = table.querySelector(".header");
         for (const heading of header.children) {
-            if (heading.innerText === "Percentage") {
+            if (heading.innerText === "Accuracy") {
                 return;
             }
         }
         const columns = header.children.length;
         table.style.setProperty("--columns", `1fr 5fr repeat(${columns - 1}, 2fr)`);
-        into(header, create("div", { "class": `centered ${table.classList[1]}` }, "Percentage"));
+        into(header, create("div", { "class": `centered ${table.classList[1]}` }, "Accuracy"));
     }
     async function add_percentage$1(row) {
         if (!is_song_leaderboard_page()) {
             return;
         }
-        if (row.children.length === 6) {
+        if (row.querySelector('.accuracy')) {
             return;
         }
         const { song_hash, diff_name, game_mode } = await shared.get();

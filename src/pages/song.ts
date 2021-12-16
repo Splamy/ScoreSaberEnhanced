@@ -262,7 +262,7 @@ export async function prepare_table(table: HTMLElement): void {
 	const header = table.querySelector(".header");
 	
 	for (const heading of header.children) {
-		if (heading.innerText === "Percentage") {
+		if (heading.innerText === "Accuracy") {
 			return;
 		}
 	}
@@ -272,7 +272,7 @@ export async function prepare_table(table: HTMLElement): void {
 	into(header, create(
 		"div",
 		{"class": `centered ${table.classList[1]}`},
-		"Percentage"
+		"Accuracy"
 	));
 }
 
@@ -281,7 +281,7 @@ export async function add_percentage(row: HTMLElement): void {
 		return;
 	}
 
-	if (row.children.length === 6) {
+	if (row.querySelector('.accuracy')) {
 		return;
 	}
 
