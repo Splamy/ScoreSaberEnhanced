@@ -52,6 +52,7 @@ const observer = new MutationObserver((mutations) => {
 			
 			if (a.matches(".table-item")) {
 				page_user.add_percentage(a);
+				page_user.setup_dl_link_user_site(a);
 				page_song.add_percentage(a);
 			}
 			
@@ -65,7 +66,7 @@ const observer = new MutationObserver((mutations) => {
 	}
 	
 	/*
-	page_user.setup_dl_link_user_site();
+	
 	page_user.update_wide_table_css();
 	page_songlist.setup_links_songlist();
 	page_songlist.setup_extra_filter_checkboxes();

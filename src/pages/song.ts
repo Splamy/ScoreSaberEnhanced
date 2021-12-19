@@ -259,6 +259,8 @@ export function highlight_user(): void {
 
 // Add column for percentage if it doesn't exist
 export async function prepare_table(table: HTMLElement): void {
+	if (!is_song_leaderboard_page()) { return; }
+	
 	const header = table.querySelector(".header");
 	
 	for (const heading of header.children) {

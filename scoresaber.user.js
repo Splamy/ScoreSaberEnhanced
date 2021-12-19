@@ -168,6 +168,11 @@
         }
         return elem;
     }
+    function as_fragment(builder) {
+        const frag = document.createDocumentFragment();
+        builder(frag);
+        return frag;
+    }
 
     class Modal {
         constructor(elem) {
@@ -311,6 +316,11 @@
         Preview: { short: "👓", long: "Preview", tip: "Preview map" },
         BSR: { short: "❗", long: "BeatSaver Request", tip: "Copy !bsr" },
     };
+    function bmvar(page, button, def) {
+        return {
+            display: `var(--sse-show-${page}-${button}, ${def})`,
+        };
+    }
     function get_button_matrix() {
         const json = localStorage.getItem("sse_button_matrix");
         if (!json)
@@ -1657,7 +1667,7 @@
     	}
     }
 
-    const PAGE = "song";
+    const PAGE$1 = "song";
     class shared {
         static async get() {
             if (this._current_page === window.location.pathname) {
@@ -1729,7 +1739,7 @@
         for (const btn of BMButton) {
             new QuickButton({
                 target: tool_strip,
-                props: { song_hash, size: "large", type: btn, page: PAGE }
+                props: { song_hash, size: "large", type: btn, page: PAGE$1 }
             });
         }
         details_box.appendChild(tool_strip);
@@ -1814,6 +1824,9 @@
         }
     }
     async function prepare_table(table) {
+        if (!is_song_leaderboard_page()) {
+            return;
+        }
         const header = table.querySelector(".header");
         for (const heading of header.children) {
             if (heading.innerText === "Accuracy") {
@@ -1914,6 +1927,7 @@
         return { has_old_entry, has_updated };
     }
 
+    const PAGE = "user";
     function setup_cache_button() {
         if (!is_user_page()) {
             return;
@@ -1933,6 +1947,20 @@
         const status_elem = create("div");
         into(header, status_elem);
         SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
+    }
+    function setup_dl_link_user_site(row) {
+        if (!is_user_page()) {
+            return;
+        }
+        const image_link = check(row.querySelector(".song-container img")).src;
+        const song_hash = get_song_hash_from_text(image_link);
+        const col = row.querySelector('.scoreInfo > div:last-child');
+        for (const btn of BMButton) {
+            into(col, create("span", { class: `stat clickable ${col.classList[0]}`, style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
+                target,
+                props: { song_hash, size: "medium", type: btn }
+            }))));
+        }
     }
     function update_wide_table_css() {
         if (!is_user_page()) {
@@ -3053,6 +3081,7 @@ h5 > * {
                 }
                 if (a.matches(".table-item")) {
                     add_percentage(a);
+                    setup_dl_link_user_site(a);
                     add_percentage$1(a);
                 }
                 if (a.matches(".map-card")) {

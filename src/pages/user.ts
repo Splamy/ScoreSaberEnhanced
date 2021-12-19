@@ -39,48 +39,24 @@ export function setup_cache_button(): void {
 	SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
 }
 
-export function setup_dl_link_user_site(): void {
+export function setup_dl_link_user_site(row: HTMLElement): void {
 	if (!is_user_page()) { return; }
 
-	// find the table we want to modify
-	const table = check(document.querySelector(".ranking.songs"));
-
-	// add a new column for our links
-    /*
-	const table_tr = check(table.querySelector(".table-item"));
-	for (const btn of BMButton) {
-		into(table_tr,
-			create("div", {
-				class: "compact svelte-hij8c", // TODO: might not be static
-				style: bmvar(PAGE, btn, "table-cell"),
-				// TODO: Tooltip is currently cut off at the to due to div nesting
-				//data: { tooltip: BMButtonHelp[btn].long },
-			}, BMButtonHelp[btn].short)
-		);
-	}
-    * */
-
 	// add a link for each song
-	const table_row = table.querySelectorAll(".table-item");
-	for (const row of table_row) {
-		const image_link = check(row.querySelector<HTMLImageElement>(".song-container img")).src;
-		const song_hash = get_song_hash_from_text(image_link);
-		
-		const col = create("div", {
-			class: "svelte-hij8c"
-		});
-		into(row, col);
-		
-		for (const btn of BMButton) {
-			into(col,
-				create("span", { class: "compact", style: bmvar(PAGE, btn, "table-cell") },
-					as_fragment(target => new QuickButton({
-						target,
-						props: { song_hash, size: "medium", type: btn }
-					}))
-				)
-			);
-		}
+	const image_link = check(row.querySelector<HTMLImageElement>(".song-container img")).src;
+	const song_hash = get_song_hash_from_text(image_link);
+	
+	const col = row.querySelector('.scoreInfo > div:last-child');
+	
+	for (const btn of BMButton) {
+		into(col,
+			create("span", { class: `stat clickable ${col.classList[0]}`, style: bmvar(PAGE, btn, "table-cell") },
+				as_fragment(target => new QuickButton({
+					target,
+					props: { song_hash, size: "medium", type: btn }
+				}))
+			)
+		);
 	}
 }
 
