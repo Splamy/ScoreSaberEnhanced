@@ -63,6 +63,18 @@ const observer = new MutationObserver((mutations) => {
 				page_song.highlight_user();
 			}
 		}
+		// Svelite >:[
+		for (const r of m.removedNodes) {
+			if (!(r instanceof HTMLElement)) {
+				continue;
+			}
+			if (r.matches("a#home_user")) {
+				header.setup_self_button();
+			}
+			if (r.matches("a#settings_menu")) {
+				settings.setup();
+			}
+		}
 	}
 	
 	/*
