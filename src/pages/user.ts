@@ -46,11 +46,13 @@ export function setup_dl_link_user_site(row: HTMLElement): void {
 	const image_link = check(row.querySelector<HTMLImageElement>(".song-container img")).src;
 	const song_hash = get_song_hash_from_text(image_link);
 	
-	const col = row.querySelector('.scoreInfo > div:last-child');
+	const col = row.querySelector('.scoreInfo');
+	const div = create("div", { class: col.classList[1] });
+	into(col, div);
 	
 	for (const btn of BMButton) {
-		into(col,
-			create("span", { class: `stat clickable ${col.classList[0]}`, style: bmvar(PAGE, btn, "table-cell") },
+		into(div,
+			create("span", { class: `stat clickable ${col.classList[1]}`, style: bmvar(PAGE, btn, "table-cell") },
 				as_fragment(target => new QuickButton({
 					target,
 					props: { song_hash, size: "medium", type: btn }

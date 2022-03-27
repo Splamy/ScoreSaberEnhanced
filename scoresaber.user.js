@@ -1954,9 +1954,11 @@
         }
         const image_link = check(row.querySelector(".song-container img")).src;
         const song_hash = get_song_hash_from_text(image_link);
-        const col = row.querySelector('.scoreInfo > div:last-child');
+        const col = row.querySelector('.scoreInfo');
+        const div = create("div", { class: col.classList[1] });
+        into(col, div);
         for (const btn of BMButton) {
-            into(col, create("span", { class: `stat clickable ${col.classList[0]}`, style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
+            into(div, create("span", { class: `stat clickable ${col.classList[1]}`, style: bmvar(PAGE, btn, "table-cell") }, as_fragment(target => new QuickButton({
                 target,
                 props: { song_hash, size: "medium", type: btn }
             }))));
@@ -3088,6 +3090,17 @@ h5 > * {
                     setup_dl_link_leaderboard();
                     setup_song_filter_tabs();
                     highlight_user();
+                }
+            }
+            for (const r of m.removedNodes) {
+                if (!(r instanceof HTMLElement)) {
+                    continue;
+                }
+                if (r.matches("a#home_user")) {
+                    setup_self_button();
+                }
+                if (r.matches("a#settings_menu")) {
+                    setup();
                 }
             }
         }
