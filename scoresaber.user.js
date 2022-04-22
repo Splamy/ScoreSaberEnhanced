@@ -1996,11 +1996,11 @@
             if (notes < 0)
                 return;
             const max_score = calculate_max_score(notes);
-            const user_score = check(row.querySelector(".scoreInfo > div:last-of-type > .stat")).innerText;
+            const user_score = check(row.querySelector(".scoreInfo > div:first-of-type > .stat:first-of-type")).innerText;
             const { score } = parse_score_bottom(user_score);
             if (score !== undefined) {
                 const calculated_percentage = (100 * score / max_score).toFixed(2);
-                const score_row = row.querySelector(".scoreInfo > div:last-of-type");
+                const score_row = row.querySelector(".scoreInfo > div:first-of-type");
                 score_row.insertBefore(create("span", { "class": `stat acc ${score_row.classList[0]}` }, `${calculated_percentage}%`), score_row.children[0]);
             }
         })();
