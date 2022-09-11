@@ -25,17 +25,6 @@ Get Tampermonkey or Greasemonkey for [Chrome](https://chrome.google.com/webstore
 
 ![Pin](https://i.imgur.com/2B0GLwi.png)
 
-# Themes
-- Many themes, including various dark themes.
-
-![Themes](https://i.imgur.com/3Nso0TP.png)
-
-# Other
-- Rank number link on a user page jumps to the page where the user is
-- Rank number now links to the song leaderboard page where the user is
-![LinkFix2](https://i.imgur.com/U1quEKP.png)
-
-
 
 # Development
 
@@ -48,6 +37,13 @@ Run `yarn dev` to run the watcher which will continuously build the project.
 The generated output file is always `scoresaber.user.js`.
 
 # Changelog
+
+2.0.0-beta.0 | ?-?-?
+ - Updated basics for the new ScoreSaber website
+ - Removed Link fixer for song/user leaderboard (Now already included by ScoreSaber)
+ - Removed Themes (ScoreSaber now looks nice by default)
+ - TODO: Rework Friends Pin (or remove?)
+ - TODO: Fix everything else...
 
 1.12.0 | 2021-11-06
  - Added smol notice when a map has a newer version on BeatSaver

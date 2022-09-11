@@ -1,11 +1,7 @@
 import SseEvent from "./components/events";
 import * as modal from "./components/modal";
 import * as env from "./env";
-import g from "./global";
-import * as themes from "./themes";
 import { clear_children, create, into, intor } from "./util/dom";
-import { fetch2 } from "./util/net";
-import { SSE_addStyle } from "./util/userscript";
 import SettingsDialogue from "./components/SettingsDialogue.svelte";
 
 let notify_box: HTMLElement | undefined;
@@ -66,49 +62,6 @@ function show_settings_lazy() {
 		type: "card",
 		default: true,
 	});
-}
-
-// *** Theming ***
-
-export async function settings_set_theme(name: string): Promise<void> {
-	let css = "";
-	if (name !== "Default") {
-		css = await fetch2(
-			`https://unpkg.com/bulmaswatch/${name.toLowerCase()}/bulmaswatch.min.css`
-		);
-	}
-	localStorage.setItem("theme_name", name);
-	localStorage.setItem("theme_css", css);
-	load_theme(name, css);
-}
-
-export function load_last_theme(): void {
-	let theme_name = localStorage.getItem("theme_name");
-	let theme_css = localStorage.getItem("theme_css");
-	if (!theme_name || !theme_css) {
-		theme_name = "Default";
-		theme_css = "";
-	}
-	load_theme(theme_name, theme_css);
-}
-
-function load_theme(name: string, css: string): void {
-	let css_fin: string;
-
-	if (get_scoresaber_darkmode() || themes.dark_themes.includes(name)) {
-		css_fin = css + " " + themes.theme_dark;
-	} else {
-		css_fin = css + " " + themes.theme_light;
-	}
-	if (!g.style_themed_elem) {
-		g.style_themed_elem = SSE_addStyle(css_fin);
-	} else {
-		g.style_themed_elem.innerHTML = css_fin;
-	}
-}
-
-function get_scoresaber_darkmode(): boolean {
-	return document.cookie.includes("dark=1");
 }
 
 export function update_button_visibility(): void {

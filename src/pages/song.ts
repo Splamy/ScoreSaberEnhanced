@@ -11,6 +11,7 @@ import { calculate_max_score, get_notes_count, get_song_compare_value, get_song_
 import QuickButton from "../components/QuickButton.svelte";
 import { new_page } from "../util/net";
 import { get_scoresaber_data_by_hash } from "../api/beatsaver";
+import { IHook, PageType } from "../hooks/mod";
 
 const PAGE: Pages = "song";
 
@@ -69,13 +70,41 @@ export function setup_song_filter_tabs(): void {
 	// tab_list_content.appendChild(generate_tab("Around Me", "around_me_tab", () => {}, false, false));
 }
 
-export function setup_dl_link_leaderboard(): void {
-	if (!is_song_leaderboard_page()) { return; }
 
-	const { song_hash, details_box } = shared.get();
+class DlLinkLeaderboard implements IHook {
+	readonly page: PageType = PageType.Leaderboard;
 
-	const tool_strip = create("div", {
-		id: "leaderboard_tool_strip",
+	try_apply(): boolean {
+
+		const node = document.querySelector(".page-container .window.card-content div.content");
+		const mapHashElem = node?.querySelector("strong.text-muted");
+		const mapHash = mapHashElem?.textContent?.trim();
+
+		console.log("HOOK: DlLinkLeaderboard", node, mapHashElem, mapHash);
+
+		if (mapHash !== undefined && node != null) {
+			setup_dl_link_leaderboard(mapHash, node);
+			return true;
+		}
+
+		return false;
+	}
+
+	cleanup(): void {
+		document.getElementById(tool_strip_id)?.remove();
+	}
+}
+
+export const dl_link_leaderboard: IHook = new DlLinkLeaderboard();
+
+const tool_strip_id = "leaderboard_tool_strip";
+export function setup_dl_link_leaderboard(song_hash: string, details_box: HTMLElement): void {
+
+	let tool_strip = document.getElementById(tool_strip_id);
+	if (tool_strip) return;
+
+	tool_strip = create("div", {
+		id: tool_strip_id,
 		style: {
 			marginTop: "1em"
 		}

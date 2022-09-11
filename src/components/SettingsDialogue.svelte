@@ -3,19 +3,12 @@
 	import * as compare from "../compare";
 	import * as env from "../env";
 	import * as modal from "./modal";
-	import { settings_set_theme, update_button_visibility } from "../settings";
-	import { dark_themes, themes } from "../themes";
+	import { update_button_visibility } from "../settings";
 	import SseEvent from "./events";
 	import type { PageButtons } from "../env";
 	import QuickButton from "./QuickButton.svelte";
 	import { update_wide_table_css } from "../pages/user";
 	import { logc } from "../util/log";
-
-	let current_theme = localStorage.getItem("theme_name") ?? "Default";
-
-	function onChangeTheme(this: HTMLSelectElement) {
-		settings_set_theme(this.value);
-	}
 
 	function onChangeWideTable(this: HTMLInputElement) {
 		env.set_wide_table(this.checked);
@@ -116,21 +109,6 @@
 </script>
 
 <div>
-	<div class="field">
-		<label class="label">Theme</label>
-		<div class="control">
-			<div class="select">
-				<select bind:value={current_theme} on:change={onChangeTheme}>
-					{#each themes as name}
-						<option value={name} selected={name === current_theme}>
-							{name}{dark_themes.includes(name) ? " (Dark)" : ""}
-						</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-	</div>
-
 	<div class="field">
 		<label class="label">Song Table Options</label>
 	</div>

@@ -6,20 +6,8 @@
 	text-align: center !important;
 }
 
-h5 > * {
-	margin-right: 0.3em;
-}
-
 .wide_song_table {
 	max-width: unset !important;
-}
-
-#leaderboard_tool_strip > * {
-	margin-right: 0.5em;
-}
-
-.offset_tab {
-	margin-left: auto;
 }
 
 .beatsaver_bg {
@@ -90,27 +78,4 @@ h5 > * {
 	background-size: 100% 200%;
 	background-position:top;
 	animation: fill_anim 3s cubic-bezier(.23,1,.32,1) forwards;
-}
-
-/* Fix weird tab list offset */
-
-.content li {
-	margin-top: 0;
-}
-
-/* Fix bulma+scoresable dark color */
-/* Theme CSS will be appended and can therefore
- * conveniently overwrite those rules.
- * This makes them effectively useful for the default
- * Light/Dark Themes of ScoreSaber */
-
-.navbar-dropdown, .modal-card-head, .modal-card-foot {
-	color: var(--textColor, black);
-	background-color: var(--background, white);
-	border-color: var(--foreground, #dbdbdb);
-}
-
-.box, .modal-card-body {
-	color: var(--textColor, black);
-	background-color: var(--background, white);
 }
