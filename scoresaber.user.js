@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ScoreSaberEnhanced
-// @version      1.12.0
+// @version      2.0.0-alpha.0
 // @description  Adds links to beatsaver, player comparison and various other improvements
 // @author       Splamy, TheAsuro
 // @namespace    https://scoresaber.com
@@ -944,19 +944,22 @@
         if (!node)
             return document;
         const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
-        if (root.host) {
+        if (root && root.host) {
             return root;
         }
-        return document;
+        return node.ownerDocument;
     }
     function append_stylesheet(node, style) {
         append(node.head || node, style);
+        return style.sheet;
     }
     function insert(target, node, anchor) {
         target.insertBefore(node, anchor || null);
     }
     function detach(node) {
-        node.parentNode.removeChild(node);
+        if (node.parentNode) {
+            node.parentNode.removeChild(node);
+        }
     }
     function destroy_each(iterations, detaching) {
         for (let i = 0; i < iterations.length; i += 1) {
@@ -994,6 +997,7 @@
                 return;
             }
         }
+        select.selectedIndex = -1; // no option should be selected
     }
     function select_value(select) {
         const selected_option = select.querySelector(':checked') || select.options[0];
@@ -1023,22 +1027,54 @@
     function add_render_callback(fn) {
         render_callbacks.push(fn);
     }
-    let flushing = false;
+    // flush() calls callbacks in this order:
+    // 1. All beforeUpdate callbacks, in order: parents before children
+    // 2. All bind:this callbacks, in reverse order: children before parents.
+    // 3. All afterUpdate callbacks, in order: parents before children. EXCEPT
+    //    for afterUpdates called during the initial onMount, which are called in
+    //    reverse order: children before parents.
+    // Since callbacks might update component values, which could trigger another
+    // call to flush(), the following steps guard against this:
+    // 1. During beforeUpdate, any updated components will be added to the
+    //    dirty_components array and will cause a reentrant call to flush(). Because
+    //    the flush index is kept outside the function, the reentrant call will pick
+    //    up where the earlier call left off and go through all dirty components. The
+    //    current_component value is saved and restored so that the reentrant call will
+    //    not interfere with the "parent" flush() call.
+    // 2. bind:this callbacks cannot trigger new flush() calls.
+    // 3. During afterUpdate, any updated components will NOT have their afterUpdate
+    //    callback called a second time; the seen_callbacks set, outside the flush()
+    //    function, guarantees this behavior.
     const seen_callbacks = new Set();
+    let flushidx = 0; // Do *not* move this inside the flush() function
     function flush() {
-        if (flushing)
+        // Do not reenter flush while dirty components are updated, as this can
+        // result in an infinite loop. Instead, let the inner flush handle it.
+        // Reentrancy is ok afterwards for bindings etc.
+        if (flushidx !== 0) {
             return;
-        flushing = true;
+        }
+        const saved_component = current_component;
         do {
             // first, call beforeUpdate functions
             // and update components
-            for (let i = 0; i < dirty_components.length; i += 1) {
-                const component = dirty_components[i];
-                set_current_component(component);
-                update(component.$$);
+            try {
+                while (flushidx < dirty_components.length) {
+                    const component = dirty_components[flushidx];
+                    flushidx++;
+                    set_current_component(component);
+                    update(component.$$);
+                }
+            }
+            catch (e) {
+                // reset dirty state to not end up in a deadlocked state and then rethrow
+                dirty_components.length = 0;
+                flushidx = 0;
+                throw e;
             }
             set_current_component(null);
             dirty_components.length = 0;
+            flushidx = 0;
             while (binding_callbacks.length)
                 binding_callbacks.pop()();
             // then, once components are updated, call
@@ -1058,8 +1094,8 @@
             flush_callbacks.pop()();
         }
         update_scheduled = false;
-        flushing = false;
         seen_callbacks.clear();
+        set_current_component(saved_component);
     }
     function update($$) {
         if ($$.fragment !== null) {
@@ -1107,19 +1143,25 @@
             });
             block.o(local);
         }
+        else if (callback) {
+            callback();
+        }
     }
     function create_component(block) {
         block && block.c();
     }
     function mount_component(component, target, anchor, customElement) {
-        const { fragment, on_mount, on_destroy, after_update } = component.$$;
+        const { fragment, after_update } = component.$$;
         fragment && fragment.m(target, anchor);
         if (!customElement) {
             // onMount happens before the initial afterUpdate
             add_render_callback(() => {
-                const new_on_destroy = on_mount.map(run).filter(is_function);
-                if (on_destroy) {
-                    on_destroy.push(...new_on_destroy);
+                const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+                // if the component was destroyed immediately
+                // it will update the `$$.on_destroy` reference to `null`.
+                // the destructured on_destroy may still reference to the old array
+                if (component.$$.on_destroy) {
+                    component.$$.on_destroy.push(...new_on_destroy);
                 }
                 else {
                     // Edge case - component was destroyed immediately,
@@ -1155,7 +1197,7 @@
         set_current_component(component);
         const $$ = component.$$ = {
             fragment: null,
-            ctx: null,
+            ctx: [],
             // state
             props,
             update: noop,
@@ -1167,7 +1209,7 @@
             on_disconnect: [],
             before_update: [],
             after_update: [],
-            context: new Map(parent_component ? parent_component.$$.context : options.context || []),
+            context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
             // everything else
             callbacks: blank_object(),
             dirty,
@@ -1220,6 +1262,9 @@
             this.$destroy = noop;
         }
         $on(type, callback) {
+            if (!is_function(callback)) {
+                return noop;
+            }
             const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
             callbacks.push(callback);
             return () => {
@@ -1237,13 +1282,13 @@
         }
     }
 
-    /* src/components/QuickButton.svelte generated by Svelte v3.41.0 */
+    /* src\components\QuickButton.svelte generated by Svelte v3.55.1 */
 
     function add_css(target) {
     	append_styles(target, "svelte-sm24eh", "div.svelte-sm24eh{padding:0;cursor:pointer;z-index:10}div.svelte-sm24eh:disabled{cursor:default}.bsaber_bg.svelte-sm24eh{background-image:url(\"https://bsaber.com/wp-content/themes/beastsaber-wp-theme/assets/img/avater-callback.png\");background-size:cover;background-repeat:no-repeat;background-position:center;width:100%;height:100%;border-radius:inherit}.dummy.svelte-sm24eh{position:absolute;top:0px;left:-100000px}");
     }
 
-    // (128:26) 
+    // (113:26) 
     function create_if_block_5(ctx) {
     	let i;
     	let t;
@@ -1273,7 +1318,7 @@
     	};
     }
 
-    // (126:30) 
+    // (111:30) 
     function create_if_block_4(ctx) {
     	let i;
 
@@ -1292,7 +1337,7 @@
     	};
     }
 
-    // (124:32) 
+    // (109:32) 
     function create_if_block_3(ctx) {
     	let i;
 
@@ -1311,7 +1356,7 @@
     	};
     }
 
-    // (122:28) 
+    // (107:28) 
     function create_if_block_2(ctx) {
     	let div;
 
@@ -1330,7 +1375,7 @@
     	};
     }
 
-    // (120:25) 
+    // (105:25) 
     function create_if_block_1(ctx) {
     	let i;
 
@@ -1349,7 +1394,7 @@
     	};
     }
 
-    // (118:1) {#if type === "BS"}
+    // (103:1) {#if type === "BS"}
     function create_if_block(ctx) {
     	let div;
 
@@ -1458,45 +1503,6 @@
     function instance$1($$self, $$props, $$invalidate) {
     	let disabled;
     	let display;
-
-    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
-    		function adopt(value) {
-    			return value instanceof P
-    			? value
-    			: new P(function (resolve) {
-    						resolve(value);
-    					});
-    		}
-
-    		return new (P || (P = Promise))(function (resolve, reject) {
-    				function fulfilled(value) {
-    					try {
-    						step(generator.next(value));
-    					} catch(e) {
-    						reject(e);
-    					}
-    				}
-
-    				function rejected(value) {
-    					try {
-    						step(generator["throw"](value));
-    					} catch(e) {
-    						reject(e);
-    					}
-    				}
-
-    				function step(result) {
-    					result.done
-    					? resolve(result.value)
-    					: adopt(result.value).then(fulfilled, rejected);
-    				}
-
-    				step((generator = generator.apply(thisArg, _arguments || [])).next());
-    			});
-    	};
-
-    	
-    	
     	let { song_hash = undefined } = $$props;
     	let { type } = $$props;
     	let { size } = $$props;
@@ -1507,24 +1513,22 @@
     	let color;
     	let tooltip;
 
-    	function checked_hash_to_song_info(song_hash) {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			reset_download_visual();
+    	async function checked_hash_to_song_info(song_hash) {
+    		reset_download_visual();
 
-    			if (song_hash === undefined) {
-    				failed_to_download();
-    				throw new Error("song_hash is undefined");
-    			}
+    		if (song_hash === undefined) {
+    			failed_to_download();
+    			throw new Error("song_hash is undefined");
+    		}
 
-    			const song_info = yield get_data_by_hash(song_hash);
+    		const song_info = await get_data_by_hash(song_hash);
 
-    			if (song_info === undefined) {
-    				failed_to_download();
-    				throw new Error("song_info is undefined");
-    			}
+    		if (song_info === undefined) {
+    			failed_to_download();
+    			throw new Error("song_info is undefined");
+    		}
 
-    			return song_info;
-    		});
+    		return song_info;
     	}
 
     	function reset_download_visual() {
@@ -1540,36 +1544,34 @@
     		button.classList.add("button_success");
     	}
 
-    	function onclick() {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			if (preview) return;
+    	async function onclick() {
+    		if (preview) return;
 
-    			try {
-    				const song_info = yield checked_hash_to_song_info(song_hash);
+    		try {
+    			const song_info = await checked_hash_to_song_info(song_hash);
 
-    				if (type === "BS") {
-    					new_page(Global.beatsaver_link + song_info.id);
-    				} else if (type === "OC") {
-    					yield oneclick_install(song_info.id);
-    					ok_after_download();
-    				} else if (type === "Beast") {
-    					new_page(Global.bsaber_songs_link + song_info.id);
-    				} else if (type === "BeastBook") {
-    					new_page(Global.bsaber_songs_link + song_info.id);
-    				} else if (type === "Preview") {
-    					new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.id);
-    				} else if (type === "BSR") {
-    					$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.id}`, txtDummyNode);
-    					txtDummyNode.select();
-    					txtDummyNode.setSelectionRange(0, 99999);
-    					document.execCommand("copy");
-    					ok_after_download();
-    				}
-    			} catch(err) {
-    				console.log("Failed QuickAction", song_hash, err);
-    				failed_to_download();
+    			if (type === "BS") {
+    				new_page(Global.beatsaver_link + song_info.id);
+    			} else if (type === "OC") {
+    				await oneclick_install(song_info.id);
+    				ok_after_download();
+    			} else if (type === "Beast") {
+    				new_page(Global.bsaber_songs_link + song_info.id);
+    			} else if (type === "BeastBook") {
+    				new_page(Global.bsaber_songs_link + song_info.id);
+    			} else if (type === "Preview") {
+    				new_page("https://skystudioapps.com/bs-viewer/?id=" + song_info.id);
+    			} else if (type === "BSR") {
+    				$$invalidate(4, txtDummyNode.value = `!bsr ${song_info.id}`, txtDummyNode);
+    				txtDummyNode.select();
+    				txtDummyNode.setSelectionRange(0, 99999);
+    				document.execCommand("copy");
+    				ok_after_download();
     			}
-    		});
+    		} catch(err) {
+    			console.log("Failed QuickAction", song_hash, err);
+    			failed_to_download();
+    		}
     	}
 
     	function input_binding($$value) {
@@ -2153,41 +2155,40 @@ h5 > * {
         into(document.head, create("link", { rel: "stylesheet", href: "https://cdn.jsdelivr.net/npm/bulma-checkradio/dist/css/bulma-checkradio.min.css" }));
     }
 
-    /* src/components/SettingsDialogue.svelte generated by Svelte v3.41.0 */
+    /* src\components\SettingsDialogue.svelte generated by Svelte v3.55.1 */
 
     function get_each_context(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[16] = list[i];
+    	child_ctx[15] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_1(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[19] = list[i];
+    	child_ctx[18] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_2(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[19] = list[i];
+    	child_ctx[18] = list[i];
     	return child_ctx;
     }
 
     function get_each_context_3(ctx, list, i) {
     	const child_ctx = ctx.slice();
-    	child_ctx[24] = list[i];
+    	child_ctx[23] = list[i];
     	return child_ctx;
     }
 
-    // (122:5) {#each themes as name}
+    // (104:5) {#each themes as name}
     function create_each_block_3(ctx) {
     	let option;
-    	let t0_value = /*name*/ ctx[24] + "";
+    	let t0_value = /*name*/ ctx[23] + "";
     	let t0;
-    	let t1_value = (dark_themes.includes(/*name*/ ctx[24]) ? " (Dark)" : "") + "";
+    	let t1_value = (dark_themes.includes(/*name*/ ctx[23]) ? " (Dark)" : "") + "";
     	let t1;
     	let t2;
-    	let option_value_value;
     	let option_selected_value;
 
     	return {
@@ -2196,9 +2197,9 @@ h5 > * {
     			t0 = text(t0_value);
     			t1 = text(t1_value);
     			t2 = space();
-    			option.__value = option_value_value = /*name*/ ctx[24];
+    			option.__value = /*name*/ ctx[23];
     			option.value = option.__value;
-    			option.selected = option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0];
+    			option.selected = option_selected_value = /*name*/ ctx[23] === /*current_theme*/ ctx[0];
     		},
     		m(target, anchor) {
     			insert(target, option, anchor);
@@ -2207,7 +2208,7 @@ h5 > * {
     			append(option, t2);
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*current_theme, themes*/ 1 && option_selected_value !== (option_selected_value = /*name*/ ctx[24] === /*current_theme*/ ctx[0])) {
+    			if (dirty & /*current_theme, themes*/ 1 && option_selected_value !== (option_selected_value = /*name*/ ctx[23] === /*current_theme*/ ctx[0])) {
     				option.selected = option_selected_value;
     			}
     		},
@@ -2217,7 +2218,7 @@ h5 > * {
     	};
     }
 
-    // (154:3) {#each env.BMButton as button}
+    // (136:3) {#each env.BMButton as button}
     function create_each_block_2(ctx) {
     	let th;
     	let quickbutton;
@@ -2228,7 +2229,7 @@ h5 > * {
     			props: {
     				size: "medium",
     				song_hash: undefined,
-    				type: /*button*/ ctx[19],
+    				type: /*button*/ ctx[18],
     				preview: true
     			}
     		});
@@ -2262,7 +2263,7 @@ h5 > * {
     	};
     }
 
-    // (168:4) {#each env.BMButton as button}
+    // (150:4) {#each env.BMButton as button}
     function create_each_block_1(ctx) {
     	let td;
     	let input;
@@ -2278,12 +2279,12 @@ h5 > * {
     			input = element("input");
     			t = space();
     			label = element("label");
-    			attr(input, "id", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
+    			attr(input, "id", "show-" + /*page*/ ctx[15] + "-" + /*button*/ ctx[18]);
     			attr(input, "type", "checkbox");
     			attr(input, "class", "is-checkradio");
-    			attr(input, "data-key", "" + (/*page*/ ctx[16] + "-" + /*button*/ ctx[19]));
-    			input.checked = input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`];
-    			attr(label, "for", "show-" + /*page*/ ctx[16] + "-" + /*button*/ ctx[19]);
+    			attr(input, "data-key", "" + (/*page*/ ctx[15] + "-" + /*button*/ ctx[18]));
+    			input.checked = input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[15]}-${/*button*/ ctx[18]}`];
+    			attr(label, "for", "show-" + /*page*/ ctx[15] + "-" + /*button*/ ctx[18]);
     		},
     		m(target, anchor) {
     			insert(target, td, anchor);
@@ -2297,7 +2298,7 @@ h5 > * {
     			}
     		},
     		p(ctx, dirty) {
-    			if (dirty & /*bm*/ 4 && input_checked_value !== (input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[16]}-${/*button*/ ctx[19]}`])) {
+    			if (dirty & /*bm*/ 4 && input_checked_value !== (input_checked_value = /*bm*/ ctx[2][`${/*page*/ ctx[15]}-${/*button*/ ctx[18]}`])) {
     				input.checked = input_checked_value;
     			}
     		},
@@ -2309,11 +2310,11 @@ h5 > * {
     	};
     }
 
-    // (165:2) {#each env.BMPage as page}
+    // (147:2) {#each env.BMPage as page}
     function create_each_block(ctx) {
     	let tr;
     	let td;
-    	let t0_value = /*page*/ ctx[16] + "";
+    	let t0_value = /*page*/ ctx[15] + "";
     	let t0;
     	let t1;
     	let t2;
@@ -2741,7 +2742,7 @@ h5 > * {
     				each_blocks.length = each_value.length;
     			}
 
-    			if (dirty & /*isBeastSaberSyncing*/ 2) {
+    			if (!current || dirty & /*isBeastSaberSyncing*/ 2) {
     				toggle_class(i1, "fa-spin", /*isBeastSaberSyncing*/ ctx[1]);
     			}
     		},
@@ -2775,44 +2776,7 @@ h5 > * {
     }
 
     function instance($$self, $$props, $$invalidate) {
-    	var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
-    		function adopt(value) {
-    			return value instanceof P
-    			? value
-    			: new P(function (resolve) {
-    						resolve(value);
-    					});
-    		}
-
-    		return new (P || (P = Promise))(function (resolve, reject) {
-    				function fulfilled(value) {
-    					try {
-    						step(generator.next(value));
-    					} catch(e) {
-    						reject(e);
-    					}
-    				}
-
-    				function rejected(value) {
-    					try {
-    						step(generator["throw"](value));
-    					} catch(e) {
-    						reject(e);
-    					}
-    				}
-
-    				function step(result) {
-    					result.done
-    					? resolve(result.value)
-    					: adopt(result.value).then(fulfilled, rejected);
-    				}
-
-    				step((generator = generator.apply(thisArg, _arguments || [])).next());
-    			});
-    	};
-
     	var _a;
-    	
 
     	let current_theme = (_a = localStorage.getItem("theme_name")) !== null && _a !== void 0
     	? _a
@@ -2831,26 +2795,22 @@ h5 > * {
     		set_use_new_ss_api(this.checked);
     	}
 
-    	function updateAllUser() {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			yield fetch_all();
-    		});
+    	async function updateAllUser() {
+    		await fetch_all();
     	}
 
-    	function forceUpdateAllUser() {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			const resp = yield show_modal({
-    				text: "Warning: This might take a long time, depending " + "on how many users you have in your library list and " + "how many songs they have on ScoreSaber.\n" + "Use this only when all pp is fucked again.\n" + "And have mercy on the ScoreSaber servers.",
-    				buttons: {
-    					ok: { text: "Continue", class: "is-success" },
-    					x: { text: "Cancel", class: "is-danger" }
-    				}
-    			});
-
-    			if (resp === "ok") {
-    				yield fetch_all(true);
+    	async function forceUpdateAllUser() {
+    		const resp = await show_modal({
+    			text: "Warning: This might take a long time, depending " + "on how many users you have in your library list and " + "how many songs they have on ScoreSaber.\n" + "Use this only when all pp is fucked again.\n" + "And have mercy on the ScoreSaber servers.",
+    			buttons: {
+    				ok: { text: "Continue", class: "is-success" },
+    				x: { text: "Cancel", class: "is-danger" }
     			}
     		});
+
+    		if (resp === "ok") {
+    			await fetch_all(true);
+    		}
     	}
 
     	function onChangeBeastSaber() {
@@ -2860,41 +2820,37 @@ h5 > * {
 
     	let isBeastSaberSyncing = false;
 
-    	function beastSaberSync() {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			const bsaber_username = get_bsaber_username();
+    	async function beastSaberSync() {
+    		const bsaber_username = get_bsaber_username();
 
-    			if (!bsaber_username) {
-    				yield show_modal({
-    					text: "Please enter a username first.",
-    					buttons: buttons.OkOnly
-    				});
+    		if (!bsaber_username) {
+    			await show_modal({
+    				text: "Please enter a username first.",
+    				buttons: buttons.OkOnly
+    			});
 
-    				return;
-    			}
+    			return;
+    		}
 
-    			$$invalidate(1, isBeastSaberSyncing = true);
-    			yield update_bsaber_bookmark_cache(bsaber_username);
-    			$$invalidate(1, isBeastSaberSyncing = false);
-    		});
+    		$$invalidate(1, isBeastSaberSyncing = true);
+    		await update_bsaber_bookmark_cache(bsaber_username);
+    		$$invalidate(1, isBeastSaberSyncing = false);
     	}
 
-    	function update_bsaber_bookmark_cache(username) {
-    		return __awaiter(this, void 0, void 0, function* () {
-    			for (let page = 1; ; page++) {
-    				SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
-    				const bookmarks = yield get_bookmarks(username, page, 50);
-    				if (!bookmarks) break;
-    				process_bookmarks(bookmarks.songs);
+    	async function update_bsaber_bookmark_cache(username) {
+    		for (let page = 1; ; page++) {
+    			SseEvent.StatusInfo.invoke({ text: `Loading BeastSaber page ${page}` });
+    			const bookmarks = await get_bookmarks(username, page, 50);
+    			if (!bookmarks) break;
+    			process_bookmarks(bookmarks.songs);
 
-    				if (bookmarks.next_page === null) {
-    					break;
-    				}
+    			if (bookmarks.next_page === null) {
+    				break;
     			}
+    		}
 
-    			SseEvent.StatusInfo.invoke({
-    				text: "Finished loading BeastSaber bookmarks"
-    			});
+    		SseEvent.StatusInfo.invoke({
+    			text: "Finished loading BeastSaber bookmarks"
     		});
     	}
 
