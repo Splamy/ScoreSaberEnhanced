@@ -132,6 +132,7 @@
 	div {
 		padding: 0;
 		cursor: pointer;
+        z-index: 10;
 	}
 	div:disabled {
 		cursor: default;

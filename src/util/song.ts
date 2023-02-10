@@ -120,17 +120,17 @@ export function parse_mods(mods: string): string[] | undefined {
 
 export function parse_score_bottom(text: string): { score?: number, accuracy?: number, mods?: string[] } {
 	let score = undefined;
-	let accuracy = undefined;
-	let mods = undefined;
-	const score_res = check(g.score_reg.exec(text));
-	if (score_res[1] === "score") {
-		score = number_invariant(score_res[2]);
-	} else if (score_res[1] === "accuracy") {
-		accuracy = Number(score_res[2]);
-	}
-	if (score_res[4]) {
-		mods = parse_mods(score_res[4]);
-	}
+	const accuracy = undefined;
+	const mods = undefined;
+//	const score_res = check(g.score_reg.exec(text));
+//	if (score_res[1] === "score") {
+		score = number_invariant(text);
+//	} else if (score_res[1] === "accuracy") {
+//		accuracy = Number(score_res[2]);
+//	}
+//	if (score_res[4]) {
+//		mods = parse_mods(score_res[4]);
+//	}
 	return { score, accuracy, mods };
 }
 

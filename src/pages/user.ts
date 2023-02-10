@@ -1,7 +1,9 @@
 import * as beatsaver from "../api/beatsaver";
-import { BMButton, BMButtonHelp, bmvar, get_wide_table, is_user_page, Pages } from "../env";
+import SseEvent from "../components/events";
+import { BMButton, BMButtonHelp, bmvar, get_current_user, get_user_header, get_wide_table, is_user_page, Pages } from "../env";
+import { fetch_user } from "../compare";
 import g from "../global";
-import { as_fragment, create, into } from "../util/dom";
+import { as_fragment, create, into, intor } from "../util/dom";
 import { check } from "../util/err";
 import { number_invariant } from "../util/format";
 import { calculate_max_score, get_notes_count, get_song_hash_from_text, parse_score_bottom } from "../util/song";
@@ -9,41 +11,54 @@ import QuickButton from "../components/QuickButton.svelte";
 
 const PAGE: Pages = "user";
 
-export function setup_dl_link_user_site(): void {
+export function setup_cache_button(): void {
 	if (!is_user_page()) { return; }
 
-	// find the table we want to modify
-	const table = check(document.querySelector("table.ranking.songs"));
+	// find the element we want to modify
 
-	// add a new column for our links
-	const table_tr = check(table.querySelector("thead tr"));
-	for (const btn of BMButton) {
-		into(table_tr,
-			create("th", {
-				class: "compact",
-				style: bmvar(PAGE, btn, "table-cell"),
-				// TODO: Tooltip is currently cut off at the to due to div nesting
-				//data: { tooltip: BMButtonHelp[btn].long },
-			}, BMButtonHelp[btn].short)
-		);
-	}
+	const header = get_user_header();
+	header.style.display = "flex";
+	header.style.alignItems = "center";
+
+	const user = get_current_user();
+	into(header,
+		create("div", {
+			class: "button icon is-medium",
+			style: { cursor: "pointer" },
+			data: { tooltip: g.user_list[user.id] ? "Update score cache" : "Add user to your score cache" },
+			async onclick() {
+				await fetch_user(get_current_user().id);
+			},
+		},
+			create("i", { class: ["fas", g.user_list[user.id] ? "fa-sync" : "fa-bookmark"] }),
+		)
+	);
+
+	const status_elem = create("div");
+	into(header, status_elem);
+	SseEvent.StatusInfo.register((status) => intor(status_elem, status.text));
+}
+
+export function setup_dl_link_user_site(row: HTMLElement): void {
+	if (!is_user_page()) { return; }
 
 	// add a link for each song
-	const table_row = table.querySelectorAll("tbody tr");
-	for (const row of table_row) {
-		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
-		const song_hash = get_song_hash_from_text(image_link);
-
-		for (const btn of BMButton) {
-			into(row,
-				create("th", { class: "compact", style: bmvar(PAGE, btn, "table-cell") },
-					as_fragment(target => new QuickButton({
-						target,
-						props: { song_hash, size: "medium", type: btn }
-					}))
-				)
-			);
-		}
+	const image_link = check(row.querySelector<HTMLImageElement>(".song-container img")).src;
+	const song_hash = get_song_hash_from_text(image_link);
+	
+	const col = row.querySelector('.scoreInfo');
+	const div = create("div", { class: col.classList[1] });
+	into(col, div);
+	
+	for (const btn of BMButton) {
+		into(div,
+			create("span", { class: `stat clickable ${col.classList[1]}`, style: bmvar(PAGE, btn, "table-cell") },
+				as_fragment(target => new QuickButton({
+					target,
+					props: { song_hash, size: "medium", type: btn }
+				}))
+			)
+		);
 	}
 }
 
@@ -52,92 +67,48 @@ export function setup_dl_link_user_site(): void {
 export function update_wide_table_css(): void {
 	if (!is_user_page()) { return; }
 
-	const table = check(document.querySelector("table.ranking.songs"));
+	const table = check(document.querySelector(".ranking.songs"));
 	table.classList.toggle("wide_song_table", get_wide_table());
 }
 
 // ** Link util **
 
-export function setup_user_rank_link_swap(): void {
+export function add_percentage(row: HTMLElement): void {
 	if (!is_user_page()) { return; }
 
-	const elem_ranking_links = document.querySelectorAll<HTMLAnchorElement>(".content div.columns ul > li > a");
-	console.assert(elem_ranking_links.length >= 2, elem_ranking_links);
-	// Global rank
-	const elem_global = elem_ranking_links[0];
-	const res_global = check(g.leaderboard_rank_reg.exec(elem_global.innerText));
-	const rank_global = number_invariant(res_global[1]);
-	elem_global.href = g.scoresaber_link + "/global/" + rank_to_page(rank_global, g.user_per_page_global_leaderboard);
-	// Country rank
-	const elem_country = elem_ranking_links[1];
-	const res_country = check(g.leaderboard_rank_reg.exec(elem_country.innerText));
-	const country_str = check(g.leaderboard_country_reg.exec(elem_country.href));
-	const number_country = number_invariant(res_country[1]);
-	elem_country.href = g.scoresaber_link +
-		"/global/" + rank_to_page(number_country, g.user_per_page_global_leaderboard) +
-		"?country=" + country_str[2];
-}
+	const image_link = check(row.querySelector<HTMLImageElement>("img.song-image")).src;
+	const song_hash = get_song_hash_from_text(image_link);
 
-export function setup_song_rank_link_swap(): void {
-	if (!is_user_page()) { return; }
-
-	const song_elems = document.querySelectorAll("table.ranking.songs tbody tr");
-	for (const row of song_elems) {
-		const rank_elem = check(row.querySelector(".rank"));
-		// there's only one link, so 'a' will find it.
-		const leaderboard_link = check(row.querySelector<HTMLAnchorElement>("th.song a")).href;
-		const rank = number_invariant(rank_elem.innerText.slice(1));
-		const rank_str = rank_elem.innerText;
-		rank_elem.innerHTML = "";
-		into(rank_elem,
-			create("a", {
-				href: `${leaderboard_link}?page=${rank_to_page(rank, g.user_per_page_song_leaderboard)}`
-			}, rank_str)
-		);
+	if (!song_hash) {
+		return;
 	}
-}
 
-function rank_to_page(rank: number, ranks_per_page: number): number {
-	return Math.max(Math.floor((rank + ranks_per_page - 1) / ranks_per_page), 1);
-}
+	const score_column = row.querySelector(".stat.acc");
+	// skip rows with percentage from ScoreSaber
+	if (score_column) { return; }
 
-export function add_percentage(): void {
-	if (!is_user_page()) { return; }
-
-	// find the table we want to modify
-	const table = check(document.querySelector("table.ranking.songs"));
-	const table_row = table.querySelectorAll("tbody tr");
-	for (const row of table_row) {
-		const image_link = check(row.querySelector<HTMLImageElement>("th.song img")).src;
-		const song_hash = get_song_hash_from_text(image_link);
-
-		if (!song_hash) {
+	(async () => {
+		const data = await beatsaver.get_data_by_hash(song_hash);
+		if (!data)
 			return;
+		const diff_name = check(row.querySelector(".tag")).title; // Other languages?
+		const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
+		if (!diff_name || !version)
+				return;
+		const notes = get_notes_count(diff_name, "Standard", version);
+		if (notes < 0)
+			return;
+		const max_score = calculate_max_score(notes);
+		const user_score = check(row.querySelector(".scoreInfo > div:first-of-type > .stat:first-of-type")).innerText;
+		const { score } = parse_score_bottom(user_score);
+		if (score !== undefined) {
+			const calculated_percentage = (100 * score / max_score).toFixed(2);
+			const score_row = row.querySelector(".scoreInfo > div:first-of-type");
+			score_row.insertBefore(
+				create("span", {"class": `stat acc ${score_row.classList[0]}`}, `${calculated_percentage}%`),
+				score_row.children[0]
+			);
+			//check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
 		}
-
-		const score_column = check(row.querySelector(`th.score`));
-		// skip rows with percentage from ScoreSaber
-		if (!score_column.innerText || score_column.innerText.includes("%")) { continue; }
-
-		(async () => {
-			const data = await beatsaver.get_data_by_hash(song_hash);
-			if (!data)
-				return;
-			const song_column = check(row.querySelector(`th.song`));
-			const diff_name = check(song_column.querySelector(`span > span`)).innerText;
-			const version = data.versions.find((v) => v.hash === song_hash.toLowerCase());
-			if (!diff_name || !version)
-					return;
-			const notes = get_notes_count(diff_name, "Standard", version);
-			if (notes < 0)
-				return;
-			const max_score = calculate_max_score(notes);
-			const user_score = check(score_column.querySelector(".scoreBottom")).innerText;
-			const { score } = parse_score_bottom(user_score);
-			if (score !== undefined) {
-				const calculated_percentage = (100 * score / max_score).toFixed(2);
-				check(score_column.querySelector(".ppWeightedValue")).innerHTML = `(${calculated_percentage}%)`;
-			}
-		})();
-	}
+	})();
 }

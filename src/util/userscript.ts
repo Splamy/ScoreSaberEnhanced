@@ -49,7 +49,7 @@ function GM_addStyle_custom(css: string): HTMLStyleElement {
 export async function load_chart_lib(): Promise<boolean> {
 	if (typeof Chart !== "function") {
 		try {
-			const resp = await fetch("https://scoresaber.com/imports/js/chart.js");
+			const resp = await fetch("https://old.scoresaber.com/imports/js/chart.js");
 			const js = await resp.text();
 			new Function(js)();
 		} catch (err) {
