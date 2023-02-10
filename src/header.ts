@@ -25,24 +25,37 @@ export function setup_self_pin_button(): void {
 }
 
 export function setup_self_button(): void {
+	let _a, _d, _a_hover = false, _d_hover = false;
 	const home_user = get_home_user() ?? { name: "<Pins>", id: "0" };
-
-	into(get_navbar(),
-		create("div", { class: "navbar-item has-dropdown is-hoverable" },
-			create("a", {
-				id: "home_user",
-				class: "navbar-item",
-				href: g.scoresaber_link + "/u/" + home_user.id
-			}, home_user.name),
-			create("div", {
-				id: "home_user_list",
-				class: "navbar-dropdown"
-			})
-		)
-	);
-
+	into(get_navbar(), _a = create("a", {
+		id: "home_user",
+		class: g.header_class,
+		href: g.scoresaber_link + "/u/" + home_user.id
+	}, home_user.name, _d = create("div", {
+		id: "home_user_list",
+		class: "userMenu " + g.header_class,
+		style: {
+			width: "initial"
+		}
+	})));
+	const _hide = () => (!_a_hover && !_d_hover) ? _d.classList.remove("visible") :0;
+	_a.addEventListener("mouseenter", () => {
+		_a_hover = true;
+		_d.classList.add("visible");
+	});
+	_d.addEventListener("mouseenter", () => {
+		_d_hover = true;
+		_d.classList.add("visible");
+	});
+	_a.addEventListener("mouseleave", () => {
+		_a_hover = false;
+		setTimeout(_hide, 200);
+	})
+	_d.addEventListener("mouseleave", () => {
+		_d_hover = false;
+		setTimeout(_hide, 200);
+	})
 	update_self_user_list();
-
 	SseEvent.UserCacheChanged.register(update_self_user_list);
 	SseEvent.PinnedUserChanged.register(update_self_button);
 }
@@ -62,7 +75,7 @@ function update_self_user_list(): void {
 	intor(home_user_list_elem,
 		...Object.entries(g.user_list).map(([id, user]) => {
 			return create("a", {
-				class: "navbar-item",
+				class: g.header_class,
 				style: {
 					paddingRight: "1em",
 					flexWrap: "nowrap",

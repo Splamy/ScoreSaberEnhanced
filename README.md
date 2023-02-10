@@ -39,6 +39,7 @@ The generated output file is always `scoresaber.user.js`.
 # Changelog
 
 2.0.0-beta.0 | ?-?-?
+ - Merged Rework for new ScoreSaber Website from [@ChrisJAllan](https://github.com/ChrisJAllan)
  - Updated basics for the new ScoreSaber website
  - Removed Link fixer for song/user leaderboard (Now already included by ScoreSaber)
  - Removed Themes (ScoreSaber now looks nice by default)

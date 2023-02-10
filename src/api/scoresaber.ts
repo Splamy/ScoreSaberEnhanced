@@ -12,11 +12,12 @@ const API_LIMITER = new Limiter();
 
 export async function get_user_recent_songs_dynamic(user_id: string, page: number): Promise<IUserPageData> {
 	logc(`Fetching user ${user_id} page ${page}`);
-	if (get_use_new_ss_api()) {
-		return get_user_recent_songs_new_api_wrap(user_id, page);
-	} else {
-		return get_user_recent_songs_old_api_wrap(user_id, page);
-	}
+	return get_user_recent_songs_new_api_wrap(user_id, page);
+}
+
+export async function get_leaderboard_info(leaderboard_id: string) {
+	const req = await auto_fetch_retry(`https://scoresaber.com/api/leaderboard/by-id/${leaderboard_id}/info`);
+	return await req.json();
 }
 
 // NEW API ====================================================================
