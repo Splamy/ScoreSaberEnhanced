@@ -49,6 +49,9 @@ The generated output file is always `scoresaber.user.js`.
 
 # Changelog
 
+2.0.0-alpha.0 | 2023-02-10
+ - Merged Rework for new ScoreSaber Website from [@ChrisJAllan](https://github.com/ChrisJAllan)
+
 1.12.0 | 2021-11-06
  - Added smol notice when a map has a newer version on BeatSaver
 
